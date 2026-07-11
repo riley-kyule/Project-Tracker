@@ -80,4 +80,9 @@ class Task extends Model
     {
         return $this->morphMany(AuditLog::class, 'auditable')->latest('created_at');
     }
+
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
 }

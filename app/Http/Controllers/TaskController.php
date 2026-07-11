@@ -7,6 +7,8 @@ use App\Http\Requests\Tasks\UpdateTaskRequest;
 use App\Models\Board;
 use App\Models\BoardColumn;
 use App\Models\Task;
+use App\Models\User;
+use App\Notifications\TaskAssigned;
 use App\Services\AuditLogger;
 use App\Services\TaskMover;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +27,7 @@ class TaskController extends Controller
             ->where('board_id', $board->id)
             ->findOrFail($request->validated('board_column_id'));
 
-        DB::transaction(function () use ($request, $board, $column) {
+        $task = DB::transaction(function () use ($request, $board, $column) {
             $task = Task::create([
                 ...$request->validated(),
                 'board_id' => $board->id,
@@ -37,7 +39,11 @@ class TaskController extends Controller
             $task->forceFill(['task_number' => $task->id])->save();
 
             AuditLogger::log($task, 'created', [], ['title' => $task->title]);
+
+            return $task;
         });
+
+        $this->notifyAssignee($task, null, $request->user());
 
         return back();
     }
@@ -51,6 +57,8 @@ class TaskController extends Controller
         if ($request->has('ceo_priority') && $request->user()->hasAnyRole(['CEO', 'Administrator'])) {
             $validated['ceo_priority'] = $request->boolean('ceo_priority');
         }
+
+        $previousAssignee = $task->primary_assignee_id;
 
         DB::transaction(function () use ($request, $task, $validated) {
             $old = $task->only(array_keys($validated));
@@ -69,6 +77,8 @@ class TaskController extends Controller
                 AuditLogger::log($task, 'updated', array_intersect_key($old, $changes), $changes);
             }
         });
+
+        $this->notifyAssignee($task->refresh(), $previousAssignee, $request->user());
 
         return back();
     }
@@ -98,5 +108,30 @@ class TaskController extends Controller
         return response()->json(
             $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
         );
+    }
+
+    public function detail(Request $request, Task $task): JsonResponse
+    {
+        Gate::authorize('view', $task);
+
+        return response()->json([
+            'comments' => $task->comments()
+                ->whereNull('parent_id')
+                ->with(['user:id,name', 'replies.user:id,name'])
+                ->oldest()
+                ->get(),
+            'activity' => $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
+        ]);
+    }
+
+    private function notifyAssignee(Task $task, ?int $previousAssigneeId, User $actor): void
+    {
+        if ($task->primary_assignee_id === null
+            || $task->primary_assignee_id === $previousAssigneeId
+            || $task->primary_assignee_id === $actor->id) {
+            return;
+        }
+
+        $task->assignee?->notify(new TaskAssigned($task, $actor));
     }
 }
