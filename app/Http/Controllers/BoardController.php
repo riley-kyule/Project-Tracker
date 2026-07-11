@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\Boards\BoardRequest;
+use App\Models\Board;
+use App\Models\Department;
+use App\Models\Label;
+use App\Models\Task;
+use App\Models\User;
+use App\Services\AuditLogger;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class BoardController extends Controller
+{
+    /** Default workflow from the PRD; admins can reshape per board later. */
+    public const DEFAULT_COLUMNS = [
+        ['name' => 'Ideas', 'semantic_status' => 'idea'],
+        ['name' => 'Backlog', 'semantic_status' => 'backlog'],
+        ['name' => 'Ready', 'semantic_status' => 'ready'],
+        ['name' => 'In Progress', 'semantic_status' => 'active'],
+        ['name' => 'Blocked', 'semantic_status' => 'blocked'],
+        ['name' => 'Awaiting Review', 'semantic_status' => 'review'],
+        ['name' => 'Completed', 'semantic_status' => 'completed', 'is_completion_column' => true],
+        ['name' => 'Archived', 'semantic_status' => 'archived', 'is_archive_column' => true],
+    ];
+
+    public function index(Request $request): Response
+    {
+        $boards = Board::query()
+            ->with('department:id,name')
+            ->withCount('tasks')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Board $board) => $request->user()->can('view', $board))
+            ->values();
+
+        return Inertia::render('boards/index', [
+            'boards' => $boards,
+            'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
+            'canCreate' => $request->user()->can('create', Board::class),
+        ]);
+    }
+
+    public function show(Request $request, Board $board): Response
+    {
+        Gate::authorize('view', $board);
+
+        $board->load([
+            'department:id,name',
+            'columns',
+            'columns.tasks' => fn ($query) => $query
+                ->with(['assignee:id,name', 'labels:id,name,color'])
+                ->whereNull('archived_at'),
+        ]);
+
+        return Inertia::render('boards/show', [
+            'board' => $board,
+            'members' => User::query()
+                ->where('status', User::STATUS_ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'labels' => Label::query()->orderBy('name')->get(),
+            'can' => [
+                'manage' => $request->user()->can('manage', $board),
+                'createTask' => $request->user()->can('create', [Task::class, $board]),
+                'flagCeoPriority' => $request->user()->hasAnyRole(['CEO', 'Administrator']),
+            ],
+        ]);
+    }
+
+    public function store(BoardRequest $request): RedirectResponse
+    {
+        Gate::authorize('create', Board::class);
+
+        $board = DB::transaction(function () use ($request) {
+            $board = Board::create([
+                ...$request->validated(),
+                'created_by' => $request->user()->id,
+            ]);
+
+            foreach (self::DEFAULT_COLUMNS as $index => $column) {
+                $board->columns()->create([
+                    ...$column,
+                    'slug' => str($column['name'])->slug(),
+                    'position' => $index + 1,
+                ]);
+            }
+
+            AuditLogger::log($board, 'created', [], $request->validated());
+
+            return $board;
+        });
+
+        return redirect()->route('boards.show', $board);
+    }
+
+    public function update(BoardRequest $request, Board $board): RedirectResponse
+    {
+        Gate::authorize('update', $board);
+
+        $old = $board->only(array_keys($request->validated()));
+        $board->update($request->validated());
+        AuditLogger::log($board, 'updated', $old, $request->validated());
+
+        return back();
+    }
+}
