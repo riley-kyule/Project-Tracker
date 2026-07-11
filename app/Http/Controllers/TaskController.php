@@ -120,6 +120,8 @@ class TaskController extends Controller
                 ->with(['user:id,name', 'replies.user:id,name'])
                 ->oldest()
                 ->get(),
+            'checklists' => $task->checklists()->with('items')->get(),
+            'attachments' => $task->attachments()->with('uploader:id,name')->latest()->get(),
             'activity' => $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
         ]);
     }

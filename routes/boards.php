@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BoardController;
+use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TaskController;
@@ -20,6 +22,16 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+
+    Route::post('tasks/{task}/checklists', [ChecklistController::class, 'store'])->name('checklists.store');
+    Route::delete('checklists/{checklist}', [ChecklistController::class, 'destroy'])->name('checklists.destroy');
+    Route::post('checklists/{checklist}/items', [ChecklistController::class, 'storeItem'])->name('checklist-items.store');
+    Route::patch('checklist-items/{item}', [ChecklistController::class, 'updateItem'])->name('checklist-items.update');
+    Route::delete('checklist-items/{item}', [ChecklistController::class, 'destroyItem'])->name('checklist-items.destroy');
+
+    Route::post('tasks/{task}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
+    Route::get('attachments/{attachment}', [AttachmentController::class, 'download'])->name('attachments.download');
+    Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
