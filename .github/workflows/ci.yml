@@ -36,8 +36,8 @@ jobs:
           fi
           echo "All relative markdown links resolve."
 
-  backend:
-    name: Backend (Pint + Pest on PostgreSQL)
+  app:
+    name: App (PHP + frontend checks on PostgreSQL)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -90,27 +90,14 @@ jobs:
         run: |
           npm ci
           npm run build
+      # Type check needs vendor/ present: tsconfig aliases ziggy-js to vendor/tightenco/ziggy
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Lint (ESLint)
+        run: npx eslint resources/js
+      - name: Format check (Prettier)
+        run: npm run format:check
       - name: Code style (Pint)
         run: vendor/bin/pint --test
       - name: Tests (Pest)
         run: php artisan test
-
-  frontend:
-    name: Frontend (types, lint, format, build)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Type check
-        run: npx tsc --noEmit
-      - name: Lint
-        run: npx eslint resources/js
-      - name: Format check
-        run: npm run format:check
-      - name: Build
-        run: npm run build
