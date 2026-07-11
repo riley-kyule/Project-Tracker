@@ -1,0 +1,70 @@
+<?php
+
+namespace Tests\Feature\Admin;
+
+use App\Models\Department;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class DepartmentManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_guests_are_redirected_to_login()
+    {
+        $this->get('/admin/departments')->assertRedirect('/login');
+    }
+
+    public function test_employees_can_view_departments_but_cannot_create()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+
+        $this->actingAs($user)->get('/admin/departments')->assertOk();
+
+        $this->actingAs($user)
+            ->post('/admin/departments', ['name' => 'Skunkworks'])
+            ->assertForbidden();
+    }
+
+    public function test_administrators_can_create_a_department()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+
+        $this->actingAs($admin)
+            ->post('/admin/departments', [
+                'name' => 'Skunkworks',
+                'description' => 'Special projects',
+                'is_active' => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('departments', ['name' => 'Skunkworks', 'slug' => 'skunkworks']);
+    }
+
+    public function test_administrators_can_update_a_department()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $department = Department::query()->where('slug', 'seo')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->patch("/admin/departments/{$department->id}", [
+                'name' => 'Search Engine Optimization',
+                'is_active' => false,
+            ])
+            ->assertRedirect();
+
+        $department->refresh();
+        $this->assertSame('Search Engine Optimization', $department->name);
+        $this->assertFalse($department->is_active);
+    }
+
+    public function test_duplicate_department_names_are_rejected()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+
+        $this->actingAs($admin)
+            ->post('/admin/departments', ['name' => 'SEO'])
+            ->assertSessionHasErrors('name');
+    }
+}

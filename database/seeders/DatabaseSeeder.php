@@ -3,21 +3,33 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            RoleSeeder::class,
+            DepartmentSeeder::class,
         ]);
+
+        // Local development accounts only; production accounts are created
+        // via users:import or the admin UI.
+        if (app()->environment('local')) {
+            User::factory()
+                ->create([
+                    'name' => 'Local Admin',
+                    'email' => 'admin@ewms.test',
+                ])
+                ->assignRole('Administrator');
+
+            User::factory()
+                ->create([
+                    'name' => 'Local Employee',
+                    'email' => 'employee@ewms.test',
+                ])
+                ->assignRole('Employee');
+        }
     }
 }

@@ -50,7 +50,19 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Same generic error as bad credentials: don't reveal account state.
+        if (! Auth::user()->isActive()) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
+
+        Auth::user()->forceFill(['last_login_at' => now()])->save();
     }
 
     /**
