@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  docs:
+    name: Docs link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify relative markdown links resolve
+        run: |
+          set -uo pipefail
+          status=0
+          while IFS= read -r file; do
+            dir=$(dirname "$file")
+            # Extract relative link targets: [text](target), skipping http(s) and pure anchors.
+            # `|| true` because grep exits 1 on files containing no links.
+            while IFS= read -r target; do
+              [ -z "$target" ] && continue
+              case "$target" in
+                http://*|https://*|mailto:*) continue ;;
+              esac
+              if [ ! -e "$dir/$target" ]; then
+                echo "::error file=$file::broken link -> $target"
+                status=1
+              fi
+            done < <(grep -oE '\]\([^)#]+' "$file" | sed 's/](//' || true)
+          done < <(find . -name '*.md' -not -path './vendor/*' -not -path './node_modules/*')
+          if [ "$status" -ne 0 ]; then
+            echo "Broken relative links found."
+            exit 1
+          fi
+          echo "All relative markdown links resolve."
+
+  # ── Added at Milestone 0 when the Laravel app is scaffolded ──────────────
+  #
+  # backend:
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     postgres: { image: postgres:16, ... }
+  #     redis:    { image: redis:7, ... }
+  #   steps: composer install, pint --test, phpstan, pest
+  #
+  # frontend:
+  #   runs-on: ubuntu-latest
+  #   steps: npm ci, tsc --noEmit, eslint, vitest
+  #
+  # e2e (on main / release branches):
+  #   steps: playwright install --with-deps, playwright test
