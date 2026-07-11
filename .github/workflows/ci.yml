@@ -36,18 +36,81 @@ jobs:
           fi
           echo "All relative markdown links resolve."
 
-  # ── Added at Milestone 0 when the Laravel app is scaffolded ──────────────
-  #
-  # backend:
-  #   runs-on: ubuntu-latest
-  #   services:
-  #     postgres: { image: postgres:16, ... }
-  #     redis:    { image: redis:7, ... }
-  #   steps: composer install, pint --test, phpstan, pest
-  #
-  # frontend:
-  #   runs-on: ubuntu-latest
-  #   steps: npm ci, tsc --noEmit, eslint, vitest
-  #
-  # e2e (on main / release branches):
-  #   steps: playwright install --with-deps, playwright test
+  backend:
+    name: Backend (Pint + Pest on PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: ewms_test
+          POSTGRES_USER: ewms
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ewms"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: ewms_test
+      DB_USERNAME: ewms
+      DB_PASSWORD: secret
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: '6379'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_pgsql, pgsql, redis
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+      - name: Build frontend assets (required by Inertia page tests)
+        run: |
+          npm ci
+          npm run build
+      - name: Code style (Pint)
+        run: vendor/bin/pint --test
+      - name: Tests (Pest)
+        run: php artisan test
+
+  frontend:
+    name: Frontend (types, lint, format, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint resources/js
+      - name: Format check
+        run: npm run format:check
+      - name: Build
+        run: npm run build

@@ -14,27 +14,41 @@ CLAUDE.local.md
 Thumbs.db
 
 # IDE
-.idea/
-.vscode/
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+.phpactor.json
 *.swp
 
-# Laravel (Milestone 0+)
+# Laravel
 /vendor/
-/node_modules/
-/public/build/
+/bootstrap/ssr
+/public/build
 /public/hot
 /public/storage
 /storage/*.key
+/storage/pail
 .env
+.env.backup
+.env.production
 .env.*
 !.env.example
 auth.json
 .phpunit.result.cache
+/.phpunit.cache
+Homestead.json
+Homestead.yaml
 
 # Frontend
+/node_modules
 /dist/
 npm-debug.log*
 yarn-error.log
+
+# Local database artifacts
+database/database.sqlite
 
 # Test artifacts
 /coverage/
