@@ -1,3 +1,4 @@
+import { TaskCollaboration } from '@/components/board/task-collaboration';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -9,7 +10,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useForm } from '@inertiajs/react';
 import { Calendar, Star } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 export type Member = { id: number; name: string };
 export type LabelOption = { id: number; name: string; color: string };
@@ -30,15 +30,6 @@ export type BoardTask = {
     position: number;
     assignee: Member | null;
     labels: LabelOption[];
-};
-
-type Activity = {
-    id: number;
-    event: string;
-    actor: Member | null;
-    old_values: Record<string, unknown> | null;
-    new_values: Record<string, unknown> | null;
-    created_at: string;
 };
 
 const priorityStyles: Record<BoardTask['priority'], string> = {
@@ -124,7 +115,6 @@ export function TaskDialog({
     can: Can;
     onClose: () => void;
 }) {
-    const [activity, setActivity] = useState<Activity[]>([]);
     const { data, setData, patch, processing, errors, transform } = useForm({
         title: task.title,
         description: task.description ?? '',
@@ -135,13 +125,6 @@ export function TaskDialog({
         ceo_priority: task.ceo_priority,
         label_ids: task.labels.map((label) => label.id),
     });
-
-    useEffect(() => {
-        fetch(`/tasks/${task.id}/activity`, { headers: { Accept: 'application/json' } })
-            .then((response) => (response.ok ? response.json() : []))
-            .then(setActivity)
-            .catch(() => setActivity([]));
-    }, [task.id]);
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -269,17 +252,7 @@ export function TaskDialog({
                     </Button>
                 </form>
                 <div className="border-t pt-4">
-                    <h3 className="mb-2 text-sm font-semibold">Activity</h3>
-                    <ul className="space-y-2">
-                        {activity.map((entry) => (
-                            <li key={entry.id} className="text-muted-foreground text-xs">
-                                <span className="text-foreground font-medium">{entry.actor?.name ?? 'System'}</span> {entry.event}
-                                {' · '}
-                                {new Date(entry.created_at).toLocaleString()}
-                            </li>
-                        ))}
-                        {activity.length === 0 && <li className="text-muted-foreground text-xs">No activity recorded yet.</li>}
-                    </ul>
+                    <TaskCollaboration taskId={task.id} members={members} />
                 </div>
             </DialogContent>
         </Dialog>
