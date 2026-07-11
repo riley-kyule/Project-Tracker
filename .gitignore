@@ -4,6 +4,11 @@
 /*.md
 !/README.md
 
+# Claude Code files — local only, never published
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
