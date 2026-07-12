@@ -78,6 +78,18 @@ class User extends Authenticatable
         return $this->hasMany(User::class, 'manager_id');
     }
 
+    public function assignedOpenTasks(): HasMany
+    {
+        return $this->hasMany(Task::class, 'primary_assignee_id')
+            ->whereNull('completed_at')
+            ->whereNull('archived_at');
+    }
+
+    public function assignedOverdueTasks(): HasMany
+    {
+        return $this->assignedOpenTasks()->where('due_at', '<', now());
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;

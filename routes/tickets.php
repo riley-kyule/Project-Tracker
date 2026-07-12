@@ -2,11 +2,15 @@
 
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboards/it', [DashboardController::class, 'it'])->name('dashboards.it');
+    Route::get('dashboards/ceo', [DashboardController::class, 'ceo'])->name('dashboards.ceo');
+    Route::get('dashboards/department', [DashboardController::class, 'department'])->name('dashboards.department');
+    Route::get('reports/tasks', [ReportController::class, 'tasks'])->name('reports.tasks');
 
     Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');
     Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
