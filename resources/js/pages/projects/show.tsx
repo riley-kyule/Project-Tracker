@@ -159,9 +159,7 @@ export default function ProjectShow({
                                     </Badge>
                                 ) : (
                                     task.due_at && (
-                                        <span className="text-muted-foreground ml-auto text-xs">
-                                            {new Date(task.due_at).toLocaleDateString()}
-                                        </span>
+                                        <span className="text-muted-foreground ml-auto text-xs">{new Date(task.due_at).toLocaleDateString()}</span>
                                     )
                                 )}
                             </li>

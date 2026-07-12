@@ -37,7 +37,17 @@ class Task extends Model
         'metadata',
         'recurrence_rule_id',
         'previous_recurrence_task_id',
+        'approval_status',
+        'approver_id',
+        'approved_at',
+        'approval_note',
     ];
+
+    public const APPROVAL_PENDING = 'pending';
+
+    public const APPROVAL_APPROVED = 'approved';
+
+    public const APPROVAL_REJECTED = 'rejected';
 
     protected function casts(): array
     {
@@ -48,6 +58,7 @@ class Task extends Model
             'completed_at' => 'datetime',
             'archived_at' => 'datetime',
             'metadata' => 'array',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -164,5 +175,10 @@ class Task extends Model
             ->sum('duration_seconds');
 
         $this->forceFill(['actual_minutes' => intdiv($seconds, 60)])->save();
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approver_id');
     }
 }

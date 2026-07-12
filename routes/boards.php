@@ -6,6 +6,7 @@ use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RecurrenceRuleController;
+use App\Http\Controllers\TaskApprovalController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskDependencyController;
 use App\Http\Controllers\TimeEntryController;
@@ -32,6 +33,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('tasks/{task}/time-entries', [TimeEntryController::class, 'storeManual'])->name('time-entries.store');
     Route::post('time-entries/{entry}/approve', [TimeEntryController::class, 'approve'])->name('time-entries.approve');
     Route::post('time-entries/{entry}/reject', [TimeEntryController::class, 'reject'])->name('time-entries.reject');
+
+    Route::post('tasks/{task}/request-approval', [TaskApprovalController::class, 'request'])->name('task-approvals.request');
+    Route::post('tasks/{task}/approve-review', [TaskApprovalController::class, 'approve'])->name('task-approvals.approve');
+    Route::post('tasks/{task}/reject-review', [TaskApprovalController::class, 'reject'])->name('task-approvals.reject');
 
     Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');

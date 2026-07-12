@@ -80,6 +80,12 @@ type TimeEntryNode = {
     approved_by: Member | null;
 };
 
+type ApprovalNode = {
+    status: 'pending' | 'approved' | 'rejected' | null;
+    approver: Member | null;
+    note: string | null;
+};
+
 type Detail = {
     comments: CommentNode[];
     checklists: ChecklistNode[];
@@ -92,6 +98,8 @@ type Detail = {
     canApproveTime: boolean;
     estimatedMinutes: number | null;
     actualMinutes: number;
+    approval: ApprovalNode;
+    canReviewApproval: boolean;
     activity: ActivityNode[];
 };
 
@@ -107,6 +115,8 @@ const emptyDetail: Detail = {
     canApproveTime: false,
     estimatedMinutes: null,
     actualMinutes: 0,
+    approval: { status: null, approver: null, note: null },
+    canReviewApproval: false,
     activity: [],
 };
 
@@ -162,6 +172,9 @@ export function TaskCollaboration({
     const [manualMinutes, setManualMinutes] = useState(30);
     const [manualLocation, setManualLocation] = useState('unspecified');
     const [manualReason, setManualReason] = useState('');
+    const [reviewerId, setReviewerId] = useState(NO_DEPENDENCY);
+    const [showRejectForm, setShowRejectForm] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
     const fileInput = useRef<HTMLInputElement>(null);
 
     const reload = useCallback(() => {
@@ -324,10 +337,7 @@ export function TaskCollaboration({
                         <SelectContent>
                             <SelectItem value={NO_DEPENDENCY}>Choose a task…</SelectItem>
                             {boardTasks
-                                .filter(
-                                    (candidate) =>
-                                        candidate.id !== taskId && !detail.dependencies.some((d) => d.predecessor.id === candidate.id),
-                                )
+                                .filter((candidate) => candidate.id !== taskId && !detail.dependencies.some((d) => d.predecessor.id === candidate.id))
                                 .map((candidate) => (
                                     <SelectItem key={candidate.id} value={candidate.id.toString()}>
                                         T-{candidate.task_number} {candidate.title}
@@ -407,9 +417,7 @@ export function TaskCollaboration({
                                 type="button"
                                 size="sm"
                                 variant="secondary"
-                                onClick={() =>
-                                    post(`/tasks/${taskId}/recurrence`, { frequency: newFrequency, interval_value: newInterval })
-                                }
+                                onClick={() => post(`/tasks/${taskId}/recurrence`, { frequency: newFrequency, interval_value: newInterval })}
                             >
                                 Make recurring
                             </Button>
@@ -417,6 +425,112 @@ export function TaskCollaboration({
                     )}
                 </section>
             )}
+
+            {/* Approval */}
+            <section>
+                <h3 className="mb-2 text-sm font-semibold">Approval</h3>
+                {detail.approval.status === null && (
+                    <div className="flex flex-wrap gap-2">
+                        <Select value={reviewerId} onValueChange={setReviewerId}>
+                            <SelectTrigger className="h-8 w-48 text-sm">
+                                <SelectValue placeholder="Choose a reviewer…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {members.map((member) => (
+                                    <SelectItem key={member.id} value={member.id.toString()}>
+                                        {member.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            disabled={reviewerId === NO_DEPENDENCY}
+                            onClick={() =>
+                                post(`/tasks/${taskId}/request-approval`, { reviewer_id: Number(reviewerId) }, () => setReviewerId(NO_DEPENDENCY))
+                            }
+                        >
+                            Request approval
+                        </Button>
+                    </div>
+                )}
+                {detail.approval.status === 'pending' && (
+                    <div>
+                        <p className="text-sm">
+                            Awaiting approval from <span className="font-medium">{detail.approval.approver?.name}</span>
+                        </p>
+                        {detail.canReviewApproval && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <Button type="button" size="sm" onClick={() => post(`/tasks/${taskId}/approve-review`, {})}>
+                                    Approve
+                                </Button>
+                                <Button type="button" size="sm" variant="destructive" onClick={() => setShowRejectForm((current) => !current)}>
+                                    Send back
+                                </Button>
+                            </div>
+                        )}
+                        {showRejectForm && (
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    post(`/tasks/${taskId}/reject-review`, { reason: rejectReason }, () => {
+                                        setRejectReason('');
+                                        setShowRejectForm(false);
+                                    });
+                                }}
+                                className="mt-2 flex gap-2"
+                            >
+                                <Input
+                                    placeholder="What needs to change?"
+                                    value={rejectReason}
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                    required
+                                    className="h-8 flex-1 text-sm"
+                                />
+                                <Button type="submit" size="sm" variant="destructive">
+                                    Confirm
+                                </Button>
+                            </form>
+                        )}
+                    </div>
+                )}
+                {detail.approval.status === 'approved' && (
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400">Approved by {detail.approval.approver?.name}.</p>
+                )}
+                {detail.approval.status === 'rejected' && (
+                    <div>
+                        <p className="text-destructive text-sm">
+                            Sent back by {detail.approval.approver?.name}: {detail.approval.note}
+                        </p>
+                        <Select value={reviewerId} onValueChange={setReviewerId}>
+                            <SelectTrigger className="mt-2 h-8 w-48 text-sm">
+                                <SelectValue placeholder="Re-request from…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {members.map((member) => (
+                                    <SelectItem key={member.id} value={member.id.toString()}>
+                                        {member.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="mt-2 ml-2"
+                            disabled={reviewerId === NO_DEPENDENCY}
+                            onClick={() =>
+                                post(`/tasks/${taskId}/request-approval`, { reviewer_id: Number(reviewerId) }, () => setReviewerId(NO_DEPENDENCY))
+                            }
+                        >
+                            Re-request approval
+                        </Button>
+                    </div>
+                )}
+            </section>
 
             {/* Time tracking */}
             <section>
@@ -495,7 +609,7 @@ export function TaskCollaboration({
                                 },
                             );
                         }}
-                        className="mt-2 space-y-2 rounded-lg border border-sidebar-border/70 p-3 dark:border-sidebar-border"
+                        className="border-sidebar-border/70 dark:border-sidebar-border mt-2 space-y-2 rounded-lg border p-3"
                     >
                         <div className="flex gap-2">
                             <Input

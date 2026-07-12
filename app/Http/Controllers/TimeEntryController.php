@@ -37,7 +37,7 @@ class TimeEntryController extends Controller
 
         $entry->update([
             'ended_at' => now(),
-            'duration_seconds' => $entry->started_at->diffInSeconds(now()),
+            'duration_seconds' => (int) $entry->started_at->diffInSeconds(now()),
         ]);
 
         $entry->trackable?->recalculateActualMinutes();

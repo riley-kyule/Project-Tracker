@@ -185,6 +185,7 @@ export default function BoardShow({
     const [activeTask, setActiveTask] = useState<BoardTask | null>(null);
     const [openTask, setOpenTask] = useState<BoardTask | null>(null);
     const [blockedMove, setBlockedMove] = useState<BlockedMove | null>(null);
+    const [approvalBlockedMessage, setApprovalBlockedMessage] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [assigneeFilter, setAssigneeFilter] = useState(ALL);
     const [priorityFilter, setPriorityFilter] = useState(ALL);
@@ -283,6 +284,8 @@ export default function BoardShow({
                 onError: (errors) => {
                     if (errors.dependencies) {
                         setBlockedMove({ taskId: activeId, columnId: column.id, position, message: errors.dependencies });
+                    } else if (errors.approval) {
+                        setApprovalBlockedMessage(errors.approval);
                     }
                     // Local optimistic state may now disagree with the server; resync.
                     router.reload({ only: ['board'] });
@@ -376,6 +379,16 @@ export default function BoardShow({
                 />
             )}
             {blockedMove && <DependencyOverrideDialog move={blockedMove} onClose={() => setBlockedMove(null)} />}
+            {approvalBlockedMessage && (
+                <Dialog open onOpenChange={(open) => !open && setApprovalBlockedMessage(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Task is awaiting approval</DialogTitle>
+                        </DialogHeader>
+                        <p className="text-muted-foreground text-sm">{approvalBlockedMessage}</p>
+                    </DialogContent>
+                </Dialog>
+            )}
         </AppLayout>
     );
 }

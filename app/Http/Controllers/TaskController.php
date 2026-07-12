@@ -104,6 +104,12 @@ class TaskController extends Controller
             $this->guardDependencies($request, $task, $validated['override_reason'] ?? null);
         }
 
+        if ($column->is_completion_column && $task->approval_status === Task::APPROVAL_PENDING) {
+            throw ValidationException::withMessages([
+                'approval' => 'This task is awaiting reviewer approval before it can be completed.',
+            ]);
+        }
+
         TaskMover::move($task, $column, $validated['position']);
 
         return back();
@@ -175,6 +181,12 @@ class TaskController extends Controller
             'canApproveTime' => $request->user()->can('approveTimeEntry', $task),
             'estimatedMinutes' => $task->estimated_minutes,
             'actualMinutes' => $task->actual_minutes,
+            'approval' => [
+                'status' => $task->approval_status,
+                'approver' => $task->approver()->first(['users.id', 'users.name']),
+                'note' => $task->approval_note,
+            ],
+            'canReviewApproval' => $request->user()->can('reviewApproval', $task),
             'activity' => $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
         ]);
     }

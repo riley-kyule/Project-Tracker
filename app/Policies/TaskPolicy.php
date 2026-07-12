@@ -71,4 +71,10 @@ class TaskPolicy
     {
         return $this->manageRecurrence($user, $task);
     }
+
+    /** The assigned reviewer decides; managers/admins can always step in. */
+    public function reviewApproval(User $user, Task $task): bool
+    {
+        return $task->approver_id === $user->id || $this->manageRecurrence($user, $task);
+    }
 }

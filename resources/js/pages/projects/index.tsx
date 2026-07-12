@@ -157,9 +157,7 @@ export default function ProjectsIndex({
                             >
                                 <div className="flex items-center gap-2">
                                     <span className="font-medium">{project.name}</span>
-                                    {(project.health_status !== 'on_track' || overdue) && (
-                                        <AlertTriangle className="size-4 text-amber-500" />
-                                    )}
+                                    {(project.health_status !== 'on_track' || overdue) && <AlertTriangle className="size-4 text-amber-500" />}
                                 </div>
                                 <div className="text-muted-foreground mt-1 text-sm">
                                     {project.department?.name ?? 'Company-wide'} · {project.owner.name} · {project.tasks_count} tasks
