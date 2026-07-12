@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Attachment;
 use App\Models\Task;
+use App\Models\Ticket;
 use App\Services\AuditLogger;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -22,6 +24,43 @@ class AttachmentController extends Controller
     {
         Gate::authorize('view', $task);
 
+        return $this->attach($request, $task, 'tasks');
+    }
+
+    public function storeForTicket(Request $request, Ticket $ticket): RedirectResponse
+    {
+        Gate::authorize('view', $ticket);
+
+        return $this->attach($request, $ticket, 'tickets');
+    }
+
+    /** File access inherits the parent record's authorization (PERMISSIONS_MATRIX). */
+    public function download(Request $request, Attachment $attachment): StreamedResponse
+    {
+        Gate::authorize('view', $this->parentOf($attachment));
+
+        return Storage::disk($attachment->disk)->download($attachment->path, $attachment->original_name);
+    }
+
+    public function destroy(Request $request, Attachment $attachment): RedirectResponse
+    {
+        $parent = $this->parentOf($attachment);
+
+        abort_unless(
+            $attachment->uploaded_by === $request->user()->id || $request->user()->hasRole('Administrator'),
+            403,
+        );
+
+        Storage::disk($attachment->disk)->delete($attachment->path);
+        $attachment->delete();
+
+        AuditLogger::log($parent, 'attachment_removed', ['name' => $attachment->original_name], []);
+
+        return back();
+    }
+
+    private function attach(Request $request, Model $parent, string $folder): RedirectResponse
+    {
         $request->validate([
             'file' => ['required', 'file', 'max:25600'], // 25 MB
         ]);
@@ -31,9 +70,9 @@ class AttachmentController extends Controller
 
         abort_if(in_array($extension, self::BLOCKED_EXTENSIONS, true), 422, 'This file type is not allowed.');
 
-        $path = $file->store('attachments/'.$task->id, 'local');
+        $path = $file->store("attachments/{$folder}/{$parent->getKey()}", 'local');
 
-        $attachment = $task->attachments()->create([
+        $attachment = $parent->attachments()->create([
             'uploaded_by' => $request->user()->id,
             'disk' => 'local',
             'path' => $path,
@@ -43,37 +82,17 @@ class AttachmentController extends Controller
             'checksum' => hash_file('sha256', $file->getRealPath()),
         ]);
 
-        AuditLogger::log($task, 'attachment_added', [], ['attachment_id' => $attachment->id, 'name' => $attachment->original_name]);
+        AuditLogger::log($parent, 'attachment_added', [], ['attachment_id' => $attachment->id, 'name' => $attachment->original_name]);
 
         return back();
     }
 
-    /** File access inherits the parent task's authorization (PERMISSIONS_MATRIX). */
-    public function download(Request $request, Attachment $attachment): StreamedResponse
+    private function parentOf(Attachment $attachment): Task|Ticket
     {
-        $task = $attachment->attachable;
+        $parent = $attachment->attachable;
 
-        abort_unless($task instanceof Task, 404);
-        Gate::authorize('view', $task);
+        abort_unless($parent instanceof Task || $parent instanceof Ticket, 404);
 
-        return Storage::disk($attachment->disk)->download($attachment->path, $attachment->original_name);
-    }
-
-    public function destroy(Request $request, Attachment $attachment): RedirectResponse
-    {
-        $task = $attachment->attachable;
-
-        abort_unless($task instanceof Task, 404);
-        abort_unless(
-            $attachment->uploaded_by === $request->user()->id || $request->user()->hasRole('Administrator'),
-            403,
-        );
-
-        Storage::disk($attachment->disk)->delete($attachment->path);
-        $attachment->delete();
-
-        AuditLogger::log($task, 'attachment_removed', ['name' => $attachment->original_name], []);
-
-        return back();
+        return $parent;
     }
 }

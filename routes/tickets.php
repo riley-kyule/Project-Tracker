@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,4 +14,5 @@ Route::middleware(['auth'])->group(function () {
     Route::post('tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->name('tickets.reopen');
     Route::post('tickets/{ticket}/convert-to-task', [TicketController::class, 'convertToTask'])->name('tickets.convert');
     Route::post('tickets/{ticket}/comments', [TicketController::class, 'comment'])->name('tickets.comments.store');
+    Route::post('tickets/{ticket}/attachments', [AttachmentController::class, 'storeForTicket'])->name('tickets.attachments.store');
 });
