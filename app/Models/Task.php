@@ -149,4 +149,20 @@ class Task extends Model
     {
         return $this->belongsTo(Task::class, 'previous_recurrence_task_id');
     }
+
+    public function timeEntries(): MorphMany
+    {
+        return $this->morphMany(TimeEntry::class, 'trackable');
+    }
+
+    /** Recomputed from source data rather than incremented, so it can never drift. */
+    public function recalculateActualMinutes(): void
+    {
+        $seconds = $this->timeEntries()
+            ->get()
+            ->filter(fn (TimeEntry $entry) => $entry->countsTowardTotal())
+            ->sum('duration_seconds');
+
+        $this->forceFill(['actual_minutes' => intdiv($seconds, 60)])->save();
+    }
 }

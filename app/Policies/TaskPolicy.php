@@ -65,4 +65,10 @@ class TaskPolicy
             && $task->department_id !== null
             && $user->department_id === $task->department_id;
     }
+
+    /** Manual time-entry adjustments require the same manager scope as recurrence rules. */
+    public function approveTimeEntry(User $user, Task $task): bool
+    {
+        return $this->manageRecurrence($user, $task);
+    }
 }

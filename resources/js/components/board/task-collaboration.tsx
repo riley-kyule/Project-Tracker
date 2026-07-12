@@ -67,6 +67,19 @@ type RecurrenceRuleNode = {
     template_task_id: number;
 };
 
+type TimeEntryNode = {
+    id: number;
+    user: Member;
+    started_at: string | null;
+    ended_at: string | null;
+    duration_seconds: number;
+    source: 'timer' | 'manual' | 'imported';
+    work_location: string;
+    adjustment_status: 'pending' | 'approved' | 'rejected' | null;
+    adjustment_reason: string | null;
+    approved_by: Member | null;
+};
+
 type Detail = {
     comments: CommentNode[];
     checklists: ChecklistNode[];
@@ -75,6 +88,10 @@ type Detail = {
     blocking: BlockingNode[];
     recurrenceRule: RecurrenceRuleNode | null;
     canManageRecurrence: boolean;
+    timeEntries: TimeEntryNode[];
+    canApproveTime: boolean;
+    estimatedMinutes: number | null;
+    actualMinutes: number;
     activity: ActivityNode[];
 };
 
@@ -86,8 +103,22 @@ const emptyDetail: Detail = {
     blocking: [],
     recurrenceRule: null,
     canManageRecurrence: false,
+    timeEntries: [],
+    canApproveTime: false,
+    estimatedMinutes: null,
+    actualMinutes: 0,
     activity: [],
 };
+
+function formatDuration(totalSeconds: number) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+}
+
+function formatMinutes(totalMinutes: number) {
+    return formatDuration(totalMinutes * 60);
+}
 
 const NO_DEPENDENCY = 'none';
 
@@ -127,6 +158,10 @@ export function TaskCollaboration({
     const [newDependencyId, setNewDependencyId] = useState(NO_DEPENDENCY);
     const [newFrequency, setNewFrequency] = useState('weekly');
     const [newInterval, setNewInterval] = useState(1);
+    const [showManualEntry, setShowManualEntry] = useState(false);
+    const [manualMinutes, setManualMinutes] = useState(30);
+    const [manualLocation, setManualLocation] = useState('unspecified');
+    const [manualReason, setManualReason] = useState('');
     const fileInput = useRef<HTMLInputElement>(null);
 
     const reload = useCallback(() => {
@@ -382,6 +417,120 @@ export function TaskCollaboration({
                     )}
                 </section>
             )}
+
+            {/* Time tracking */}
+            <section>
+                <h3 className="mb-2 text-sm font-semibold">Time tracking</h3>
+                <p className="text-muted-foreground mb-2 text-sm">
+                    {formatMinutes(detail.actualMinutes)} logged
+                    {detail.estimatedMinutes !== null && ` of ${formatMinutes(detail.estimatedMinutes)} estimated`}
+                </p>
+                <ul className="mb-2 space-y-1.5">
+                    {detail.timeEntries.map((entry) => (
+                        <li key={entry.id} className="flex flex-wrap items-center gap-2 text-sm">
+                            <span className="font-medium">{entry.user.name}</span>
+                            <span>{formatDuration(entry.duration_seconds)}</span>
+                            {entry.source === 'manual' && (
+                                <span
+                                    className={`text-xs ${
+                                        entry.adjustment_status === 'approved'
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : entry.adjustment_status === 'rejected'
+                                              ? 'text-destructive'
+                                              : 'text-amber-600 dark:text-amber-400'
+                                    }`}
+                                >
+                                    manual · {entry.adjustment_status}
+                                </span>
+                            )}
+                            {entry.source === 'manual' && entry.adjustment_status === 'pending' && detail.canApproveTime && (
+                                <span className="ml-auto flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => post(`/time-entries/${entry.id}/approve`, {})}
+                                        className="text-xs text-emerald-600 hover:underline dark:text-emerald-400"
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => post(`/time-entries/${entry.id}/reject`, {})}
+                                        className="text-destructive text-xs hover:underline"
+                                    >
+                                        Reject
+                                    </button>
+                                </span>
+                            )}
+                        </li>
+                    ))}
+                    {detail.timeEntries.length === 0 && <li className="text-muted-foreground text-sm">No time logged yet.</li>}
+                </ul>
+                {(() => {
+                    const runningEntry = detail.timeEntries.find((entry) => entry.user.id === auth.user.id && entry.ended_at === null);
+                    return runningEntry ? (
+                        <Button type="button" size="sm" variant="destructive" onClick={() => post(`/time-entries/${runningEntry.id}/stop`, {})}>
+                            Stop timer
+                        </Button>
+                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" size="sm" variant="secondary" onClick={() => post(`/tasks/${taskId}/time-entries/start`, {})}>
+                                Start timer
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" onClick={() => setShowManualEntry((current) => !current)}>
+                                Log time manually
+                            </Button>
+                        </div>
+                    );
+                })()}
+                {showManualEntry && (
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            post(
+                                `/tasks/${taskId}/time-entries`,
+                                { duration_minutes: manualMinutes, work_location: manualLocation, adjustment_reason: manualReason },
+                                () => {
+                                    setManualReason('');
+                                    setShowManualEntry(false);
+                                },
+                            );
+                        }}
+                        className="mt-2 space-y-2 rounded-lg border border-sidebar-border/70 p-3 dark:border-sidebar-border"
+                    >
+                        <div className="flex gap-2">
+                            <Input
+                                type="number"
+                                min={1}
+                                max={1440}
+                                value={manualMinutes}
+                                onChange={(e) => setManualMinutes(Number(e.target.value))}
+                                className="h-8 w-24 text-sm"
+                            />
+                            <Select value={manualLocation} onValueChange={setManualLocation}>
+                                <SelectTrigger className="h-8 flex-1 text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="unspecified">Unspecified</SelectItem>
+                                    <SelectItem value="remote">Remote</SelectItem>
+                                    <SelectItem value="office">Office</SelectItem>
+                                    <SelectItem value="onsite">Onsite</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Input
+                            placeholder="Reason for manual entry…"
+                            value={manualReason}
+                            onChange={(e) => setManualReason(e.target.value)}
+                            required
+                            className="h-8 text-sm"
+                        />
+                        <Button type="submit" size="sm">
+                            Submit for approval
+                        </Button>
+                    </form>
+                )}
+            </section>
 
             {/* Attachments */}
             <section>

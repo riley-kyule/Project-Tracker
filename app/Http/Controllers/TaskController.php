@@ -171,6 +171,10 @@ class TaskController extends Controller
             'blocking' => $task->blocks()->with('successor:id,title,task_number')->get(),
             'recurrenceRule' => $task->recurrenceRule()->first(['id', 'frequency', 'interval_value', 'next_run_at', 'is_active', 'template_task_id']),
             'canManageRecurrence' => $request->user()->can('manageRecurrence', $task),
+            'timeEntries' => $task->timeEntries()->with(['user:id,name', 'approvedBy:id,name'])->latest('started_at')->get(),
+            'canApproveTime' => $request->user()->can('approveTimeEntry', $task),
+            'estimatedMinutes' => $task->estimated_minutes,
+            'actualMinutes' => $task->actual_minutes,
             'activity' => $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
         ]);
     }

@@ -8,6 +8,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RecurrenceRuleController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskDependencyController;
+use App\Http\Controllers\TimeEntryController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
@@ -25,6 +26,12 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('task-dependencies/{dependency}', [TaskDependencyController::class, 'destroy'])->name('task-dependencies.destroy');
     Route::post('tasks/{task}/recurrence', [RecurrenceRuleController::class, 'store'])->name('recurrence-rules.store');
     Route::patch('recurrence-rules/{rule}', [RecurrenceRuleController::class, 'update'])->name('recurrence-rules.update');
+
+    Route::post('tasks/{task}/time-entries/start', [TimeEntryController::class, 'start'])->name('time-entries.start');
+    Route::post('time-entries/{entry}/stop', [TimeEntryController::class, 'stop'])->name('time-entries.stop');
+    Route::post('tasks/{task}/time-entries', [TimeEntryController::class, 'storeManual'])->name('time-entries.store');
+    Route::post('time-entries/{entry}/approve', [TimeEntryController::class, 'approve'])->name('time-entries.approve');
+    Route::post('time-entries/{entry}/reject', [TimeEntryController::class, 'reject'])->name('time-entries.reject');
 
     Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
