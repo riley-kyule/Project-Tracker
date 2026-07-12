@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,17 +36,7 @@ class DashboardController extends Controller
                 'critical_tickets' => (clone $openTickets)->where('priority', 'critical')->count(),
                 'overdue_tickets' => (clone $openTickets)->whereNotNull('due_at')->where('due_at', '<', now())->count(),
             ],
-            'departmentPerformance' => Department::query()
-                ->active()
-                ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn (Department $department) => [
-                    'id' => $department->id,
-                    'name' => $department->name,
-                    'open' => Task::query()->where('department_id', $department->id)->whereNull('completed_at')->whereNull('archived_at')->count(),
-                    'overdue' => Task::query()->where('department_id', $department->id)->whereNull('completed_at')->whereNull('archived_at')->where('due_at', '<', now())->count(),
-                    'completed_week' => Task::query()->where('department_id', $department->id)->where('completed_at', '>=', now()->startOfWeek())->count(),
-                ]),
+            'departmentPerformance' => $this->departmentPerformance(),
             'workload' => User::query()
                 ->where('status', User::STATUS_ACTIVE)
                 ->withCount(['assignedOpenTasks as open_tasks'])
@@ -72,6 +63,37 @@ class DashboardController extends Controller
                 ->limit(12)
                 ->get(),
         ]);
+    }
+
+    /**
+     * Three grouped queries instead of three-per-department: avoids an
+     * N+1 that would otherwise scale with department count.
+     */
+    private function departmentPerformance(): Collection
+    {
+        $counts = fn (Builder $query) => $query
+            ->whereNotNull('department_id')
+            ->selectRaw('department_id, count(*) as total')
+            ->groupBy('department_id')
+            ->pluck('total', 'department_id');
+
+        $open = fn (): Builder => Task::query()->whereNull('completed_at')->whereNull('archived_at');
+
+        $openByDept = $counts($open());
+        $overdueByDept = $counts($open()->where('due_at', '<', now()));
+        $completedWeekByDept = $counts(Task::query()->where('completed_at', '>=', now()->startOfWeek()));
+
+        return Department::query()
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Department $department) => [
+                'id' => $department->id,
+                'name' => $department->name,
+                'open' => $openByDept->get($department->id, 0),
+                'overdue' => $overdueByDept->get($department->id, 0),
+                'completed_week' => $completedWeekByDept->get($department->id, 0),
+            ]);
     }
 
     public function department(Request $request): Response

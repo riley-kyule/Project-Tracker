@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
-import { Download, Lock, Paperclip, Trash2, X } from 'lucide-react';
+import { Download, Loader2, Lock, Paperclip, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Reply = {
@@ -159,6 +159,7 @@ export function TaskCollaboration({
 }) {
     const { auth } = usePage<SharedData>().props;
     const [detail, setDetail] = useState<Detail>(emptyDetail);
+    const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
     const [commentBody, setCommentBody] = useState('');
     const [replyTo, setReplyTo] = useState<CommentNode | null>(null);
     const [mentionIds, setMentionIds] = useState<number[]>([]);
@@ -179,9 +180,15 @@ export function TaskCollaboration({
 
     const reload = useCallback(() => {
         fetch(`/tasks/${taskId}/detail`, { headers: { Accept: 'application/json' } })
-            .then((response) => (response.ok ? response.json() : emptyDetail))
-            .then(setDetail)
-            .catch(() => setDetail(emptyDetail));
+            .then((response) => {
+                if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+                return response.json();
+            })
+            .then((data) => {
+                setDetail(data);
+                setStatus('ready');
+            })
+            .catch(() => setStatus('error'));
     }, [taskId]);
 
     useEffect(reload, [reload]);
@@ -211,6 +218,26 @@ export function TaskCollaboration({
             setShowMentions(false);
         });
     };
+
+    if (status === 'loading') {
+        return (
+            <div className="text-muted-foreground flex items-center gap-2 py-8 text-sm">
+                <Loader2 className="size-4 animate-spin" />
+                Loading task details…
+            </div>
+        );
+    }
+
+    if (status === 'error') {
+        return (
+            <div className="border-destructive/30 bg-destructive/5 rounded-lg border p-4 text-sm">
+                <p className="text-destructive font-medium">Couldn't load this task's details.</p>
+                <button type="button" onClick={reload} className="text-brand-600 dark:text-brand-400 mt-1 hover:underline">
+                    Try again
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

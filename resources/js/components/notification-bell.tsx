@@ -27,6 +27,7 @@ type AppNotification = {
 export function NotificationBell() {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [unread, setUnread] = useState(0);
+    const [hasLoaded, setHasLoaded] = useState(false);
 
     const load = useCallback(() => {
         fetch('/notifications', { headers: { Accept: 'application/json' } })
@@ -34,6 +35,7 @@ export function NotificationBell() {
             .then((payload) => {
                 setNotifications(payload.notifications);
                 setUnread(payload.unread_count);
+                setHasLoaded(true);
             })
             .catch(() => undefined);
     }, []);
@@ -89,7 +91,8 @@ export function NotificationBell() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup className="max-h-96 overflow-y-auto">
-                    {notifications.length === 0 && <DropdownMenuItem disabled>No notifications yet.</DropdownMenuItem>}
+                    {!hasLoaded && <DropdownMenuItem disabled>Loading…</DropdownMenuItem>}
+                    {hasLoaded && notifications.length === 0 && <DropdownMenuItem disabled>No notifications yet.</DropdownMenuItem>}
                     {notifications.map((notification) => (
                         <DropdownMenuItem
                             key={notification.id}
