@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             DepartmentSeeder::class,
             LabelSeeder::class,
+            ServiceDeskSeeder::class,
         ]);
 
         // Local development accounts only; production accounts are created

@@ -33,6 +33,7 @@ class Task extends Model
         'ceo_priority',
         'confidentiality',
         'work_location',
+        'metadata',
     ];
 
     protected function casts(): array
