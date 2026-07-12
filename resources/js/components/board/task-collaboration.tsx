@@ -2,9 +2,10 @@ import { type Member } from '@/components/board/task-card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
-import { Download, Paperclip, Trash2, X } from 'lucide-react';
+import { Download, Lock, Paperclip, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Reply = {
@@ -43,14 +44,32 @@ type ActivityNode = {
     created_at: string;
 };
 
+type TaskRef = { id: number; title: string; task_number: number; completed_at?: string | null };
+
+type DependencyNode = {
+    id: number;
+    overridden_at: string | null;
+    override_reason: string | null;
+    predecessor: TaskRef;
+};
+
+type BlockingNode = {
+    id: number;
+    successor: TaskRef;
+};
+
 type Detail = {
     comments: CommentNode[];
     checklists: ChecklistNode[];
     attachments: AttachmentNode[];
+    dependencies: DependencyNode[];
+    blocking: BlockingNode[];
     activity: ActivityNode[];
 };
 
-const emptyDetail: Detail = { comments: [], checklists: [], attachments: [], activity: [] };
+const emptyDetail: Detail = { comments: [], checklists: [], attachments: [], dependencies: [], blocking: [], activity: [] };
+
+const NO_DEPENDENCY = 'none';
 
 function formatBytes(bytes: number) {
     if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
@@ -58,7 +77,15 @@ function formatBytes(bytes: number) {
     return `${bytes} B`;
 }
 
-export function TaskCollaboration({ taskId, members }: { taskId: number; members: Member[] }) {
+export function TaskCollaboration({
+    taskId,
+    members,
+    boardTasks,
+}: {
+    taskId: number;
+    members: Member[];
+    boardTasks: { id: number; title: string; task_number: number }[];
+}) {
     const { auth } = usePage<SharedData>().props;
     const [detail, setDetail] = useState<Detail>(emptyDetail);
     const [commentBody, setCommentBody] = useState('');
@@ -67,6 +94,7 @@ export function TaskCollaboration({ taskId, members }: { taskId: number; members
     const [showMentions, setShowMentions] = useState(false);
     const [checklistName, setChecklistName] = useState('');
     const [itemTitles, setItemTitles] = useState<Record<number, string>>({});
+    const [newDependencyId, setNewDependencyId] = useState(NO_DEPENDENCY);
     const fileInput = useRef<HTMLInputElement>(null);
 
     const reload = useCallback(() => {
@@ -183,6 +211,77 @@ export function TaskCollaboration({ taskId, members }: { taskId: number; members
                         Add
                     </Button>
                 </form>
+            </section>
+
+            {/* Dependencies */}
+            <section>
+                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                    <Lock className="size-4" /> Dependencies
+                </h3>
+                <ul className="space-y-1.5">
+                    {detail.dependencies.map((dependency) => {
+                        const resolved = dependency.predecessor.completed_at !== null && dependency.predecessor.completed_at !== undefined;
+                        return (
+                            <li key={dependency.id} className="flex items-center gap-2 text-sm">
+                                <span className={resolved ? 'text-muted-foreground line-through' : ''}>
+                                    T-{dependency.predecessor.task_number} {dependency.predecessor.title}
+                                </span>
+                                {!resolved && dependency.overridden_at && (
+                                    <span className="text-xs text-amber-600 dark:text-amber-400" title={dependency.override_reason ?? ''}>
+                                        overridden
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    aria-label="Remove dependency"
+                                    onClick={() => destroy(`/task-dependencies/${dependency.id}`)}
+                                    className="text-muted-foreground hover:text-destructive ml-auto"
+                                >
+                                    <X className="size-3.5" />
+                                </button>
+                            </li>
+                        );
+                    })}
+                    {detail.dependencies.length === 0 && <li className="text-muted-foreground text-sm">No prerequisites.</li>}
+                </ul>
+                {detail.blocking.length > 0 && (
+                    <p className="text-muted-foreground mt-2 text-xs">
+                        Blocks: {detail.blocking.map((b) => `T-${b.successor.task_number} ${b.successor.title}`).join(', ')}
+                    </p>
+                )}
+                <div className="mt-2 flex gap-2">
+                    <Select value={newDependencyId} onValueChange={setNewDependencyId}>
+                        <SelectTrigger className="h-8 flex-1 text-sm">
+                            <SelectValue placeholder="Add a prerequisite task…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={NO_DEPENDENCY}>Choose a task…</SelectItem>
+                            {boardTasks
+                                .filter(
+                                    (candidate) =>
+                                        candidate.id !== taskId && !detail.dependencies.some((d) => d.predecessor.id === candidate.id),
+                                )
+                                .map((candidate) => (
+                                    <SelectItem key={candidate.id} value={candidate.id.toString()}>
+                                        T-{candidate.task_number} {candidate.title}
+                                    </SelectItem>
+                                ))}
+                        </SelectContent>
+                    </Select>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={newDependencyId === NO_DEPENDENCY}
+                        onClick={() =>
+                            post(`/tasks/${taskId}/dependencies`, { predecessor_task_id: Number(newDependencyId) }, () =>
+                                setNewDependencyId(NO_DEPENDENCY),
+                            )
+                        }
+                    >
+                        Add
+                    </Button>
+                </div>
             </section>
 
             {/* Attachments */}

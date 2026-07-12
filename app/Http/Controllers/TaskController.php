@@ -11,11 +11,13 @@ use App\Models\User;
 use App\Notifications\TaskAssigned;
 use App\Services\AuditLogger;
 use App\Services\TaskMover;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
@@ -90,15 +92,58 @@ class TaskController extends Controller
         $validated = $request->validate([
             'board_column_id' => ['required', 'integer', 'exists:board_columns,id'],
             'position' => ['required', 'integer', 'min:1'],
+            'override_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         $column = BoardColumn::query()
             ->where('board_id', $task->board_id)
             ->findOrFail($validated['board_column_id']);
 
+        // Dependency check only applies when a task is being started (WORKFLOWS.md).
+        if ($column->semantic_status === 'active') {
+            $this->guardDependencies($request, $task, $validated['override_reason'] ?? null);
+        }
+
         TaskMover::move($task, $column, $validated['position']);
 
         return back();
+    }
+
+    private function guardDependencies(Request $request, Task $task, ?string $overrideReason): void
+    {
+        $blocking = $task->unresolvedDependencies()->with('predecessor:id,title')->get();
+
+        if ($blocking->isEmpty()) {
+            return;
+        }
+
+        if ($overrideReason === null) {
+            $titles = $blocking->pluck('predecessor.title')->implode(', ');
+
+            throw ValidationException::withMessages([
+                'dependencies' => "Blocked by incomplete prerequisite(s): {$titles}.",
+            ]);
+        }
+
+        try {
+            Gate::authorize('overrideDependency', $task);
+        } catch (AuthorizationException) {
+            throw ValidationException::withMessages([
+                'dependencies' => 'You are not authorized to override this dependency.',
+            ]);
+        }
+
+        DB::transaction(function () use ($blocking, $request, $overrideReason, $task) {
+            foreach ($blocking as $dependency) {
+                $dependency->update([
+                    'overridden_at' => now(),
+                    'overridden_by' => $request->user()->id,
+                    'override_reason' => $overrideReason,
+                ]);
+            }
+
+            AuditLogger::log($task, 'dependency_overridden', [], ['reason' => $overrideReason]);
+        });
     }
 
     public function activity(Request $request, Task $task): JsonResponse
@@ -122,6 +167,8 @@ class TaskController extends Controller
                 ->get(),
             'checklists' => $task->checklists()->with('items')->get(),
             'attachments' => $task->attachments()->with('uploader:id,name')->latest()->get(),
+            'dependencies' => $task->dependencies()->with('predecessor:id,title,task_number,completed_at')->get(),
+            'blocking' => $task->blocks()->with('successor:id,title,task_number')->get(),
             'activity' => $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
         ]);
     }

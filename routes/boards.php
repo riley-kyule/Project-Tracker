@@ -6,6 +6,7 @@ use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskDependencyController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
@@ -19,6 +20,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
     Route::get('tasks/{task}/activity', [TaskController::class, 'activity'])->name('tasks.activity');
     Route::get('tasks/{task}/detail', [TaskController::class, 'detail'])->name('tasks.detail');
+    Route::post('tasks/{task}/dependencies', [TaskDependencyController::class, 'store'])->name('task-dependencies.store');
+    Route::delete('task-dependencies/{dependency}', [TaskDependencyController::class, 'destroy'])->name('task-dependencies.destroy');
 
     Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');

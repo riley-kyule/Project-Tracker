@@ -113,4 +113,28 @@ class Task extends Model
     {
         return $this->morphMany(Attachment::class, 'attachable');
     }
+
+    /** Prerequisites this task depends on (rows where this task is the successor). */
+    public function dependencies(): HasMany
+    {
+        return $this->hasMany(TaskDependency::class, 'successor_task_id');
+    }
+
+    /** Tasks that this task blocks (rows where this task is the predecessor). */
+    public function blocks(): HasMany
+    {
+        return $this->hasMany(TaskDependency::class, 'predecessor_task_id');
+    }
+
+    public function unresolvedDependencies(): HasMany
+    {
+        return $this->dependencies()
+            ->whereNull('overridden_at')
+            ->whereHas('predecessor', fn ($query) => $query->whereNull('completed_at'));
+    }
+
+    public function isBlocked(): bool
+    {
+        return $this->unresolvedDependencies()->exists();
+    }
 }

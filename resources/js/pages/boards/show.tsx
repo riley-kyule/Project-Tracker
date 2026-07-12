@@ -1,6 +1,8 @@
 import { TaskCard, TaskDialog, type BoardTask, type Can, type LabelOption, type Member } from '@/components/board/task-card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -20,6 +22,52 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Head, router, useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+
+type BoardTaskOption = { id: number; title: string; task_number: number };
+
+type BlockedMove = { taskId: number; columnId: number; position: number; message: string };
+
+function DependencyOverrideDialog({ move, onClose }: { move: BlockedMove; onClose: () => void }) {
+    const [reason, setReason] = useState('');
+    const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setProcessing(true);
+        router.post(
+            `/tasks/${move.taskId}/move`,
+            { board_column_id: move.columnId, position: move.position, override_reason: reason },
+            {
+                preserveScroll: true,
+                onSuccess: onClose,
+                onError: (errors) => setError(errors.dependencies ?? 'Could not override this dependency.'),
+                onFinish: () => setProcessing(false),
+            },
+        );
+    };
+
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Task is blocked</DialogTitle>
+                </DialogHeader>
+                <p className="text-muted-foreground text-sm">{move.message}</p>
+                <form onSubmit={submit} className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="override-reason">Override reason (required)</Label>
+                        <Input id="override-reason" value={reason} onChange={(e) => setReason(e.target.value)} required />
+                        {error && <p className="text-destructive text-sm">{error}</p>}
+                    </div>
+                    <Button type="submit" disabled={processing || reason.trim() === ''}>
+                        Override and move
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 type Column = {
     id: number;
@@ -120,10 +168,23 @@ function BoardColumn({
     );
 }
 
-export default function BoardShow({ board, members, labels, can }: { board: Board; members: Member[]; labels: LabelOption[]; can: Can }) {
+export default function BoardShow({
+    board,
+    boardTaskOptions,
+    members,
+    labels,
+    can,
+}: {
+    board: Board;
+    boardTaskOptions: BoardTaskOption[];
+    members: Member[];
+    labels: LabelOption[];
+    can: Can;
+}) {
     const [columns, setColumns] = useState<Column[]>(board.columns);
     const [activeTask, setActiveTask] = useState<BoardTask | null>(null);
     const [openTask, setOpenTask] = useState<BoardTask | null>(null);
+    const [blockedMove, setBlockedMove] = useState<BlockedMove | null>(null);
     const [search, setSearch] = useState('');
     const [assigneeFilter, setAssigneeFilter] = useState(ALL);
     const [priorityFilter, setPriorityFilter] = useState(ALL);
@@ -211,7 +272,23 @@ export default function BoardShow({ board, members, labels, can }: { board: Boar
             }
         }
 
-        router.post(`/tasks/${activeId}/move`, { board_column_id: column.id, position: index + 1 }, { preserveScroll: true, preserveState: true });
+        const position = index + 1;
+
+        router.post(
+            `/tasks/${activeId}/move`,
+            { board_column_id: column.id, position },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onError: (errors) => {
+                    if (errors.dependencies) {
+                        setBlockedMove({ taskId: activeId, columnId: column.id, position, message: errors.dependencies });
+                    }
+                    // Local optimistic state may now disagree with the server; resync.
+                    router.reload({ only: ['board'] });
+                },
+            },
+        );
     };
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -288,7 +365,17 @@ export default function BoardShow({ board, members, labels, can }: { board: Boar
                     <DragOverlay>{activeTask && <TaskCard task={activeTask} overlay />}</DragOverlay>
                 </DndContext>
             </div>
-            {openTask && <TaskDialog task={openTask} members={members} labels={labels} can={can} onClose={() => setOpenTask(null)} />}
+            {openTask && (
+                <TaskDialog
+                    task={openTask}
+                    members={members}
+                    labels={labels}
+                    can={can}
+                    boardTasks={boardTaskOptions}
+                    onClose={() => setOpenTask(null)}
+                />
+            )}
+            {blockedMove && <DependencyOverrideDialog move={blockedMove} onClose={() => setBlockedMove(null)} />}
         </AppLayout>
     );
 }

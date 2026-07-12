@@ -38,4 +38,19 @@ class TaskPolicy
     {
         return $this->update($user, $task);
     }
+
+    /**
+     * Per PERMISSIONS_MATRIX.md: CEO/Administrator override any task;
+     * Department Manager and IT Technician override within their own department.
+     */
+    public function overrideDependency(User $user, Task $task): bool
+    {
+        if ($user->hasAnyRole(['Administrator', 'CEO'])) {
+            return true;
+        }
+
+        return $user->hasAnyRole(['Department Manager', 'IT Technician'])
+            && $task->department_id !== null
+            && $user->department_id === $task->department_id;
+    }
 }

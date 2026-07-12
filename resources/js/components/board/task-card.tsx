@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useForm } from '@inertiajs/react';
-import { Calendar, Star } from 'lucide-react';
+import { Calendar, Lock, Star } from 'lucide-react';
 
 export type Member = { id: number; name: string };
 export type LabelOption = { id: number; name: string; color: string };
@@ -30,6 +30,7 @@ export type BoardTask = {
     position: number;
     assignee: Member | null;
     labels: LabelOption[];
+    unresolved_dependencies_count?: number;
 };
 
 const priorityStyles: Record<BoardTask['priority'], string> = {
@@ -70,7 +71,12 @@ export function TaskCard({ task, onOpen, overlay = false }: { task: BoardTask; o
         >
             <div className="flex items-start gap-2">
                 <span className="text-sm leading-snug font-medium">{task.title}</span>
-                {task.ceo_priority && <Star className="ml-auto size-4 shrink-0 fill-amber-400 text-amber-400" aria-label="CEO priority" />}
+                <span className="ml-auto flex shrink-0 items-center gap-1">
+                    {(task.unresolved_dependencies_count ?? 0) > 0 && (
+                        <Lock className="text-muted-foreground size-3.5" aria-label="Blocked by prerequisites" />
+                    )}
+                    {task.ceo_priority && <Star className="size-4 fill-amber-400 text-amber-400" aria-label="CEO priority" />}
+                </span>
             </div>
             {task.labels.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -107,12 +113,14 @@ export function TaskDialog({
     members,
     labels,
     can,
+    boardTasks,
     onClose,
 }: {
     task: BoardTask;
     members: Member[];
     labels: LabelOption[];
     can: Can;
+    boardTasks: { id: number; title: string; task_number: number }[];
     onClose: () => void;
 }) {
     const { data, setData, patch, processing, errors, transform } = useForm({
@@ -252,7 +260,7 @@ export function TaskDialog({
                     </Button>
                 </form>
                 <div className="border-t pt-4">
-                    <TaskCollaboration taskId={task.id} members={members} />
+                    <TaskCollaboration taskId={task.id} members={members} boardTasks={boardTasks} />
                 </div>
             </DialogContent>
         </Dialog>

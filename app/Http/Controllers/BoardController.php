@@ -56,11 +56,19 @@ class BoardController extends Controller
             'columns',
             'columns.tasks' => fn ($query) => $query
                 ->with(['assignee:id,name', 'labels:id,name,color'])
+                ->withCount(['dependencies as unresolved_dependencies_count' => fn ($q) => $q
+                    ->whereNull('overridden_at')
+                    ->whereHas('predecessor', fn ($qq) => $qq->whereNull('completed_at'))])
                 ->whereNull('archived_at'),
         ]);
 
         return Inertia::render('boards/show', [
             'board' => $board,
+            'boardTaskOptions' => Task::query()
+                ->where('board_id', $board->id)
+                ->whereNull('archived_at')
+                ->orderBy('title')
+                ->get(['id', 'title', 'task_number']),
             'members' => User::query()
                 ->where('status', User::STATUS_ACTIVE)
                 ->orderBy('name')
