@@ -1,10 +1,9 @@
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BarChart3, Building2, Crown, Folder, Gauge, Globe, KanbanSquare, LayoutGrid, LifeBuoy, ListTodo, Users, UsersRound } from 'lucide-react';
+import { BarChart3, Building2, Crown, Gauge, Globe, KanbanSquare, LayoutGrid, LifeBuoy, ListTodo, Users, UsersRound } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -27,14 +26,6 @@ const mainNavItems: NavItem[] = [
         title: 'Projects',
         url: '/projects',
         icon: ListTodo,
-    },
-];
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        url: 'https://github.com/riley-kyule/Project-Tracker',
-        icon: Folder,
     },
 ];
 
@@ -72,7 +63,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>
