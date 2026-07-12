@@ -53,4 +53,16 @@ class TaskPolicy
             && $task->department_id !== null
             && $user->department_id === $task->department_id;
     }
+
+    /** Per WORKFLOWS.md: "Administrator or manager defines recurrence rule." */
+    public function manageRecurrence(User $user, Task $task): bool
+    {
+        if ($user->hasAnyRole(['Administrator', 'CEO'])) {
+            return true;
+        }
+
+        return $user->hasRole('Department Manager')
+            && $task->department_id !== null
+            && $user->department_id === $task->department_id;
+    }
 }

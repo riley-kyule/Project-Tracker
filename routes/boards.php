@@ -5,6 +5,7 @@ use App\Http\Controllers\BoardController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\RecurrenceRuleController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskDependencyController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('tasks/{task}/detail', [TaskController::class, 'detail'])->name('tasks.detail');
     Route::post('tasks/{task}/dependencies', [TaskDependencyController::class, 'store'])->name('task-dependencies.store');
     Route::delete('task-dependencies/{dependency}', [TaskDependencyController::class, 'destroy'])->name('task-dependencies.destroy');
+    Route::post('tasks/{task}/recurrence', [RecurrenceRuleController::class, 'store'])->name('recurrence-rules.store');
+    Route::patch('recurrence-rules/{rule}', [RecurrenceRuleController::class, 'update'])->name('recurrence-rules.update');
 
     Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');

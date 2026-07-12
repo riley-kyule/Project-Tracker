@@ -15,11 +15,14 @@ class TaskMover
      */
     public static function move(Task $task, BoardColumn $target, int $position): Task
     {
-        return DB::transaction(function () use ($task, $target, $position) {
+        $newlyCompleted = false;
+
+        $task = DB::transaction(function () use ($task, $target, $position, &$newlyCompleted) {
             $task = Task::query()->lockForUpdate()->findOrFail($task->id);
 
             $fromColumnId = $task->board_column_id;
             $fromPosition = $task->position;
+            $newlyCompleted = $target->is_completion_column && $task->completed_at === null;
 
             $maxPosition = (int) Task::query()
                 ->where('board_column_id', $target->id)
@@ -54,5 +57,11 @@ class TaskMover
 
             return $task;
         });
+
+        if ($newlyCompleted) {
+            RecurrenceService::generateFromCompletion($task);
+        }
+
+        return $task;
     }
 }

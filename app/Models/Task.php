@@ -35,6 +35,8 @@ class Task extends Model
         'confidentiality',
         'work_location',
         'metadata',
+        'recurrence_rule_id',
+        'previous_recurrence_task_id',
     ];
 
     protected function casts(): array
@@ -136,5 +138,15 @@ class Task extends Model
     public function isBlocked(): bool
     {
         return $this->unresolvedDependencies()->exists();
+    }
+
+    public function recurrenceRule(): BelongsTo
+    {
+        return $this->belongsTo(RecurrenceRule::class);
+    }
+
+    public function previousInstance(): BelongsTo
+    {
+        return $this->belongsTo(Task::class, 'previous_recurrence_task_id');
     }
 }

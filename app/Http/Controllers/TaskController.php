@@ -169,6 +169,8 @@ class TaskController extends Controller
             'attachments' => $task->attachments()->with('uploader:id,name')->latest()->get(),
             'dependencies' => $task->dependencies()->with('predecessor:id,title,task_number,completed_at')->get(),
             'blocking' => $task->blocks()->with('successor:id,title,task_number')->get(),
+            'recurrenceRule' => $task->recurrenceRule()->first(['id', 'frequency', 'interval_value', 'next_run_at', 'is_active', 'template_task_id']),
+            'canManageRecurrence' => $request->user()->can('manageRecurrence', $task),
             'activity' => $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
         ]);
     }

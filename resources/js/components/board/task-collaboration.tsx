@@ -58,18 +58,48 @@ type BlockingNode = {
     successor: TaskRef;
 };
 
+type RecurrenceRuleNode = {
+    id: number;
+    frequency: string;
+    interval_value: number;
+    next_run_at: string | null;
+    is_active: boolean;
+    template_task_id: number;
+};
+
 type Detail = {
     comments: CommentNode[];
     checklists: ChecklistNode[];
     attachments: AttachmentNode[];
     dependencies: DependencyNode[];
     blocking: BlockingNode[];
+    recurrenceRule: RecurrenceRuleNode | null;
+    canManageRecurrence: boolean;
     activity: ActivityNode[];
 };
 
-const emptyDetail: Detail = { comments: [], checklists: [], attachments: [], dependencies: [], blocking: [], activity: [] };
+const emptyDetail: Detail = {
+    comments: [],
+    checklists: [],
+    attachments: [],
+    dependencies: [],
+    blocking: [],
+    recurrenceRule: null,
+    canManageRecurrence: false,
+    activity: [],
+};
 
 const NO_DEPENDENCY = 'none';
+
+const frequencyLabels: Record<string, string> = {
+    daily: 'Daily',
+    weekly: 'Weekly',
+    monthly: 'Monthly',
+    quarterly: 'Quarterly',
+    yearly: 'Yearly',
+    custom: 'Custom',
+    after_completion: 'Repeat after completion',
+};
 
 function formatBytes(bytes: number) {
     if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
@@ -95,6 +125,8 @@ export function TaskCollaboration({
     const [checklistName, setChecklistName] = useState('');
     const [itemTitles, setItemTitles] = useState<Record<number, string>>({});
     const [newDependencyId, setNewDependencyId] = useState(NO_DEPENDENCY);
+    const [newFrequency, setNewFrequency] = useState('weekly');
+    const [newInterval, setNewInterval] = useState(1);
     const fileInput = useRef<HTMLInputElement>(null);
 
     const reload = useCallback(() => {
@@ -283,6 +315,73 @@ export function TaskCollaboration({
                     </Button>
                 </div>
             </section>
+
+            {/* Recurrence */}
+            {(detail.recurrenceRule || detail.canManageRecurrence) && (
+                <section>
+                    <h3 className="mb-2 text-sm font-semibold">Recurrence</h3>
+                    {detail.recurrenceRule ? (
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <span>
+                                {frequencyLabels[detail.recurrenceRule.frequency] ?? detail.recurrenceRule.frequency}
+                                {detail.recurrenceRule.interval_value > 1 && ` (every ${detail.recurrenceRule.interval_value})`}
+                            </span>
+                            {!detail.recurrenceRule.is_active && <span className="text-muted-foreground text-xs">stopped</span>}
+                            {detail.recurrenceRule.is_active && detail.recurrenceRule.next_run_at && (
+                                <span className="text-muted-foreground text-xs">
+                                    next: {new Date(detail.recurrenceRule.next_run_at).toLocaleDateString()}
+                                </span>
+                            )}
+                            {detail.canManageRecurrence && detail.recurrenceRule.is_active && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="ml-auto"
+                                    onClick={() => post(`/recurrence-rules/${detail.recurrenceRule?.id}`, { is_active: false })}
+                                >
+                                    Stop recurring
+                                </Button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Select value={newFrequency} onValueChange={setNewFrequency}>
+                                <SelectTrigger className="h-8 w-44 text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(frequencyLabels).map(([value, label]) => (
+                                        <SelectItem key={value} value={value}>
+                                            {label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {newFrequency !== 'after_completion' && (
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={365}
+                                    value={newInterval}
+                                    onChange={(e) => setNewInterval(Number(e.target.value))}
+                                    className="h-8 w-20 text-sm"
+                                />
+                            )}
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={() =>
+                                    post(`/tasks/${taskId}/recurrence`, { frequency: newFrequency, interval_value: newInterval })
+                                }
+                            >
+                                Make recurring
+                            </Button>
+                        </div>
+                    )}
+                </section>
+            )}
 
             {/* Attachments */}
             <section>
