@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Task;
 use App\Models\Ticket;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -10,6 +12,47 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function employee(Request $request): Response
+    {
+        $user = $request->user();
+
+        $mine = fn (): Builder => Task::query()
+            ->where('primary_assignee_id', $user->id)
+            ->whereNull('completed_at')
+            ->whereNull('archived_at');
+
+        return Inertia::render('dashboard', [
+            'counts' => [
+                'open' => $mine()->count(),
+                'due_today' => $mine()->whereDate('due_at', today())->count(),
+                'overdue' => $mine()->where('due_at', '<', now())->count(),
+                'blocked' => $mine()->whereHas('column', fn ($query) => $query->where('semantic_status', 'blocked'))->count(),
+                'awaiting_review' => $mine()->whereHas('column', fn ($query) => $query->where('semantic_status', 'review'))->count(),
+                'completed_today' => Task::query()
+                    ->where('primary_assignee_id', $user->id)
+                    ->whereDate('completed_at', today())
+                    ->count(),
+            ],
+            'myTasks' => $mine()
+                ->with(['board:id,name', 'column:id,name,semantic_status', 'labels:id,name,color'])
+                ->orderByRaw('due_at nulls last')
+                ->limit(15)
+                ->get(),
+            'recentlyAssigned' => $mine()
+                ->with('board:id,name')
+                ->latest('updated_at')
+                ->limit(5)
+                ->get(['id', 'task_number', 'title', 'board_id', 'due_at', 'priority']),
+            'myTickets' => Ticket::query()
+                ->where('requester_id', $user->id)
+                ->whereIn('status', Ticket::OPEN_STATUSES)
+                ->with('category:id,name')
+                ->latest()
+                ->limit(5)
+                ->get(['id', 'ticket_number', 'title', 'status', 'category_id', 'created_at']),
+        ]);
+    }
+
     public function it(Request $request): Response
     {
         abort_unless($request->user()->can('tickets.manage'), 403);
