@@ -20,6 +20,7 @@ class Board extends Model
 
     protected $fillable = [
         'department_id',
+        'project_id',
         'name',
         'description',
         'visibility',
@@ -37,6 +38,11 @@ class Board extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function creator(): BelongsTo

@@ -22,6 +22,7 @@ class Task extends Model
         'department_id',
         'board_id',
         'board_column_id',
+        'project_id',
         'position',
         'created_by',
         'primary_assignee_id',
@@ -61,6 +62,21 @@ class Task extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function countries(): BelongsToMany
+    {
+        return $this->belongsToMany(Country::class, 'task_country');
+    }
+
+    public function websites(): BelongsToMany
+    {
+        return $this->belongsToMany(Website::class, 'task_website');
     }
 
     public function creator(): BelongsTo
