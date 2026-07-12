@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\Task;
+use App\Models\Ticket;
+use App\Models\TicketStatusHistory;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
@@ -46,5 +49,81 @@ class ReportController extends Controller
             'people' => User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name']),
             'selected' => $request->only(['department_id', 'assignee_id']),
         ]);
+    }
+
+    public function remoteSupport(Request $request): Response|StreamedResponse
+    {
+        abort_unless($request->user()->can('reports.view'), 403);
+
+        $from = $request->date('from') ?? now()->subDays(30)->startOfDay();
+        $to = ($request->date('to') ?? now())->endOfDay();
+
+        $resolved = Ticket::query()
+            ->whereNotNull('resolved_at')
+            ->whereBetween('resolved_at', [$from, $to])
+            ->when($request->filled('department_id'), fn ($q) => $q->where('department_id', $request->integer('department_id')))
+            ->with(['department:id,name', 'category:id,name'])
+            ->get();
+
+        if ($request->string('format')->toString() === 'csv') {
+            return $this->remoteSupportCsv($resolved);
+        }
+
+        $byMethod = $resolved->groupBy('resolution_method')->map->count();
+        $reopened = TicketStatusHistory::query()
+            ->whereIn('ticket_id', $resolved->pluck('id'))
+            ->where('to_status', Ticket::STATUS_REOPENED)
+            ->distinct('ticket_id')
+            ->count('ticket_id');
+
+        $avg = function (string $column) use ($resolved): ?int {
+            $diffs = $resolved->whereNotNull($column)
+                ->map(fn (Ticket $ticket) => $ticket->created_at->diffInMinutes($ticket->{$column}));
+
+            return $diffs->isEmpty() ? null : (int) round($diffs->avg());
+        };
+
+        return Inertia::render('reports/remote-support', [
+            'totals' => [
+                'resolved' => $resolved->count(),
+                'avg_first_response_minutes' => $avg('first_responded_at'),
+                'avg_resolution_minutes' => $avg('resolved_at'),
+                'avg_time_spent_minutes' => $resolved->isEmpty() ? null : (int) round($resolved->avg('time_spent_minutes')),
+                'reopen_rate' => $resolved->isEmpty() ? null : round($reopened / $resolved->count() * 100, 1),
+            ],
+            'byMethod' => $byMethod,
+            'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
+            'selected' => [
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'department_id' => $request->input('department_id'),
+            ],
+        ]);
+    }
+
+    /** Export matches the on-screen filters exactly (US-060). */
+    private function remoteSupportCsv($resolved): StreamedResponse
+    {
+        return response()->streamDownload(function () use ($resolved) {
+            $out = fopen('php://output', 'wb');
+            fputcsv($out, ['ticket_number', 'title', 'department', 'category', 'priority', 'resolution_method', 'created_at', 'first_response_minutes', 'resolution_minutes', 'time_spent_minutes']);
+
+            foreach ($resolved as $ticket) {
+                fputcsv($out, [
+                    'TK-'.$ticket->ticket_number,
+                    $ticket->title,
+                    $ticket->department?->name,
+                    $ticket->category?->name,
+                    $ticket->priority,
+                    $ticket->resolution_method,
+                    $ticket->created_at->toDateTimeString(),
+                    $ticket->first_responded_at ? $ticket->created_at->diffInMinutes($ticket->first_responded_at) : null,
+                    $ticket->resolved_at ? $ticket->created_at->diffInMinutes($ticket->resolved_at) : null,
+                    $ticket->time_spent_minutes,
+                ]);
+            }
+
+            fclose($out);
+        }, 'remote-support-report.csv', ['Content-Type' => 'text/csv']);
     }
 }

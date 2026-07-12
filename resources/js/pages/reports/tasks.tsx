@@ -68,6 +68,9 @@ export default function TasksReport({
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">Task report</h1>
                     <span className="text-muted-foreground text-sm">{tasks.total} tasks</span>
+                    <Link href="/reports/remote-support" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
+                        Remote support →
+                    </Link>
                     <div className="ml-auto flex flex-wrap gap-2">
                         <Select value={filter} onValueChange={(value) => apply({ filter: value })}>
                             <SelectTrigger className="w-48">
