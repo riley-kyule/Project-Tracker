@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Checklist;
 use App\Models\ChecklistItem;
 use App\Models\Task;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,10 +18,11 @@ class ChecklistController extends Controller
 
         $validated = $request->validate(['name' => ['required', 'string', 'max:255']]);
 
-        $task->checklists()->create([
+        $checklist = $task->checklists()->create([
             'name' => $validated['name'],
             'position' => (int) $task->checklists()->max('position') + 1,
         ]);
+        AuditLogger::log($task, 'checklist_created', [], ['checklist_id' => $checklist->id, 'name' => $checklist->name]);
 
         return back();
     }
@@ -29,7 +31,10 @@ class ChecklistController extends Controller
     {
         Gate::authorize('update', $checklist->task);
 
+        $task = $checklist->task;
+        $old = $checklist->only(['id', 'name']);
         $checklist->delete();
+        AuditLogger::log($task, 'checklist_removed', $old, []);
 
         return back();
     }
@@ -40,10 +45,11 @@ class ChecklistController extends Controller
 
         $validated = $request->validate(['title' => ['required', 'string', 'max:255']]);
 
-        $checklist->items()->create([
+        $item = $checklist->items()->create([
             'title' => $validated['title'],
             'position' => (int) $checklist->items()->max('position') + 1,
         ]);
+        AuditLogger::log($checklist->task, 'checklist_item_created', [], ['item_id' => $item->id, 'title' => $item->title]);
 
         return back();
     }
@@ -62,7 +68,9 @@ class ChecklistController extends Controller
             $validated['completed_at'] = $validated['is_completed'] ? now() : null;
         }
 
+        $old = $item->only(array_keys($validated));
         $item->update($validated);
+        AuditLogger::log($item->checklist->task, 'checklist_item_updated', $old, $item->only(array_keys($validated)));
 
         return back();
     }
@@ -71,7 +79,10 @@ class ChecklistController extends Controller
     {
         Gate::authorize('update', $item->checklist->task);
 
+        $task = $item->checklist->task;
+        $old = $item->only(['id', 'title']);
         $item->delete();
+        AuditLogger::log($task, 'checklist_item_removed', $old, []);
 
         return back();
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\Department;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -46,8 +47,19 @@ class UserController extends Controller
         Gate::authorize('update', $user);
 
         DB::transaction(function () use ($request, $user) {
+            $old = [
+                ...$user->only(['department_id', 'manager_id', 'job_title', 'status']),
+                'role' => $user->roles()->value('name'),
+            ];
+            $new = [
+                ...$request->safe()->except('role'),
+                'role' => $request->validated('role'),
+            ];
+
             $user->update($request->safe()->except('role'));
             $user->syncRoles([$request->validated('role')]);
+
+            AuditLogger::log($user, 'administrative_update', $old, $new);
         });
 
         return back()->with('success', 'User updated.');

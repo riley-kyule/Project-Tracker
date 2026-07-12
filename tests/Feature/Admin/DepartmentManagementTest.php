@@ -40,6 +40,13 @@ class DepartmentManagementTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseHas('departments', ['name' => 'Skunkworks', 'slug' => 'skunkworks']);
+        $department = Department::query()->where('slug', 'skunkworks')->firstOrFail();
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $admin->id,
+            'auditable_type' => Department::class,
+            'auditable_id' => $department->id,
+            'event' => 'created',
+        ]);
     }
 
     public function test_administrators_can_update_a_department()
@@ -57,6 +64,12 @@ class DepartmentManagementTest extends TestCase
         $department->refresh();
         $this->assertSame('Search Engine Optimization', $department->name);
         $this->assertFalse($department->is_active);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $admin->id,
+            'auditable_type' => Department::class,
+            'auditable_id' => $department->id,
+            'event' => 'updated',
+        ]);
     }
 
     public function test_duplicate_department_names_are_rejected()

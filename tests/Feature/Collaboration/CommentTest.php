@@ -117,5 +117,26 @@ class CommentTest extends TestCase
         $this->actingAs($other)->delete("/comments/{$comment->id}")->assertForbidden();
         $this->actingAs($author)->delete("/comments/{$comment->id}")->assertRedirect();
         $this->assertSoftDeleted('comments', ['id' => $comment->id]);
+        $this->assertDatabaseHas('audit_logs', [
+            'auditable_type' => Task::class,
+            'auditable_id' => $task->id,
+            'event' => 'comment_removed',
+        ]);
+    }
+
+    public function test_author_cannot_delete_comment_after_losing_parent_access()
+    {
+        $author = User::factory()->create()->assignRole('Employee');
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_RESTRICTED]);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
+        $board->members()->attach($author->id);
+
+        $this->actingAs($author)->post("/tasks/{$task->id}/comments", ['body' => 'Mine']);
+        $comment = Comment::query()->firstOrFail();
+        $board->members()->detach($author->id);
+
+        $this->actingAs($author)->delete("/comments/{$comment->id}")->assertForbidden();
+        $this->assertNotSoftDeleted('comments', ['id' => $comment->id]);
     }
 }

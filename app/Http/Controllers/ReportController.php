@@ -61,6 +61,10 @@ class ReportController extends Controller
         $resolved = Ticket::query()
             ->whereNotNull('resolved_at')
             ->whereBetween('resolved_at', [$from, $to])
+            ->when(
+                ! $request->user()->hasAnyRole(['CEO', 'Administrator']),
+                fn ($q) => $q->where('department_id', $request->user()->department_id),
+            )
             ->when($request->filled('department_id'), fn ($q) => $q->where('department_id', $request->integer('department_id')))
             ->with(['department:id,name', 'category:id,name'])
             ->get();

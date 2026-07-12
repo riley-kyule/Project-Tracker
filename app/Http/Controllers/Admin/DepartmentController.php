@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DepartmentRequest;
 use App\Models\Department;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -35,10 +36,11 @@ class DepartmentController extends Controller
     {
         Gate::authorize('create', Department::class);
 
-        Department::create([
+        $department = Department::create([
             ...$request->validated(),
             'slug' => $request->slug(),
         ]);
+        AuditLogger::log($department, 'created', [], $department->only(['name', 'slug', 'manager_id', 'is_active']));
 
         return back()->with('success', 'Department created.');
     }
@@ -47,10 +49,12 @@ class DepartmentController extends Controller
     {
         Gate::authorize('update', $department);
 
+        $old = $department->only(['name', 'slug', 'description', 'manager_id', 'is_active']);
         $department->update([
             ...$request->validated(),
             'slug' => $request->slug(),
         ]);
+        AuditLogger::log($department, 'updated', $old, $department->only(array_keys($old)));
 
         return back()->with('success', 'Department updated.');
     }

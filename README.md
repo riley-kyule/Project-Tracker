@@ -33,8 +33,8 @@ An internal operations platform that centralizes work management and IT support 
 | UI | Tailwind CSS, shadcn/ui, dnd-kit |
 | Database | PostgreSQL |
 | Cache & queues | Redis |
-| Real-time | Laravel Reverb (WebSockets) |
-| Testing | Pest, Vitest, Playwright |
+| Real-time | Queue-backed notifications; Reverb is planned |
+| Testing | PHPUnit, ESLint, TypeScript, and Prettier |
 
 ## Roadmap
 
@@ -47,7 +47,9 @@ An internal operations platform that centralizes work management and IT support 
 
 ## Status
 
-📋 In design — architecture and specifications are complete; implementation begins with authentication, roles, and boards.
+Active MVP development. Authentication, roles, departments, boards, task collaboration,
+notifications, service desk workflows, dashboards, reports, and global search are implemented
+with feature coverage. Projects and registry work remains on the roadmap.
 
 ## Principles
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\Task;
+use App\Services\AuditLogger;
 use App\Services\CommentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,12 +43,17 @@ class CommentController extends Controller
 
     public function destroy(Request $request, Comment $comment): RedirectResponse
     {
+        $parent = $comment->commentable;
+        abort_unless($parent instanceof Task, 404);
+        Gate::authorize('view', $parent);
+
         abort_unless(
             $comment->user_id === $request->user()->id || $request->user()->hasRole('Administrator'),
             403,
         );
 
         $comment->delete();
+        AuditLogger::log($parent, 'comment_removed', ['comment_id' => $comment->id], []);
 
         return back();
     }

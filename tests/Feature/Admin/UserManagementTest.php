@@ -50,6 +50,12 @@ class UserManagementTest extends TestCase
         $this->assertSame('Support Technician', $target->job_title);
         $this->assertTrue($target->hasRole('IT Technician'));
         $this->assertFalse($target->hasRole('Employee'));
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $admin->id,
+            'auditable_type' => User::class,
+            'auditable_id' => $target->id,
+            'event' => 'administrative_update',
+        ]);
     }
 
     public function test_a_user_cannot_be_their_own_manager()

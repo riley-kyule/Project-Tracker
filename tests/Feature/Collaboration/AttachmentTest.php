@@ -24,6 +24,11 @@ class AttachmentTest extends TestCase
         return Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
     }
 
+    private function pdf(string $name, int $padding = 200): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent($name, "%PDF-1.4\n".str_repeat('0', $padding));
+    }
+
     public function test_users_can_upload_and_download_attachments()
     {
         Storage::fake('local');
@@ -33,7 +38,7 @@ class AttachmentTest extends TestCase
 
         $this->actingAs($user)
             ->post("/tasks/{$task->id}/attachments", [
-                'file' => UploadedFile::fake()->create('report.pdf', 200, 'application/pdf'),
+                'file' => $this->pdf('report.pdf'),
             ])
             ->assertRedirect();
 
@@ -59,6 +64,21 @@ class AttachmentTest extends TestCase
             ->post("/tasks/{$task->id}/attachments", [
                 'file' => UploadedFile::fake()->create('malware.exe', 10),
             ])
+            ->assertSessionHasErrors('file');
+
+        $this->assertSame(0, Attachment::query()->count());
+    }
+
+    public function test_renamed_executable_content_is_rejected()
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask();
+        $file = UploadedFile::fake()->createWithContent('malware.pdf', "#!/bin/sh\necho compromised");
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/attachments", ['file' => $file])
             ->assertStatus(422);
 
         $this->assertSame(0, Attachment::query()->count());
@@ -75,7 +95,7 @@ class AttachmentTest extends TestCase
         $task->board->members()->attach($member->id);
 
         $this->actingAs($member)->post("/tasks/{$task->id}/attachments", [
-            'file' => UploadedFile::fake()->create('secret.pdf', 50, 'application/pdf'),
+            'file' => $this->pdf('secret.pdf'),
         ]);
 
         $attachment = Attachment::query()->firstOrFail();
@@ -93,7 +113,7 @@ class AttachmentTest extends TestCase
         $task = $this->makeTask();
 
         $this->actingAs($uploader)->post("/tasks/{$task->id}/attachments", [
-            'file' => UploadedFile::fake()->create('doc.pdf', 50, 'application/pdf'),
+            'file' => $this->pdf('doc.pdf'),
         ]);
 
         $attachment = Attachment::query()->firstOrFail();
@@ -103,5 +123,23 @@ class AttachmentTest extends TestCase
 
         $this->assertSame(0, Attachment::query()->count());
         Storage::disk('local')->assertMissing($attachment->path);
+    }
+
+    public function test_uploader_cannot_delete_after_losing_parent_access()
+    {
+        Storage::fake('local');
+
+        $uploader = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask(Board::VISIBILITY_RESTRICTED);
+        $task->board->members()->attach($uploader->id);
+
+        $this->actingAs($uploader)->post("/tasks/{$task->id}/attachments", [
+            'file' => $this->pdf('doc.pdf'),
+        ]);
+        $attachment = Attachment::query()->firstOrFail();
+        $task->board->members()->detach($uploader->id);
+
+        $this->actingAs($uploader)->delete("/attachments/{$attachment->id}")->assertForbidden();
+        $this->assertDatabaseHas('attachments', ['id' => $attachment->id]);
     }
 }

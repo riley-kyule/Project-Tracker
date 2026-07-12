@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Reports;
 
+use App\Models\Department;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
@@ -57,5 +58,36 @@ class RemoteSupportReportTest extends TestCase
         $this->assertStringContainsString('resolution_method', $content);
         $this->assertSame(3, substr_count($content, ',remote,'));
         $this->assertSame(1, substr_count($content, ',onsite,'));
+    }
+
+    public function test_department_managers_only_see_their_departments_remote_support_data()
+    {
+        $ownDepartment = Department::query()->where('slug', 'seo')->firstOrFail();
+        $otherDepartment = Department::query()->where('slug', 'it')->firstOrFail();
+        $manager = User::factory()->create(['department_id' => $ownDepartment->id])->assignRole('Department Manager');
+        $category = TicketCategory::query()->firstOrFail();
+
+        Ticket::factory()->create([
+            'department_id' => $ownDepartment->id,
+            'category_id' => $category->id,
+            'status' => Ticket::STATUS_RESOLVED,
+            'resolution_method' => 'remote',
+            'resolved_at' => now()->subDay(),
+        ]);
+        Ticket::factory()->create([
+            'department_id' => $otherDepartment->id,
+            'category_id' => $category->id,
+            'status' => Ticket::STATUS_RESOLVED,
+            'resolution_method' => 'onsite',
+            'resolved_at' => now()->subDay(),
+        ]);
+
+        $props = $this->actingAs($manager)->get('/reports/remote-support')->assertOk()->viewData('page')['props'];
+        $this->assertSame(1, $props['totals']['resolved']);
+        $this->assertSame(1, $props['byMethod']['remote']);
+        $this->assertArrayNotHasKey('onsite', $props['byMethod']);
+
+        $csv = $this->actingAs($manager)->get("/reports/remote-support?format=csv&department_id={$otherDepartment->id}");
+        $this->assertSame(1, substr_count($csv->streamedContent(), "\n"));
     }
 }
