@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 
@@ -129,12 +130,16 @@ export function UpdateChecker() {
                 }
             }}
         >
-            <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                    <RefreshCw className="size-4" />
-                    Check for Updates
-                </Button>
-            </DialogTrigger>
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <DialogTrigger asChild>
+                        <SidebarMenuButton tooltip="Check for Updates">
+                            <RefreshCw />
+                            <span>Check for Updates</span>
+                        </SidebarMenuButton>
+                    </DialogTrigger>
+                </SidebarMenuItem>
+            </SidebarMenu>
             <DialogContent className="max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Check for Updates</DialogTitle>
