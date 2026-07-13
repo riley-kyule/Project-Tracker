@@ -30,6 +30,7 @@ Thumbs.db
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/app/gcp
 .env
 .env.backup
 .env.production

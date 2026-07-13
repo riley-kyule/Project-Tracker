@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\Analytics\Contracts\BigQueryRunner;
+use App\Services\Analytics\GoogleBigQueryRunner;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -12,7 +14,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(BigQueryRunner::class, GoogleBigQueryRunner::class);
     }
 
     /**
