@@ -23,6 +23,7 @@ type WebsiteRow = {
     responsible_user: Option | null;
     ga4_property_id: string | null;
     gsc_property: string | null;
+    gsc_bigquery_dataset: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Websites', href: '/admin/websites' }];
@@ -52,6 +53,7 @@ function WebsiteDialog({
         responsible_user_id: website?.responsible_user?.id.toString() ?? NONE,
         ga4_property_id: website?.ga4_property_id ?? '',
         gsc_property: website?.gsc_property ?? '',
+        gsc_bigquery_dataset: website?.gsc_bigquery_dataset ?? '',
     });
 
     const submit = (e: React.FormEvent) => {
@@ -144,6 +146,15 @@ function WebsiteDialog({
                         <div className="grid gap-2">
                             <Label htmlFor="gsc">GSC property</Label>
                             <Input id="gsc" value={data.gsc_property} onChange={(e) => setData('gsc_property', e.target.value)} />
+                        </div>
+                        <div className="col-span-2 grid gap-2">
+                            <Label htmlFor="gsc_dataset">GSC BigQuery dataset</Label>
+                            <Input
+                                id="gsc_dataset"
+                                value={data.gsc_bigquery_dataset}
+                                onChange={(e) => setData('gsc_bigquery_dataset', e.target.value)}
+                                placeholder="e.g. gsc_export"
+                            />
                         </div>
                     </div>
                     <div className="grid gap-2">

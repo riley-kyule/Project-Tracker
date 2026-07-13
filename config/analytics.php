@@ -43,4 +43,21 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google Search Console (Bulk Data Export)
+    |--------------------------------------------------------------------------
+    |
+    | Unlike GA4, each property's destination dataset is chosen by hand when
+    | linking it in Search Console, so it's stored per website
+    | (websites.gsc_bigquery_dataset) rather than derived from a pattern.
+    |
+    */
+
+    'gsc' => [
+        // GSC data takes a few days to stabilize; sync a date that far back
+        // by default rather than "yesterday".
+        'sync_lag_days' => (int) env('GSC_SYNC_LAG_DAYS', 3),
+    ],
+
 ];

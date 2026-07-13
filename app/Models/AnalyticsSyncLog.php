@@ -13,6 +13,8 @@ class AnalyticsSyncLog extends Model
 
     public const SOURCE_GA4 = 'ga4';
 
+    public const SOURCE_GSC = 'gsc';
+
     protected $fillable = [
         'source',
         'website_id',

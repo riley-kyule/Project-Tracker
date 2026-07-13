@@ -21,6 +21,7 @@ class Website extends Model
         'responsible_user_id',
         'ga4_property_id',
         'gsc_property',
+        'gsc_bigquery_dataset',
         'crm_platform_id',
         'ahrefs_target',
         'gtm_container_id',

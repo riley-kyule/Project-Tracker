@@ -39,9 +39,12 @@ class WebsiteRegistryTest extends TestCase
                 'name' => $website->name,
                 'status' => 'active',
                 'gsc_property' => 'sc-domain:example.com',
+                'gsc_bigquery_dataset' => 'gsc_export',
             ])
             ->assertRedirect();
 
-        $this->assertSame('sc-domain:example.com', $website->refresh()->gsc_property);
+        $website->refresh();
+        $this->assertSame('sc-domain:example.com', $website->gsc_property);
+        $this->assertSame('gsc_export', $website->gsc_bigquery_dataset);
     }
 }

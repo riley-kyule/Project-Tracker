@@ -63,6 +63,7 @@ class WebsiteController extends Controller
             'responsible_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'ga4_property_id' => ['nullable', 'string', 'max:100'],
             'gsc_property' => ['nullable', 'string', 'max:255'],
+            'gsc_bigquery_dataset' => ['nullable', 'string', 'max:255'],
             'crm_platform_id' => ['nullable', 'string', 'max:100'],
             'ahrefs_target' => ['nullable', 'string', 'max:255'],
             'gtm_container_id' => ['nullable', 'string', 'max:100'],
