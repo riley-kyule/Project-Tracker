@@ -41,11 +41,20 @@
     --color-input: var(--input);
     --color-ring: var(--ring);
 
-    --color-chart-1: var(--chart-1);
-    --color-chart-2: var(--chart-2);
-    --color-chart-3: var(--chart-3);
-    --color-chart-4: var(--chart-4);
-    --color-chart-5: var(--chart-5);
+    /* Categorical series palette for charts (dataviz skill), validated with
+       scripts/validate_palette.js against this app's actual light (#ffffff)
+       and dark (#111722) card surfaces. Fixed hue order — assign by series
+       identity, never cycle or reassign when a filter changes the series
+       count. */
+    --color-viz-series-1: var(--viz-series-1);
+    --color-viz-series-2: var(--viz-series-2);
+    --color-viz-series-3: var(--viz-series-3);
+    --color-viz-series-4: var(--viz-series-4);
+    --color-viz-series-5: var(--viz-series-5);
+    --color-viz-series-6: var(--viz-series-6);
+    --color-viz-series-7: var(--viz-series-7);
+    --color-viz-series-8: var(--viz-series-8);
+    --color-viz-gridline: var(--viz-gridline);
 
     --color-sidebar: var(--sidebar-background);
     --color-sidebar-foreground: var(--sidebar-foreground);
@@ -109,11 +118,15 @@
     --border: hsl(211, 24%, 91%);
     --input: hsl(211, 24%, 88%);
     --ring: hsl(203, 65%, 51%);
-    --chart-1: hsl(207, 68%, 44%);
-    --chart-2: hsl(201, 65%, 51%);
-    --chart-3: hsl(221, 68%, 33%);
-    --chart-4: hsl(173, 58%, 39%);
-    --chart-5: hsl(43, 74%, 56%);
+    --viz-series-1: #2a78d6;
+    --viz-series-2: #1baf7a;
+    --viz-series-3: #eda100;
+    --viz-series-4: #008300;
+    --viz-series-5: #4a3aa7;
+    --viz-series-6: #e34948;
+    --viz-series-7: #e87ba4;
+    --viz-series-8: #eb6834;
+    --viz-gridline: #e1e0d9;
     --radius: 0.5rem;
     --sidebar-background: hsl(213, 38%, 97%);
     --sidebar-foreground: hsl(217, 24%, 30%);
@@ -145,11 +158,15 @@
     --border: hsl(218, 27%, 18%);
     --input: hsl(218, 27%, 18%);
     --ring: hsl(203, 70%, 58%);
-    --chart-1: hsl(203, 70%, 58%);
-    --chart-2: hsl(207, 65%, 48%);
-    --chart-3: hsl(213, 60%, 70%);
-    --chart-4: hsl(168, 55%, 48%);
-    --chart-5: hsl(43, 80%, 60%);
+    --viz-series-1: #3987e5;
+    --viz-series-2: #199e70;
+    --viz-series-3: #c98500;
+    --viz-series-4: #008300;
+    --viz-series-5: #9085e9;
+    --viz-series-6: #e66767;
+    --viz-series-7: #d55181;
+    --viz-series-8: #d95926;
+    --viz-gridline: #2c2c2a;
     --sidebar-background: hsl(221, 38%, 6%);
     --sidebar-foreground: hsl(211, 18%, 78%);
     --sidebar-primary: hsl(203, 70%, 58%);

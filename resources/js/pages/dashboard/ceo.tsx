@@ -1,3 +1,4 @@
+import { TrafficDataSection } from '@/components/dashboard/traffic-data-section';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -160,6 +161,8 @@ export default function CeoDashboard({
                     <TaskList title="CEO priority" tasks={ceoPriorityTasks} icon={<Star className="size-4 fill-amber-400 text-amber-400" />} />
                     <TaskList title="Upcoming deadlines (7 days)" tasks={upcoming} />
                 </div>
+
+                <TrafficDataSection />
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                     <h2 className="mb-2 text-sm font-semibold">Recent activity</h2>
