@@ -31,6 +31,7 @@ class RoleSeeder extends Seeder
             'projects.manage',
             'registry.manage',
             'system.deploy',
+            'view marketing statistics',
         ];
 
         foreach ($permissions as $permission) {
@@ -38,10 +39,12 @@ class RoleSeeder extends Seeder
         }
 
         $rolePermissions = [
-            'CEO' => ['users.view', 'departments.view', 'boards.manage', 'tasks.create', 'tickets.manage', 'reports.view', 'projects.manage', 'system.deploy'],
+            'CEO' => ['users.view', 'departments.view', 'boards.manage', 'tasks.create', 'tickets.manage', 'reports.view', 'projects.manage', 'system.deploy', 'view marketing statistics'],
             'Administrator' => $permissions,
             'Department Manager' => ['users.view', 'departments.view', 'boards.manage', 'tasks.create', 'reports.view', 'projects.manage'],
             'IT Technician' => ['departments.view', 'tasks.create', 'tickets.manage'],
+            'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics'],
+            'Customer Service' => ['departments.view', 'tasks.create'],
             'Employee' => ['departments.view', 'tasks.create'],
             'Viewer' => ['departments.view'],
         ];

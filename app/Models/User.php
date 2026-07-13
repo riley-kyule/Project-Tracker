@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -94,5 +95,15 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function websiteAssignments(): HasMany
+    {
+        return $this->hasMany(WebsiteAssignment::class);
+    }
+
+    public function assignedWebsites(): BelongsToMany
+    {
+        return $this->belongsToMany(Website::class, 'website_assignments')->withPivot('id', 'team')->withTimestamps();
     }
 }

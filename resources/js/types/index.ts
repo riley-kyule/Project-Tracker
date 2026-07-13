@@ -5,6 +5,7 @@ export interface Auth {
     permissions: string[];
     roles: string[];
     managesDepartment: boolean;
+    hasWebsiteAssignments: boolean;
 }
 
 export interface BreadcrumbItem {

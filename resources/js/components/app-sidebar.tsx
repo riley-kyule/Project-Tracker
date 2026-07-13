@@ -4,7 +4,21 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { UpdateChecker } from '@/components/update-checker';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BarChart3, Building2, Crown, Gauge, Globe, KanbanSquare, LayoutGrid, LifeBuoy, ListTodo, Users, UsersRound } from 'lucide-react';
+import {
+    BarChart3,
+    Building2,
+    Crown,
+    FileText,
+    Gauge,
+    Globe,
+    KanbanSquare,
+    LayoutGrid,
+    LifeBuoy,
+    LineChart,
+    ListTodo,
+    Users,
+    UsersRound,
+} from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -39,10 +53,14 @@ export function AppSidebar() {
         ...(isExec ? [{ title: 'CEO Dashboard', url: '/dashboards/ceo', icon: Crown }] : []),
         ...(auth.managesDepartment ? [{ title: 'My Department', url: '/dashboards/department', icon: UsersRound }] : []),
         ...(auth.permissions.includes('reports.view') ? [{ title: 'Reports', url: '/reports/tasks', icon: BarChart3 }] : []),
+        ...(auth.permissions.includes('view marketing statistics')
+            ? [{ title: 'Marketing Statistics', url: '/marketing-statistics', icon: LineChart }]
+            : []),
         ...(auth.permissions.includes('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
         ...(auth.permissions.includes('registry.manage') ? [{ title: 'Websites', url: '/admin/websites', icon: Globe }] : []),
         ...(auth.permissions.includes('departments.view') ? [{ title: 'Departments', url: '/admin/departments', icon: Building2 }] : []),
         ...(auth.permissions.includes('users.view') ? [{ title: 'Users', url: '/admin/users', icon: Users }] : []),
+        ...(auth.hasWebsiteAssignments ? [{ title: 'My Reports', url: '/my-reports', icon: FileText }] : []),
     ];
 
     return (

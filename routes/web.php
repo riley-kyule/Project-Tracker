@@ -17,3 +17,5 @@ require __DIR__.'/admin.php';
 require __DIR__.'/boards.php';
 require __DIR__.'/tickets.php';
 require __DIR__.'/projects.php';
+require __DIR__.'/marketing.php';
+require __DIR__.'/reports.php';

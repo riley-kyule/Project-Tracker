@@ -49,6 +49,7 @@ class HandleInertiaRequests extends Middleware
                     ? $user->hasRole('Department Manager')
                         || Department::query()->where('manager_id', $user->id)->orWhere('assistant_manager_id', $user->id)->exists()
                     : false,
+                'hasWebsiteAssignments' => $user ? $user->websiteAssignments()->exists() : false,
             ],
         ];
     }

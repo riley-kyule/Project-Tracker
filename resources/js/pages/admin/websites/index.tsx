@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
-import { Pencil, Plus } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { Pencil, Plus, RefreshCw, Users as UsersIcon, X } from 'lucide-react';
 import { useState } from 'react';
 
 type Option = { id: number; name: string };
+
+type AssignedUser = Option & { pivot: { id: number; team: string } };
 
 type WebsiteRow = {
     id: number;
@@ -23,11 +25,105 @@ type WebsiteRow = {
     responsible_user: Option | null;
     ga4_property_id: string | null;
     gsc_property: string | null;
+    assigned_users: AssignedUser[];
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Websites', href: '/admin/websites' }];
 
 const NONE = 'none';
+
+const TEAM_LABELS: Record<string, string> = {
+    marketing: 'Marketing',
+    customer_service: 'Customer Service',
+};
+
+function AssignmentsDialog({ website, users, teams }: { website: WebsiteRow; users: Option[]; teams: string[] }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, post, processing, errors, reset } = useForm({
+        user_id: '',
+        team: teams[0] ?? 'marketing',
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        post(`/admin/websites/${website.id}/assignments`, {
+            preserveScroll: true,
+            onSuccess: () => reset('user_id'),
+        });
+    };
+
+    const remove = (assignmentId: number) => {
+        router.delete(`/admin/website-assignments/${assignmentId}`, { preserveScroll: true });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" aria-label={`Manage members for ${website.name}`}>
+                    <UsersIcon className="mr-1 size-4" />
+                    {website.assigned_users.length}
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Assigned members — {website.name}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        {website.assigned_users.length === 0 && <p className="text-muted-foreground text-sm">No members assigned yet.</p>}
+                        {website.assigned_users.map((user) => (
+                            <div key={`${user.id}-${user.pivot.team}`} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <span>{user.name}</span>
+                                    <Badge variant="secondary">{TEAM_LABELS[user.pivot.team] ?? user.pivot.team}</Badge>
+                                </div>
+                                <Button variant="ghost" size="sm" aria-label={`Remove ${user.name}`} onClick={() => remove(user.pivot.id)}>
+                                    <X className="size-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                    <form onSubmit={submit} className="flex items-end gap-2 border-t pt-4">
+                        <div className="grid flex-1 gap-2">
+                            <Label>Member</Label>
+                            <Select value={data.user_id} onValueChange={(value) => setData('user_id', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a user" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {users.map((user) => (
+                                        <SelectItem key={user.id} value={user.id.toString()}>
+                                            {user.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Team</Label>
+                            <Select value={data.team} onValueChange={(value) => setData('team', value)}>
+                                <SelectTrigger className="w-40">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {teams.map((team) => (
+                                        <SelectItem key={team} value={team}>
+                                            {TEAM_LABELS[team] ?? team}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button type="submit" disabled={processing || !data.user_id}>
+                            Add
+                        </Button>
+                    </form>
+                    <InputError message={errors.user_id ?? errors.team} />
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function WebsiteDialog({
     website,
@@ -173,14 +269,30 @@ export default function WebsitesIndex({
     countries,
     departments,
     users,
+    teams,
     canManage,
 }: {
     websites: WebsiteRow[];
     countries: Option[];
     departments: Option[];
     users: Option[];
+    teams: string[];
     canManage: boolean;
 }) {
+    const [syncing, setSyncing] = useState(false);
+
+    const sync = () => {
+        setSyncing(true);
+        router.post(
+            '/admin/websites/sync',
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setSyncing(false),
+            },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Websites" />
@@ -188,16 +300,22 @@ export default function WebsitesIndex({
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Website registry</h1>
                     {canManage && (
-                        <WebsiteDialog
-                            countries={countries}
-                            departments={departments}
-                            users={users}
-                            trigger={
-                                <Button size="sm">
-                                    <Plus className="mr-1 size-4" /> New website
-                                </Button>
-                            }
-                        />
+                        <div className="flex items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={sync} disabled={syncing}>
+                                <RefreshCw className={`mr-1 size-4 ${syncing ? 'animate-spin' : ''}`} />
+                                Sync from BigQuery
+                            </Button>
+                            <WebsiteDialog
+                                countries={countries}
+                                departments={departments}
+                                users={users}
+                                trigger={
+                                    <Button size="sm">
+                                        <Plus className="mr-1 size-4" /> New website
+                                    </Button>
+                                }
+                            />
+                        </div>
                     )}
                 </div>
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
@@ -209,6 +327,7 @@ export default function WebsitesIndex({
                                 <th className="p-3 font-medium">Responsible</th>
                                 <th className="p-3 font-medium">GA4 / GSC</th>
                                 <th className="p-3 font-medium">Status</th>
+                                <th className="p-3 font-medium">Members</th>
                                 {canManage && <th className="p-3" />}
                             </tr>
                         </thead>
@@ -223,6 +342,13 @@ export default function WebsitesIndex({
                                     </td>
                                     <td className="p-3">
                                         <Badge variant={website.status === 'active' ? 'default' : 'secondary'}>{website.status}</Badge>
+                                    </td>
+                                    <td className="p-3">
+                                        {canManage ? (
+                                            <AssignmentsDialog website={website} users={users} teams={teams} />
+                                        ) : (
+                                            website.assigned_users.length
+                                        )}
                                     </td>
                                     {canManage && (
                                         <td className="p-3 text-right">
@@ -243,7 +369,7 @@ export default function WebsitesIndex({
                             ))}
                             {websites.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="text-muted-foreground p-6 text-center">
+                                    <td colSpan={7} className="text-muted-foreground p-6 text-center">
                                         No websites registered yet.
                                     </td>
                                 </tr>

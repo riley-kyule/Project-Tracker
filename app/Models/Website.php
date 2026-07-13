@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Website extends Model
 {
@@ -57,5 +58,15 @@ class Website extends Model
     public function tasks(): BelongsToMany
     {
         return $this->belongsToMany(Task::class, 'task_website');
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(WebsiteAssignment::class);
+    }
+
+    public function assignedUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'website_assignments')->withPivot('id', 'team')->withTimestamps();
     }
 }

@@ -7,6 +7,8 @@ use App\Models\Country;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\Website;
+use App\Models\WebsiteAssignment;
+use App\Services\Registry\WebsiteRegistrySync;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -22,14 +24,29 @@ class WebsiteController extends Controller
 
         return Inertia::render('admin/websites/index', [
             'websites' => Website::query()
-                ->with(['country:id,name', 'responsibleDepartment:id,name', 'responsibleUser:id,name'])
+                ->with([
+                    'country:id,name',
+                    'responsibleDepartment:id,name',
+                    'responsibleUser:id,name',
+                    'assignedUsers:id,name',
+                ])
                 ->orderBy('name')
                 ->get(),
             'countries' => Country::query()->orderBy('name')->get(['id', 'name']),
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'users' => User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name']),
+            'teams' => WebsiteAssignment::TEAMS,
             'canManage' => Gate::allows('create', Website::class),
         ]);
+    }
+
+    public function sync(Request $request, WebsiteRegistrySync $sync): RedirectResponse
+    {
+        Gate::authorize('create', Website::class);
+
+        $result = $sync->sync();
+
+        return back()->with('success', "Synced {$result['total']} websites ({$result['created']} new, {$result['updated']} updated).");
     }
 
     public function store(Request $request): RedirectResponse
