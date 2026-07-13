@@ -45,6 +45,10 @@ php artisan queue:restart
 
 Run `php artisan test`, `vendor/bin/pint --test`, `npm run check`, and dependency audits in CI before deploying the artifact. Do not build from a mutable working directory on the production host.
 
+### Optional in-app self-deploy
+
+Administrators and the CEO see a "Check for Updates" control in the sidebar. It always allows a read-only `git fetch` and ahead/behind comparison against the deploy branch. Actually triggering a deploy from it additionally requires `DEPLOY_SELF_UPDATE_ENABLED=true`, which is off by default and should stay off on any host that follows the immutable-artifact process above. Where it is enabled (e.g. a single-server deployment with no separate build pipeline), it runs this exact release sequence as a queued job — `git merge --ff-only`, `composer install`, `npm ci && npm run build`, `migrate --force`, `optimize`, `queue:restart` — and records each attempt in the `deployments` table with an audit log entry.
+
 ## Long-running processes
 
 - Run `php artisan queue:work --sleep=3 --tries=3 --max-time=3600` under Supervisor, systemd, or an equivalent orchestrator.
