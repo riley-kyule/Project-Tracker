@@ -19,6 +19,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
+            $table->dropIndex(['approval_status']);
             $table->dropConstrainedForeignId('approver_id');
             $table->dropColumn(['approval_status', 'approved_at', 'approval_note']);
         });

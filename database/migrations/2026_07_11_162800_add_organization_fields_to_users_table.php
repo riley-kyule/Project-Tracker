@@ -25,6 +25,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
+            $table->dropIndex(['department_id']);
+            $table->dropIndex(['manager_id']);
+            $table->dropIndex(['status']);
             $table->dropConstrainedForeignId('department_id');
             $table->dropConstrainedForeignId('manager_id');
             $table->dropColumn(['job_title', 'status', 'timezone', 'notification_preferences', 'last_login_at']);
