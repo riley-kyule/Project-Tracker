@@ -1,0 +1,137 @@
+import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
+import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
+import { TrendChart } from '@/components/marketing-statistics/trend-chart';
+import { type Kpi, type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
+
+function pct(value: number): string {
+    return `${(value * 100).toFixed(1)}%`;
+}
+
+type Breakdowns = {
+    queries: { query: string; clicks: number; impressions: number; ctr: number | null; average_position: number | null }[];
+    pages: { url: string; clicks: number; impressions: number; ctr: number | null }[];
+    countries: { country: string; clicks: number; impressions: number }[];
+    devices: { device: string; clicks: number; impressions: number }[];
+};
+
+function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: [string, string][] }) {
+    return (
+        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+            <h3 className="mb-3 text-sm font-semibold">{title}</h3>
+            <div className="max-h-64 overflow-y-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-muted-foreground text-left">
+                            {columns.map(([key, label]) => (
+                                <th key={key} className={key === columns[0][0] ? 'py-1.5 font-medium' : 'py-1.5 text-right font-medium'}>
+                                    {label}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row, i) => (
+                            <tr key={i} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                                {columns.map(([key], colIndex) => (
+                                    <td key={key} className={colIndex === 0 ? 'max-w-48 truncate py-1.5' : 'py-1.5 text-right tabular-nums'}>
+                                        {typeof row[key] === 'number' && key.includes('ctr')
+                                            ? `${((row[key] as number) * 100).toFixed(1)}%`
+                                            : String(row[key] ?? '')}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                        {rows.length === 0 && (
+                            <tr>
+                                <td colSpan={columns.length} className="text-muted-foreground py-3 text-center">
+                                    No data for this range.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+export default function GscReport({
+    selected,
+    websites,
+    source,
+    kpis,
+    trend,
+    breakdowns,
+}: {
+    selected: MarketingFilters;
+    websites: MarketingWebsite[];
+    source: SourceStatus;
+    kpis: Record<string, Kpi> | null;
+    trend: { data_date: string; clicks: number; impressions: number }[];
+    breakdowns: Breakdowns | null;
+}) {
+    return (
+        <MarketingStatisticsShell active="gsc" selected={selected} websites={websites} sources={{ gsc: source }}>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <KpiTile label="Clicks" kpi={kpis?.clicks ?? null} />
+                <KpiTile label="Impressions" kpi={kpis?.impressions ?? null} />
+                <KpiTile label="CTR" kpi={kpis?.ctr ?? null} format={pct} />
+                <KpiTile label="Average position" kpi={kpis?.average_position ?? null} format={(v) => v.toFixed(1)} />
+            </div>
+
+            <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <h3 className="mb-3 text-sm font-semibold">Clicks &amp; impressions trend</h3>
+                <TrendChart
+                    data={trend}
+                    dateKey="data_date"
+                    series={[
+                        { key: 'clicks', name: 'Clicks' },
+                        { key: 'impressions', name: 'Impressions' },
+                    ]}
+                />
+            </div>
+
+            {breakdowns && (
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <BreakdownTable
+                        title="Queries"
+                        rows={breakdowns.queries}
+                        columns={[
+                            ['query', 'Query'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                            ['ctr', 'CTR'],
+                        ]}
+                    />
+                    <BreakdownTable
+                        title="Pages"
+                        rows={breakdowns.pages}
+                        columns={[
+                            ['url', 'Page'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                        ]}
+                    />
+                    <BreakdownTable
+                        title="Countries"
+                        rows={breakdowns.countries}
+                        columns={[
+                            ['country', 'Country'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                        ]}
+                    />
+                    <BreakdownTable
+                        title="Devices"
+                        rows={breakdowns.devices}
+                        columns={[
+                            ['device', 'Device'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                        ]}
+                    />
+                </div>
+            )}
+        </MarketingStatisticsShell>
+    );
+}
