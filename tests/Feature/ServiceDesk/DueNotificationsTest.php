@@ -73,4 +73,53 @@ class DueNotificationsTest extends TestCase
         $this->assertSame(1, $assignee->notifications()->count());
         $this->assertSame('task_due_soon', $assignee->notifications()->first()->data['type']);
     }
+
+    public function test_ticket_past_first_response_sla_notifies_assignee_once()
+    {
+        $tech = User::factory()->create()->assignRole('IT Technician');
+
+        // Medium priority: 240-minute first-response SLA (ServiceDeskSeeder).
+        $breached = Ticket::factory()->create([
+            'category_id' => TicketCategory::query()->firstOrFail()->id,
+            'priority' => 'medium',
+            'status' => Ticket::STATUS_ASSIGNED,
+            'assigned_to' => $tech->id,
+        ]);
+        $breached->forceFill(['created_at' => now()->subHours(5)])->save();
+
+        // Still inside the SLA window: no alert.
+        $withinWindow = Ticket::factory()->create([
+            'category_id' => TicketCategory::query()->firstOrFail()->id,
+            'priority' => 'medium',
+            'status' => Ticket::STATUS_ASSIGNED,
+            'assigned_to' => $tech->id,
+        ]);
+        $withinWindow->forceFill(['created_at' => now()->subHour()])->save();
+
+        $this->artisan('ewms:send-due-notifications')->assertSuccessful();
+
+        $this->assertSame(1, $tech->notifications()->where('data->type', 'ticket_response_overdue')->count());
+        $this->assertSame($breached->id, $tech->notifications()->first()->data['ticket_id']);
+
+        // Second run within the dedup window sends nothing new.
+        $this->artisan('ewms:send-due-notifications')->assertSuccessful();
+        $this->assertSame(1, $tech->notifications()->count());
+    }
+
+    public function test_ticket_response_alert_is_skipped_once_first_response_is_recorded()
+    {
+        $tech = User::factory()->create()->assignRole('IT Technician');
+
+        $ticket = Ticket::factory()->create([
+            'category_id' => TicketCategory::query()->firstOrFail()->id,
+            'priority' => 'medium',
+            'status' => Ticket::STATUS_ASSIGNED,
+            'assigned_to' => $tech->id,
+        ]);
+        $ticket->forceFill(['created_at' => now()->subHours(5), 'first_responded_at' => now()->subHours(4)])->save();
+
+        $this->artisan('ewms:send-due-notifications')->assertSuccessful();
+
+        $this->assertSame(0, $tech->notifications()->where('data->type', 'ticket_response_overdue')->count());
+    }
 }

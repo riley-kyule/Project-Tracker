@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Department;
+use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\User;
@@ -214,12 +215,24 @@ class DashboardController extends Controller
             return $diffs->isEmpty() ? null : (int) round($diffs->avg());
         };
 
+        $slaPolicies = SlaPolicy::query()->where('is_active', true)->get()->keyBy('priority');
+
+        // Distinct from "overdue" above: a ticket can still be inside its resolution
+        // window but already past the window a technician was due to acknowledge it.
+        $responseBreached = (clone $open)
+            ->whereNull('first_responded_at')
+            ->get(['id', 'priority', 'created_at'])
+            ->filter(fn (Ticket $ticket) => ($policy = $slaPolicies->get($ticket->priority))
+                && $ticket->created_at->copy()->addMinutes($policy->first_response_minutes)->isPast())
+            ->count();
+
         return Inertia::render('dashboard/it', [
             'counts' => [
                 'new' => Ticket::query()->where('status', Ticket::STATUS_NEW)->count(),
                 'unassigned' => (clone $open)->whereNull('assigned_to')->count(),
                 'critical' => (clone $open)->where('priority', 'critical')->count(),
                 'overdue' => (clone $open)->whereNotNull('due_at')->where('due_at', '<', now())->count(),
+                'response_breached' => $responseBreached,
                 'waiting' => Ticket::query()->whereIn('status', [Ticket::STATUS_WAITING_USER, Ticket::STATUS_WAITING_THIRD_PARTY])->count(),
                 'resolved_today' => Ticket::query()->whereDate('resolved_at', today())->count(),
             ],

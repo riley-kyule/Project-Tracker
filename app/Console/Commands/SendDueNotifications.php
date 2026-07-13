@@ -2,10 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Notifications\TaskDue;
 use App\Notifications\TicketOverdue;
+use App\Notifications\TicketResponseOverdue;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +24,7 @@ class SendDueNotifications extends Command
     {
         $sentTasks = 0;
         $sentTickets = 0;
+        $sentResponseAlerts = 0;
 
         Task::query()
             ->whereNotNull('due_at')
@@ -57,7 +60,32 @@ class SendDueNotifications extends Command
                 $sentTickets++;
             });
 
-        $this->info("Sent {$sentTasks} task and {$sentTickets} ticket due notifications.");
+        // First-response SLA is separate from the resolution due_at checked above:
+        // a ticket can be well within its resolution window but already past the
+        // window a technician was supposed to acknowledge it in.
+        $slaPolicies = SlaPolicy::query()->where('is_active', true)->get()->keyBy('priority');
+
+        Ticket::query()
+            ->whereIn('status', Ticket::OPEN_STATUSES)
+            ->whereNull('first_responded_at')
+            ->whereNotNull('assigned_to')
+            ->with('assignee')
+            ->each(function (Ticket $ticket) use ($slaPolicies, &$sentResponseAlerts) {
+                $policy = $slaPolicies->get($ticket->priority);
+
+                if (! $policy || $ticket->created_at->copy()->addMinutes($policy->first_response_minutes)->isFuture()) {
+                    return;
+                }
+
+                if ($this->alreadySent($ticket->assignee->id, 'ticket_response_overdue', 'ticket_id', $ticket->id)) {
+                    return;
+                }
+
+                $ticket->assignee->notify(new TicketResponseOverdue($ticket));
+                $sentResponseAlerts++;
+            });
+
+        $this->info("Sent {$sentTasks} task, {$sentTickets} ticket overdue, and {$sentResponseAlerts} ticket response SLA notifications.");
 
         return self::SUCCESS;
     }

@@ -41,7 +41,15 @@ export default function ItDashboard({
     byCategory,
     queue,
 }: {
-    counts: { new: number; unassigned: number; critical: number; overdue: number; waiting: number; resolved_today: number };
+    counts: {
+        new: number;
+        unassigned: number;
+        critical: number;
+        overdue: number;
+        response_breached: number;
+        waiting: number;
+        resolved_today: number;
+    };
     averages: { first_response_minutes: number | null; resolution_minutes: number | null };
     resolutionMethods: Record<string, number>;
     byCategory: Record<string, number>;
@@ -58,11 +66,12 @@ export default function ItDashboard({
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">IT Dashboard</h1>
 
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
                     <StatCard label="New" value={counts.new} alert={counts.new > 0} />
                     <StatCard label="Unassigned" value={counts.unassigned} alert={counts.unassigned > 0} />
                     <StatCard label="Critical open" value={counts.critical} alert={counts.critical > 0} />
                     <StatCard label="Overdue" value={counts.overdue} alert={counts.overdue > 0} />
+                    <StatCard label="Response SLA breached" value={counts.response_breached} alert={counts.response_breached > 0} />
                     <StatCard label="Waiting" value={counts.waiting} />
                     <StatCard label="Resolved today" value={counts.resolved_today} />
                 </div>

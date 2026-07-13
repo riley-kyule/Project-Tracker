@@ -48,7 +48,27 @@ class ItDashboardTest extends TestCase
         $this->assertSame(1, $page['counts']['unassigned']);
         $this->assertSame(1, $page['counts']['critical']);
         $this->assertSame(1, $page['counts']['overdue']);
+        $this->assertSame(0, $page['counts']['response_breached']);
         $this->assertSame(1, $page['counts']['resolved_today']);
         $this->assertSame(['remote' => 1], (array) $page['resolutionMethods']);
+    }
+
+    public function test_dashboard_counts_tickets_past_their_first_response_sla()
+    {
+        $tech = User::factory()->create()->assignRole('IT Technician');
+        $category = TicketCategory::query()->firstOrFail();
+
+        // Critical: 30-minute first-response SLA (ServiceDeskSeeder).
+        $breached = Ticket::factory()->create([
+            'category_id' => $category->id,
+            'status' => Ticket::STATUS_ASSIGNED,
+            'assigned_to' => $tech->id,
+            'priority' => 'critical',
+        ]);
+        $breached->forceFill(['created_at' => now()->subHour()])->save();
+
+        $response = $this->actingAs($tech)->get('/dashboards/it')->assertOk();
+
+        $this->assertSame(1, $response->viewData('page')['props']['counts']['response_breached']);
     }
 }
