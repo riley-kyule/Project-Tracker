@@ -149,4 +149,25 @@ class TaskManagementTest extends TestCase
         $this->actingAs($ceo)->patch("/tasks/{$task->id}", ['ceo_priority' => true]);
         $this->assertTrue($task->refresh()->ceo_priority);
     }
+
+    public function test_task_cannot_be_assigned_to_someone_without_board_access()
+    {
+        $member = User::factory()->create()->assignRole('Employee');
+        $outsider = User::factory()->create()->assignRole('Employee');
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_RESTRICTED]);
+        $board->members()->attach($member->id, ['access_level' => 'contribute']);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+
+        $this->actingAs($member)
+            ->from("/boards/{$board->id}")
+            ->post("/boards/{$board->id}/tasks", [
+                'title' => 'Sensitive work',
+                'board_column_id' => $column->id,
+                'priority' => 'medium',
+                'primary_assignee_id' => $outsider->id,
+            ])
+            ->assertSessionHasErrors('primary_assignee_id');
+
+        $this->assertDatabaseMissing('tasks', ['title' => 'Sensitive work']);
+    }
 }

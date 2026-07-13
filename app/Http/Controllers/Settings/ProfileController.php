@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Services\AuditLogger;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,6 +22,7 @@ class ProfileController extends Controller
     {
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'canDeleteAccount' => config('auth.allow_account_deletion'),
             'status' => $request->session()->get('status'),
         ]);
     }
@@ -29,13 +32,22 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        DB::transaction(function () use ($request) {
+            $user = $request->user();
+            $old = $user->only(['name', 'email']);
+            $user->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
+            if ($user->isDirty('email')) {
+                $user->email_verified_at = null;
+            }
 
-        $request->user()->save();
+            $changes = $user->getDirty();
+            $user->save();
+
+            if (array_intersect_key($changes, array_flip(['name', 'email'])) !== []) {
+                AuditLogger::log($user, 'profile_updated', $old, $user->only(['name', 'email']));
+            }
+        });
 
         return to_route('profile.edit');
     }
@@ -45,6 +57,8 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        abort_unless(config('auth.allow_account_deletion'), 403, 'Account deletion is managed by an administrator.');
+
         $request->validate([
             'password' => ['required', 'current_password'],
         ]);

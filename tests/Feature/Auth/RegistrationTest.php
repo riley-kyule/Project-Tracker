@@ -28,4 +28,20 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
     }
+
+    public function test_registration_is_unavailable_when_disabled()
+    {
+        config(['auth.allow_registration' => false]);
+
+        $this->get('/register')->assertNotFound();
+        $this->post('/register', [
+            'name' => 'Uninvited User',
+            'email' => 'uninvited@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])->assertNotFound();
+
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'uninvited@example.com']);
+    }
 }

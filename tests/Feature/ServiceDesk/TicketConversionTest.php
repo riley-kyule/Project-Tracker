@@ -60,4 +60,22 @@ class TicketConversionTest extends TestCase
             'board_column_id' => $otherColumn->id,
         ])->assertStatus(422);
     }
+
+    public function test_technician_cannot_convert_into_an_inaccessible_board()
+    {
+        $tech = User::factory()->create()->assignRole('IT Technician');
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_RESTRICTED]);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+        $ticket = Ticket::factory()->create([
+            'category_id' => TicketCategory::query()->firstOrFail()->id,
+            'status' => Ticket::STATUS_IN_PROGRESS,
+        ]);
+
+        $this->actingAs($tech)->post("/tickets/{$ticket->id}/convert-to-task", [
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+        ])->assertForbidden();
+
+        $this->assertDatabaseCount('tasks', 0);
+    }
 }

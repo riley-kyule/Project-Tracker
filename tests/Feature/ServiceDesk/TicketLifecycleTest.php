@@ -85,6 +85,19 @@ class TicketLifecycleTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_inactive_technician_cannot_be_assigned()
+    {
+        $lead = User::factory()->create()->assignRole('IT Technician');
+        $inactive = User::factory()->create(['status' => User::STATUS_INACTIVE])->assignRole('IT Technician');
+        $ticket = Ticket::factory()->create(['category_id' => $this->category()->id]);
+
+        $this->actingAs($lead)
+            ->post("/tickets/{$ticket->id}/assign", ['assigned_to' => $inactive->id])
+            ->assertStatus(422);
+
+        $this->assertNull($ticket->refresh()->assigned_to);
+    }
+
     public function test_invalid_transitions_are_rejected()
     {
         $tech = User::factory()->create()->assignRole('IT Technician');

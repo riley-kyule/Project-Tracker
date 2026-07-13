@@ -41,6 +41,12 @@ class ProfileUpdateTest extends TestCase
         $this->assertSame('Test User', $user->name);
         $this->assertSame('test@example.com', $user->email);
         $this->assertNull($user->email_verified_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'event' => 'profile_updated',
+            'actor_id' => $user->id,
+        ]);
     }
 
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged()
@@ -93,6 +99,18 @@ class ProfileUpdateTest extends TestCase
         $response
             ->assertSessionHasErrors('password')
             ->assertRedirect('/settings/profile');
+
+        $this->assertNotNull($user->fresh());
+    }
+
+    public function test_account_deletion_can_be_disabled_for_managed_workforce_accounts()
+    {
+        config(['auth.allow_account_deletion' => false]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->delete('/settings/profile', ['password' => 'password'])
+            ->assertForbidden();
 
         $this->assertNotNull($user->fresh());
     }

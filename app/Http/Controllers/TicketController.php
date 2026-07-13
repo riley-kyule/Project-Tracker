@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Board;
+use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
@@ -70,7 +71,13 @@ class TicketController extends Controller
                 ? User::query()->permission('tickets.manage')->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])
                 : [],
             'boards' => $manager
-                ? Board::query()->where('is_active', true)->orderBy('name')->with('columns:id,board_id,name')->get(['id', 'name'])
+                ? Board::query()
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->with('columns:id,board_id,name')
+                    ->get(['id', 'name', 'visibility', 'department_id'])
+                    ->filter(fn (Board $board) => $request->user()->can('create', [Task::class, $board]))
+                    ->values()
                 : [],
             'isManager' => $manager,
             'allowedTransitions' => $manager ? (Ticket::TRANSITIONS[$ticket->status] ?? []) : [],
@@ -103,7 +110,11 @@ class TicketController extends Controller
         $validated = $request->validate(['assigned_to' => ['required', 'integer', 'exists:users,id']]);
 
         $technician = User::query()->findOrFail($validated['assigned_to']);
-        abort_unless($technician->can('tickets.manage'), 422, 'Assignee must be a service desk technician.');
+        abort_unless(
+            $technician->isActive() && $technician->can('tickets.manage'),
+            422,
+            'Assignee must be an active service desk technician.',
+        );
 
         TicketService::assign($ticket, $technician, $request->user());
 
@@ -169,11 +180,21 @@ class TicketController extends Controller
         ]);
 
         $board = Board::query()->findOrFail($validated['board_id']);
+        Gate::authorize('create', [Task::class, $board]);
         abort_unless(
             $board->columns()->whereKey($validated['board_column_id'])->exists(),
             422,
             'Column does not belong to the selected board.',
         );
+
+        if (($validated['primary_assignee_id'] ?? null) !== null) {
+            $assignee = User::query()->findOrFail($validated['primary_assignee_id']);
+            abort_unless(
+                $assignee->isActive() && Gate::forUser($assignee)->allows('view', $board),
+                422,
+                'Assignee must be active and able to access the selected board.',
+            );
+        }
 
         $task = TicketService::convertToTask($ticket, $request->user(), $board, $validated['board_column_id'], $validated);
 

@@ -29,6 +29,8 @@ class TaskController extends Controller
             ->where('board_id', $board->id)
             ->findOrFail($request->validated('board_column_id'));
 
+        $this->guardAssigneeCanAccessBoard($request->validated('primary_assignee_id'), $board);
+
         $task = DB::transaction(function () use ($request, $board, $column) {
             $task = Task::create([
                 ...$request->validated(),
@@ -53,6 +55,10 @@ class TaskController extends Controller
     public function update(UpdateTaskRequest $request, Task $task): RedirectResponse
     {
         Gate::authorize('update', $task);
+
+        if ($request->has('primary_assignee_id')) {
+            $this->guardAssigneeCanAccessBoard($request->validated('primary_assignee_id'), $task->board);
+        }
 
         $validated = $request->safe()->except(['label_ids', 'ceo_priority']);
 
@@ -200,5 +206,20 @@ class TaskController extends Controller
         }
 
         $task->assignee?->notify(new TaskAssigned($task, $actor));
+    }
+
+    private function guardAssigneeCanAccessBoard(?int $assigneeId, Board $board): void
+    {
+        if ($assigneeId === null) {
+            return;
+        }
+
+        $assignee = User::query()->findOrFail($assigneeId);
+
+        if (! $assignee->isActive() || Gate::forUser($assignee)->denies('view', $board)) {
+            throw ValidationException::withMessages([
+                'primary_assignee_id' => 'The assignee must be active and able to access this board.',
+            ]);
+        }
     }
 }

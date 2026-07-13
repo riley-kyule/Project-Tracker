@@ -5,6 +5,15 @@ use App\Models\User;
 return [
 
     /*
+    | Internal workforce accounts are provisioned by administrators. These
+    | escape hatches exist for controlled migrations and local development,
+    | but remain disabled by default in every environment.
+    */
+    'allow_registration' => (bool) env('ALLOW_REGISTRATION', false),
+
+    'allow_account_deletion' => (bool) env('ALLOW_ACCOUNT_DELETION', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Authentication Defaults
     |--------------------------------------------------------------------------

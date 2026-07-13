@@ -52,6 +52,7 @@ class TicketService
     public static function assign(Ticket $ticket, User $technician, User $actor): Ticket
     {
         DB::transaction(function () use ($ticket, $technician, $actor) {
+            $previousAssignee = $ticket->assigned_to;
             $ticket->forceFill([
                 'assigned_to' => $technician->id,
                 'first_responded_at' => $ticket->first_responded_at ?? now(),
@@ -62,7 +63,7 @@ class TicketService
             }
 
             $ticket->save();
-            AuditLogger::log($ticket, 'assigned', [], ['assigned_to' => $technician->id]);
+            AuditLogger::log($ticket, 'assigned', ['assigned_to' => $previousAssignee], ['assigned_to' => $technician->id]);
         });
 
         if ($technician->id !== $actor->id) {
@@ -83,6 +84,7 @@ class TicketService
         }
 
         DB::transaction(function () use ($ticket, $to, $actor, $reason) {
+            $from = $ticket->status;
             self::recordTransition($ticket, $to, $actor, $reason);
 
             if ($to === Ticket::STATUS_CLOSED) {
@@ -90,6 +92,7 @@ class TicketService
             }
 
             $ticket->forceFill(['first_responded_at' => $ticket->first_responded_at ?? now()])->save();
+            AuditLogger::log($ticket, 'status_changed', ['status' => $from], ['status' => $to, 'reason' => $reason]);
         });
 
         self::notifyRequester($ticket, $actor);
@@ -129,6 +132,7 @@ class TicketService
         }
 
         DB::transaction(function () use ($ticket, $actor, $reason) {
+            $from = $ticket->status;
             self::recordTransition($ticket, Ticket::STATUS_REOPENED, $actor, $reason);
 
             $ticket->forceFill([
@@ -136,6 +140,13 @@ class TicketService
                 'closed_at' => null,
                 'resolution_method' => null,
             ])->save();
+
+            AuditLogger::log(
+                $ticket,
+                'reopened',
+                ['status' => $from],
+                ['status' => Ticket::STATUS_REOPENED, 'reason' => $reason],
+            );
         });
 
         return $ticket;

@@ -72,7 +72,9 @@ class BoardController extends Controller
             'members' => User::query()
                 ->where('status', User::STATUS_ACTIVE)
                 ->orderBy('name')
-                ->get(['id', 'name']),
+                ->get(['id', 'name'])
+                ->filter(fn (User $user) => Gate::forUser($user)->allows('view', $board))
+                ->values(),
             'labels' => Label::query()->orderBy('name')->get(),
             'can' => [
                 'manage' => $request->user()->can('manage', $board),

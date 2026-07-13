@@ -19,7 +19,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
+export default function Profile({
+    mustVerifyEmail,
+    canDeleteAccount,
+    status,
+}: {
+    mustVerifyEmail: boolean;
+    canDeleteAccount: boolean;
+    status?: string;
+}) {
     const { auth } = usePage<SharedData>().props;
 
     const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
@@ -113,7 +121,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                     </form>
                 </div>
 
-                <DeleteUser />
+                {canDeleteAccount && <DeleteUser />}
             </SettingsLayout>
         </AppLayout>
     );
