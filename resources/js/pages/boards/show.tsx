@@ -148,7 +148,7 @@ function BoardColumn({
     const overLimit = column.wip_limit !== null && column.tasks.length > column.wip_limit;
 
     return (
-        <div className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-72 shrink-0 flex-col rounded-xl border">
+        <div className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-[85vw] max-w-72 shrink-0 flex-col rounded-xl border">
             <div className="flex items-center justify-between p-3 pb-1">
                 <span className="text-sm font-semibold">{column.name}</span>
                 <span className={`text-xs ${overLimit ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
@@ -306,7 +306,13 @@ export default function BoardShow({
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
                     <div className="ml-auto flex flex-wrap items-center gap-2">
-                        <Input placeholder="Search tasks…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-48" />
+                        <Input
+                            placeholder="Search tasks…"
+                            aria-label="Search tasks on this board"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full sm:w-48"
+                        />
                         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
                             <SelectTrigger className="w-40">
                                 <SelectValue />

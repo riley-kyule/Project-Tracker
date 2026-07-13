@@ -17,13 +17,30 @@ export function AppShell({ children, variant = 'header' }: AppShellProps) {
         }
     };
 
+    const skipLink = (
+        <a
+            href="#main-content"
+            className="bg-background text-foreground focus:ring-ring fixed top-2 left-2 z-50 -translate-y-20 rounded-md px-3 py-2 text-sm font-medium shadow focus:translate-y-0 focus:ring-2"
+        >
+            Skip to main content
+        </a>
+    );
+
     if (variant === 'header') {
-        return <div className="flex min-h-screen w-full flex-col">{children}</div>;
+        return (
+            <>
+                {skipLink}
+                <div className="flex min-h-screen w-full flex-col">{children}</div>
+            </>
+        );
     }
 
     return (
-        <SidebarProvider defaultOpen={isOpen} open={isOpen} onOpenChange={handleSidebarChange}>
-            {children}
-        </SidebarProvider>
+        <>
+            {skipLink}
+            <SidebarProvider defaultOpen={isOpen} open={isOpen} onOpenChange={handleSidebarChange}>
+                {children}
+            </SidebarProvider>
+        </>
     );
 }
