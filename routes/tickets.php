@@ -5,12 +5,15 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TrafficDataController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboards/it', [DashboardController::class, 'it'])->name('dashboards.it');
     Route::get('dashboards/ceo', [DashboardController::class, 'ceo'])->name('dashboards.ceo');
     Route::get('dashboards/department', [DashboardController::class, 'department'])->name('dashboards.department');
+    Route::get('dashboards/ceo/traffic-data/websites', [TrafficDataController::class, 'websites'])->name('dashboards.ceo.traffic-data.websites');
+    Route::get('dashboards/ceo/traffic-data', [TrafficDataController::class, 'index'])->name('dashboards.ceo.traffic-data');
     Route::get('reports/tasks', [ReportController::class, 'tasks'])->name('reports.tasks');
     Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');
     Route::get('reports/remote-support', [ReportController::class, 'remoteSupport'])->name('reports.remote-support');
