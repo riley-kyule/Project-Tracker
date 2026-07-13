@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Department;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -35,13 +36,19 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
-                'permissions' => $request->user()?->getAllPermissions()->pluck('name')->values() ?? [],
-                'roles' => $request->user()?->getRoleNames() ?? [],
+                'user' => $user,
+                'permissions' => $user?->getAllPermissions()->pluck('name')->values() ?? [],
+                'roles' => $user?->getRoleNames() ?? [],
+                'managesDepartment' => $user
+                    ? $user->hasRole('Department Manager')
+                        || Department::query()->where('manager_id', $user->id)->orWhere('assistant_manager_id', $user->id)->exists()
+                    : false,
             ],
         ];
     }

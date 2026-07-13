@@ -80,4 +80,37 @@ class DepartmentManagementTest extends TestCase
             ->post('/admin/departments', ['name' => 'SEO'])
             ->assertSessionHasErrors('name');
     }
+
+    public function test_a_sub_department_cannot_itself_have_sub_departments()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $seo = Department::query()->where('slug', 'seo')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->post('/admin/departments', ['name' => 'Local SEO', 'parent_department_id' => $seo->id])
+            ->assertSessionHasErrors('parent_department_id');
+    }
+
+    public function test_a_department_with_children_cannot_become_a_child()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+        $it = Department::query()->where('slug', 'it')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->patch("/admin/departments/{$marketing->id}", ['name' => 'Marketing', 'parent_department_id' => $it->id])
+            ->assertSessionHasErrors('parent_department_id');
+    }
+
+    public function test_administrators_can_nest_a_department_under_a_parent()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->post('/admin/departments', ['name' => 'Email Marketing', 'parent_department_id' => $marketing->id])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('departments', ['name' => 'Email Marketing', 'parent_department_id' => $marketing->id]);
+    }
 }

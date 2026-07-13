@@ -16,7 +16,9 @@ class Department extends Model
         'name',
         'slug',
         'description',
+        'parent_department_id',
         'manager_id',
+        'assistant_manager_id',
         'is_active',
     ];
 
@@ -32,9 +34,29 @@ class Department extends Model
         return $this->belongsTo(User::class, 'manager_id');
     }
 
+    public function assistantManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assistant_manager_id');
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'parent_department_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(Department::class, 'parent_department_id');
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function leads(int $userId): bool
+    {
+        return $this->manager_id === $userId || $this->assistant_manager_id === $userId;
     }
 
     public function scopeActive(Builder $query): Builder

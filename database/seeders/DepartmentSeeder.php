@@ -11,7 +11,6 @@ class DepartmentSeeder extends Seeder
     public function run(): void
     {
         $departments = [
-            'SEO',
             'Product and Engineering',
             'Sales',
             'Finance',
@@ -19,7 +18,6 @@ class DepartmentSeeder extends Seeder
             'Marketing',
             'IT',
             'Legal',
-            'Content',
             'Management',
         ];
 
@@ -27,6 +25,15 @@ class DepartmentSeeder extends Seeder
             Department::firstOrCreate(
                 ['slug' => Str::slug($name)],
                 ['name' => $name],
+            );
+        }
+
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+
+        foreach (['SEO', 'Social Media', 'Content'] as $name) {
+            Department::firstOrCreate(
+                ['slug' => Str::slug($name)],
+                ['name' => $name, 'parent_department_id' => $marketing->id],
             );
         }
     }

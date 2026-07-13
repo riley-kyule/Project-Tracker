@@ -72,6 +72,56 @@ class ManagementDashboardTest extends TestCase
         $this->assertSame('IT', $response->viewData('page')['props']['department']['name']);
     }
 
+    public function test_department_dashboard_rolls_up_child_departments()
+    {
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+        $seo = Department::query()->where('slug', 'seo')->firstOrFail();
+        $content = Department::query()->where('slug', 'content')->firstOrFail();
+
+        $this->assertSame($marketing->id, $seo->parent_department_id);
+        $this->assertSame($marketing->id, $content->parent_department_id);
+
+        $head = User::factory()->create(['department_id' => $marketing->id])->assignRole('Department Manager');
+        $marketing->update(['manager_id' => $head->id]);
+
+        $seoBoard = Board::factory()->create(['department_id' => $seo->id]);
+        $seoColumn = BoardColumn::factory()->create(['board_id' => $seoBoard->id]);
+        Task::factory()->create([
+            'board_id' => $seoBoard->id,
+            'board_column_id' => $seoColumn->id,
+            'department_id' => $seo->id,
+            'due_at' => now()->subDay(),
+        ]);
+
+        $contentBoard = Board::factory()->create(['department_id' => $content->id]);
+        $contentColumn = BoardColumn::factory()->create(['board_id' => $contentBoard->id]);
+        Task::factory()->create([
+            'board_id' => $contentBoard->id,
+            'board_column_id' => $contentColumn->id,
+            'department_id' => $content->id,
+        ]);
+
+        $response = $this->actingAs($head)->get('/dashboards/department')->assertOk();
+        $props = $response->viewData('page')['props'];
+
+        $this->assertSame('Marketing', $props['department']['name']);
+        $this->assertSame(2, $props['counts']['open']);
+        $this->assertSame(1, $props['counts']['overdue']);
+
+        $subDepartments = collect($props['subDepartments']);
+        $this->assertSame(1, $subDepartments->firstWhere('name', 'SEO')['open']);
+        $this->assertSame(1, $subDepartments->firstWhere('name', 'Content')['open']);
+    }
+
+    public function test_department_dashboard_allows_assistant_manager()
+    {
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+        $assistant = User::factory()->create(['department_id' => $marketing->id]);
+        $marketing->update(['assistant_manager_id' => $assistant->id]);
+
+        $this->actingAs($assistant)->get('/dashboards/department')->assertOk();
+    }
+
     public function test_task_report_requires_permission_and_filters()
     {
         $employee = User::factory()->create()->assignRole('Employee');

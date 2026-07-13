@@ -20,12 +20,16 @@ class DepartmentController extends Controller
 
         return Inertia::render('admin/departments/index', [
             'departments' => Department::query()
-                ->with('manager:id,name')
+                ->with(['manager:id,name', 'assistantManager:id,name', 'parent:id,name'])
                 ->withCount('users')
                 ->orderBy('name')
                 ->get(),
             'managers' => User::query()
                 ->where('status', User::STATUS_ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'parentOptions' => Department::query()
+                ->whereNull('parent_department_id')
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'canManage' => Gate::allows('create', Department::class),
@@ -40,7 +44,9 @@ class DepartmentController extends Controller
             ...$request->validated(),
             'slug' => $request->slug(),
         ]);
-        AuditLogger::log($department, 'created', [], $department->only(['name', 'slug', 'manager_id', 'is_active']));
+        AuditLogger::log($department, 'created', [], $department->only(
+            ['name', 'slug', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active'],
+        ));
 
         return back()->with('success', 'Department created.');
     }
@@ -49,7 +55,7 @@ class DepartmentController extends Controller
     {
         Gate::authorize('update', $department);
 
-        $old = $department->only(['name', 'slug', 'description', 'manager_id', 'is_active']);
+        $old = $department->only(['name', 'slug', 'description', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active']);
         $department->update([
             ...$request->validated(),
             'slug' => $request->slug(),

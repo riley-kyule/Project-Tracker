@@ -69,7 +69,7 @@ class DashboardController extends Controller
      * Three grouped queries instead of three-per-department: avoids an
      * N+1 that would otherwise scale with department count.
      */
-    private function departmentPerformance(): Collection
+    private function departmentPerformance(?Collection $departments = null): Collection
     {
         $counts = fn (Builder $query) => $query
             ->whereNotNull('department_id')
@@ -83,10 +83,7 @@ class DashboardController extends Controller
         $overdueByDept = $counts($open()->where('due_at', '<', now()));
         $completedWeekByDept = $counts(Task::query()->where('completed_at', '>=', now()->startOfWeek()));
 
-        return Department::query()
-            ->active()
-            ->orderBy('name')
-            ->get(['id', 'name'])
+        return ($departments ?? Department::query()->active()->orderBy('name')->get(['id', 'name']))
             ->map(fn (Department $department) => [
                 'id' => $department->id,
                 'name' => $department->name,
@@ -107,27 +104,31 @@ class DashboardController extends Controller
         abort_unless(
             $user->hasAnyRole(['CEO', 'Administrator'])
                 || ($user->hasRole('Department Manager') && $user->department_id === $department->id)
-                || $department->manager_id === $user->id,
+                || $department->leads($user->id),
             403,
         );
 
+        $children = $department->children()->orderBy('name')->get(['id', 'name']);
+        $departmentIds = $children->isNotEmpty() ? [$department->id, ...$children->pluck('id')] : [$department->id];
+
         $deptTasks = fn (): Builder => Task::query()
-            ->where('department_id', $department->id)
+            ->whereIn('department_id', $departmentIds)
             ->whereNull('completed_at')
             ->whereNull('archived_at');
 
         return Inertia::render('dashboard/department', [
             'department' => $department->only(['id', 'name']),
+            'subDepartments' => $children->isNotEmpty() ? $this->departmentPerformance($children) : null,
             'counts' => [
                 'open' => $deptTasks()->count(),
                 'unassigned' => $deptTasks()->whereNull('primary_assignee_id')->count(),
                 'overdue' => $deptTasks()->where('due_at', '<', now())->count(),
                 'blocked' => $deptTasks()->whereHas('column', fn ($q) => $q->where('semantic_status', 'blocked'))->count(),
                 'awaiting_review' => $deptTasks()->whereHas('column', fn ($q) => $q->where('semantic_status', 'review'))->count(),
-                'open_tickets' => Ticket::query()->where('department_id', $department->id)->whereIn('status', Ticket::OPEN_STATUSES)->count(),
+                'open_tickets' => Ticket::query()->whereIn('department_id', $departmentIds)->whereIn('status', Ticket::OPEN_STATUSES)->count(),
             ],
             'workload' => User::query()
-                ->where('department_id', $department->id)
+                ->whereIn('department_id', $departmentIds)
                 ->where('status', User::STATUS_ACTIVE)
                 ->withCount(['assignedOpenTasks as open_tasks', 'assignedOverdueTasks as overdue_tasks'])
                 ->orderByDesc('open_tasks')
@@ -145,7 +146,7 @@ class DashboardController extends Controller
                 ->limit(10)
                 ->get(),
             'recentlyCompleted' => Task::query()
-                ->where('department_id', $department->id)
+                ->whereIn('department_id', $departmentIds)
                 ->whereNotNull('completed_at')
                 ->with(['board:id,name', 'assignee:id,name'])
                 ->latest('completed_at')

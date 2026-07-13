@@ -48,8 +48,43 @@ function TaskList({ title, tasks }: { title: string; tasks: DeptTask[] }) {
     );
 }
 
+type SubDepartmentRow = { id: number; name: string; open: number; overdue: number; completed_week: number };
+
+function SubDepartmentBreakdown({ rows }: { rows: SubDepartmentRow[] }) {
+    return (
+        <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4 lg:col-span-2">
+            <h2 className="mb-2 text-sm font-semibold">Breakdown by team</h2>
+            <table className="w-full text-sm">
+                <thead>
+                    <tr className="text-muted-foreground text-left">
+                        <th className="py-1.5 font-medium">Team</th>
+                        <th className="py-1.5 text-right font-medium">Open</th>
+                        <th className="py-1.5 text-right font-medium">Overdue</th>
+                        <th className="py-1.5 text-right font-medium">Done this week</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row) => (
+                        <tr key={row.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                            <td className="py-1.5">
+                                <Link href={`/dashboards/department?department_id=${row.id}`} className="font-medium hover:underline">
+                                    {row.name}
+                                </Link>
+                            </td>
+                            <td className="py-1.5 text-right">{row.open}</td>
+                            <td className={`py-1.5 text-right ${row.overdue > 0 ? 'text-destructive font-semibold' : ''}`}>{row.overdue}</td>
+                            <td className="py-1.5 text-right">{row.completed_week}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 export default function DepartmentDashboard({
     department,
+    subDepartments,
     counts,
     workload,
     unassigned,
@@ -57,6 +92,7 @@ export default function DepartmentDashboard({
     recentlyCompleted,
 }: {
     department: { id: number; name: string };
+    subDepartments: SubDepartmentRow[] | null;
     counts: { open: number; unassigned: number; overdue: number; blocked: number; awaiting_review: number; open_tickets: number };
     workload: (Person & { open_tasks: number; overdue_tasks: number })[];
     unassigned: DeptTask[];
@@ -70,6 +106,7 @@ export default function DepartmentDashboard({
             <Head title={`${department.name} Dashboard`} />
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">{department.name}</h1>
+                {subDepartments && <p className="text-muted-foreground -mt-2 text-sm">Combined view across {subDepartments.length} teams.</p>}
 
                 <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <StatCard label="Open tasks" value={counts.open} />
@@ -81,6 +118,7 @@ export default function DepartmentDashboard({
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-2">
+                    {subDepartments && <SubDepartmentBreakdown rows={subDepartments} />}
                     <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
                         <h2 className="mb-2 text-sm font-semibold">Workload by employee</h2>
                         <table className="w-full text-sm">
