@@ -12,6 +12,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('dashboards/ceo', [DashboardController::class, 'ceo'])->name('dashboards.ceo');
     Route::get('dashboards/department', [DashboardController::class, 'department'])->name('dashboards.department');
     Route::get('reports/tasks', [ReportController::class, 'tasks'])->name('reports.tasks');
+    Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');
     Route::get('reports/remote-support', [ReportController::class, 'remoteSupport'])->name('reports.remote-support');
     Route::get('search', [SearchController::class, 'index'])->name('search');
 

@@ -73,6 +73,9 @@ export default function RemoteSupportReport({
                     <Link href="/reports/tasks" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
                         Task report →
                     </Link>
+                    <Link href="/reports/workload" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
+                        Workload →
+                    </Link>
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                         <Input type="date" value={selected.from} onChange={(e) => apply({ from: e.target.value })} className="w-40" />
                         <Input type="date" value={selected.to} onChange={(e) => apply({ to: e.target.value })} className="w-40" />

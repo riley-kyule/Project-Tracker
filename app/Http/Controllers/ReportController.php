@@ -51,6 +51,39 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Company-wide (or department-scoped) workload and exception counts per
+     * employee, distinct from the tasks report: this is the aggregate view,
+     * not filtered rows.
+     */
+    public function workload(Request $request): Response
+    {
+        abort_unless($request->user()->can('reports.view'), 403);
+
+        $isExec = $request->user()->hasAnyRole(['CEO', 'Administrator']);
+        $departmentId = $isExec ? $request->integer('department_id') ?: null : $request->user()->department_id;
+
+        $people = User::query()
+            ->where('status', User::STATUS_ACTIVE)
+            ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
+            ->with('department:id,name')
+            ->withCount([
+                'assignedOpenTasks as open_tasks',
+                'assignedOverdueTasks as overdue_tasks',
+                'assignedOpenTasks as blocked_tasks' => fn ($q) => $q->whereHas('column', fn ($c) => $c->where('semantic_status', 'blocked')),
+                'assignedOpenTasks as awaiting_review_tasks' => fn ($q) => $q->whereHas('column', fn ($c) => $c->where('semantic_status', 'review')),
+            ])
+            ->orderByDesc('open_tasks')
+            ->get(['id', 'name', 'department_id', 'job_title']);
+
+        return Inertia::render('reports/workload', [
+            'people' => $people,
+            'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
+            'selected' => ['department_id' => $departmentId],
+            'canFilterDepartment' => $isExec,
+        ]);
+    }
+
     public function remoteSupport(Request $request): Response|StreamedResponse
     {
         abort_unless($request->user()->can('reports.view'), 403);
