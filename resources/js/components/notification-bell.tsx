@@ -8,6 +8,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 import { router } from '@inertiajs/react';
 import { Bell } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -91,7 +92,13 @@ export function NotificationBell() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup className="max-h-96 overflow-y-auto">
-                    {!hasLoaded && <DropdownMenuItem disabled>Loading…</DropdownMenuItem>}
+                    {!hasLoaded && (
+                        <div className="flex flex-col gap-2 p-2">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <Skeleton key={i} className="h-10 rounded-md" />
+                            ))}
+                        </div>
+                    )}
                     {hasLoaded && notifications.length === 0 && <DropdownMenuItem disabled>No notifications yet.</DropdownMenuItem>}
                     {notifications.map((notification) => (
                         <DropdownMenuItem

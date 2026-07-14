@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { type SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
-import { Download, Loader2, Lock, Paperclip, Trash2, X } from 'lucide-react';
+import { Download, Lock, Paperclip, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Reply = {
@@ -221,9 +222,16 @@ export function TaskCollaboration({
 
     if (status === 'loading') {
         return (
-            <div className="text-muted-foreground flex items-center gap-2 py-8 text-sm">
-                <Loader2 className="size-4 animate-spin" />
-                Loading task details…
+            <div className="space-y-6">
+                <section>
+                    <Skeleton className="mb-2 h-4 w-24" />
+                    <Skeleton className="h-20 rounded-lg" />
+                </section>
+                <section className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-12 rounded-lg" />
+                    <Skeleton className="h-12 rounded-lg" />
+                </section>
             </div>
         );
     }

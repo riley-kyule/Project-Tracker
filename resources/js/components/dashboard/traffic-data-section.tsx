@@ -1,6 +1,25 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+
+function TrafficDataSkeleton() {
+    return (
+        <div className="flex flex-col gap-4">
+            <Skeleton className="h-5 w-28" />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-24 rounded-xl" />
+                ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-72 rounded-xl" />
+                ))}
+            </div>
+        </div>
+    );
+}
 
 type Website = { website_domain: string; website_name: string; country: string | null };
 type Summary = { users: number; sessions: number; key_events: number; engagement_rate: number | null };
@@ -178,7 +197,7 @@ export function TrafficDataSection() {
     }, [configured, websiteDomain, dateFrom, dateTo, comparisonPeriod]);
 
     if (configured === null) {
-        return null;
+        return <TrafficDataSkeleton />;
     }
 
     if (!configured) {
@@ -285,6 +304,14 @@ export function TrafficDataSection() {
                     authorized-view notes), or this website/range has no rows.
                     <span className="mt-1 block font-mono text-xs">{data.error}</span>
                 </p>
+            )}
+
+            {!current && loading && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-24 rounded-xl" />
+                    ))}
+                </div>
             )}
 
             {current && (

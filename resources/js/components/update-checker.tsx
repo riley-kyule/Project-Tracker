@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 
@@ -156,7 +157,12 @@ export function UpdateChecker() {
                     {error && <p className="text-destructive text-sm">{error}</p>}
 
                     <div className="space-y-2 text-sm">
-                        {checking && <p className="text-muted-foreground">Checking for updates…</p>}
+                        {checking && (
+                            <div className="space-y-2">
+                                <Skeleton className="h-5 w-40" />
+                                <Skeleton className="h-16 w-full rounded-md" />
+                            </div>
+                        )}
                         {!checking && status && (
                             <>
                                 <p>
