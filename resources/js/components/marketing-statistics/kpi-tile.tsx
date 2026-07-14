@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { type Kpi } from '@/types/marketing-statistics';
 import { Link } from '@inertiajs/react';
 
@@ -21,11 +22,16 @@ export function KpiTile({
     kpi,
     format = compact,
     href,
+    drilldown,
+    drilldownTitle,
 }: {
     label: string;
     kpi: Kpi | null;
     format?: (value: number) => string;
     href?: string;
+    /** In-depth breakdown content (a chart, usually) shown in a dialog on click — built from data already on the page, so it opens instantly. */
+    drilldown?: React.ReactNode;
+    drilldownTitle?: string;
 }) {
     const inner = (
         <div className="border-sidebar-border/70 dark:border-sidebar-border hover:border-brand-500 h-full rounded-xl border p-4 transition-colors">
@@ -46,6 +52,24 @@ export function KpiTile({
             )}
         </div>
     );
+
+    if (drilldown) {
+        return (
+            <Dialog>
+                <DialogTrigger asChild>
+                    <button type="button" className="block h-full w-full text-left">
+                        {inner}
+                    </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>{drilldownTitle ?? label}</DialogTitle>
+                    </DialogHeader>
+                    {drilldown}
+                </DialogContent>
+            </Dialog>
+        );
+    }
 
     return href ? <Link href={href}>{inner}</Link> : inner;
 }

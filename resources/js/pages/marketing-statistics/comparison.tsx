@@ -1,13 +1,17 @@
+import { CategoryBarChart } from '@/components/marketing-statistics/category-bar-chart';
 import { buildFilterQuery, MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
-import { type Kpi, type MarketingFilters, type MarketingWebsite } from '@/types/marketing-statistics';
+import { type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { Link } from '@inertiajs/react';
+
+type Ga4Summary = { users: number; sessions: number; engagement_rate: number | null };
+type GscSummary = { clicks: number; impressions: number; average_position: number | null };
 
 type ComparisonRow = {
     website_id: string;
     name: string;
     domain: string;
-    ga4: Record<string, Kpi> | null;
-    gsc: Record<string, Kpi> | null;
+    ga4: Ga4Summary | null;
+    gsc: GscSummary | null;
 };
 
 function compact(value: number | null | undefined): string {
@@ -18,13 +22,32 @@ export default function WebsiteComparison({
     selected,
     websites,
     rows,
+    sources,
 }: {
     selected: MarketingFilters;
     websites: MarketingWebsite[];
     rows: ComparisonRow[];
+    sources?: Record<string, SourceStatus>;
 }) {
+    const chartRows = rows.map((row) => ({
+        name: row.name,
+        ga4_users: row.ga4?.users ?? 0,
+        gsc_clicks: row.gsc?.clicks ?? 0,
+    }));
+
     return (
-        <MarketingStatisticsShell active="comparison" selected={selected} websites={websites}>
+        <MarketingStatisticsShell active="comparison" selected={selected} websites={websites} sources={sources}>
+            <div className="grid gap-4 lg:grid-cols-2">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                    <h3 className="mb-3 text-sm font-semibold">GA4 users by website</h3>
+                    <CategoryBarChart data={chartRows} labelKey="name" valueKey="ga4_users" valueLabel="users" />
+                </div>
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                    <h3 className="mb-3 text-sm font-semibold">GSC clicks by website</h3>
+                    <CategoryBarChart data={chartRows} labelKey="name" valueKey="gsc_clicks" valueLabel="clicks" />
+                </div>
+            </div>
+
             <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
                 <table className="w-full text-sm">
                     <thead>
@@ -47,10 +70,10 @@ export default function WebsiteComparison({
                                         {row.name}
                                     </Link>
                                 </td>
-                                <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.aggregate_property_users.current)}</td>
-                                <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.sessions.current)}</td>
-                                <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.clicks.current)}</td>
-                                <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.impressions.current)}</td>
+                                <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.users)}</td>
+                                <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.sessions)}</td>
+                                <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.clicks)}</td>
+                                <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.impressions)}</td>
                             </tr>
                         ))}
                         {rows.length === 0 && (

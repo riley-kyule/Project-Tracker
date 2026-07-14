@@ -142,6 +142,39 @@ class GscReportQuery
             SQL);
     }
 
+    /**
+     * One grouped query across every requested domain, instead of calling
+     * dailyRows()/summing once per website — used by the Website Comparison
+     * tab so comparing N sites costs a fixed 1 query, not N.
+     *
+     * @param  array<int, string>  $domains
+     * @return array<string, array{clicks: int, impressions: int, average_position: float|null}>
+     */
+    public function summaryByWebsite(array $domains, Carbon $from, Carbon $to): array
+    {
+        $rows = $this->runner->rows(<<<'SQL'
+            SELECT
+              domain,
+              SUM(clicks) AS clicks,
+              SUM(impressions) AS impressions,
+              SAFE_DIVIDE(SUM(average_position * impressions), SUM(impressions)) AS average_position
+            FROM `analytics_core.gsc_daily_site`
+            WHERE search_type = 'web' AND domain IN UNNEST(@domains) AND data_date BETWEEN @date_from AND @date_to
+            GROUP BY domain
+            SQL, ['domains' => array_values($domains), 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
+
+        $byDomain = [];
+        foreach ($rows as $row) {
+            $byDomain[$row['domain']] = [
+                'clicks' => (int) $row['clicks'],
+                'impressions' => (int) $row['impressions'],
+                'average_position' => $row['average_position'] !== null ? (float) $row['average_position'] : null,
+            ];
+        }
+
+        return $byDomain;
+    }
+
     /** @return array{0: string, 1: array<string, mixed>} */
     private function optionalDomainClause(string|array|null $domain): array
     {

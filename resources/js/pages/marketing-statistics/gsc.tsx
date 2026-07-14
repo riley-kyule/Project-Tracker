@@ -1,7 +1,12 @@
+import { BreakdownsSkeleton } from '@/components/marketing-statistics/breakdowns-skeleton';
+import { CategoryPieChart } from '@/components/marketing-statistics/category-pie-chart';
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
 import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { TrendChart } from '@/components/marketing-statistics/trend-chart';
 import { type Kpi, type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
+import { Deferred } from '@inertiajs/react';
+
+const DEVICE_ORDER = ['desktop', 'mobile', 'tablet', 'smart tv'];
 
 function pct(value: number): string {
     return `${(value * 100).toFixed(1)}%`;
@@ -67,16 +72,50 @@ export default function GscReport({
     websites: MarketingWebsite[];
     source: SourceStatus;
     kpis: Record<string, Kpi> | null;
-    trend: { data_date: string; clicks: number; impressions: number }[];
+    trend: { data_date: string; clicks: number; impressions: number; average_position: number | null }[];
     breakdowns: Breakdowns | null;
 }) {
+    const ctrTrend = trend.map((row) => ({
+        data_date: row.data_date,
+        ctr: row.impressions ? row.clicks / row.impressions : 0,
+    }));
+
     return (
         <MarketingStatisticsShell active="gsc" selected={selected} websites={websites} sources={{ gsc: source }}>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <KpiTile label="Clicks" kpi={kpis?.clicks ?? null} />
-                <KpiTile label="Impressions" kpi={kpis?.impressions ?? null} />
-                <KpiTile label="CTR" kpi={kpis?.ctr ?? null} format={pct} />
-                <KpiTile label="Average position" kpi={kpis?.average_position ?? null} format={(v) => v.toFixed(1)} />
+                <KpiTile
+                    label="Clicks"
+                    kpi={kpis?.clicks ?? null}
+                    drilldownTitle="Clicks trend"
+                    drilldown={<TrendChart data={trend} dateKey="data_date" series={[{ key: 'clicks', name: 'Clicks' }]} />}
+                />
+                <KpiTile
+                    label="Impressions"
+                    kpi={kpis?.impressions ?? null}
+                    drilldownTitle="Impressions trend"
+                    drilldown={<TrendChart data={trend} dateKey="data_date" series={[{ key: 'impressions', name: 'Impressions' }]} />}
+                />
+                <KpiTile
+                    label="CTR"
+                    kpi={kpis?.ctr ?? null}
+                    format={pct}
+                    drilldownTitle="CTR trend"
+                    drilldown={<TrendChart data={ctrTrend} dateKey="data_date" series={[{ key: 'ctr', name: 'CTR' }]} valueFormat={pct} />}
+                />
+                <KpiTile
+                    label="Average position"
+                    kpi={kpis?.average_position ?? null}
+                    format={(v) => v.toFixed(1)}
+                    drilldownTitle="Average position trend"
+                    drilldown={
+                        <TrendChart
+                            data={trend}
+                            dateKey="data_date"
+                            series={[{ key: 'average_position', name: 'Avg. position' }]}
+                            valueFormat={(v) => v.toFixed(1)}
+                        />
+                    }
+                />
             </div>
 
             <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
@@ -91,47 +130,46 @@ export default function GscReport({
                 />
             </div>
 
-            {breakdowns && (
-                <div className="grid gap-4 lg:grid-cols-2">
-                    <BreakdownTable
-                        title="Queries"
-                        rows={breakdowns.queries}
-                        columns={[
-                            ['query', 'Query'],
-                            ['clicks', 'Clicks'],
-                            ['impressions', 'Impressions'],
-                            ['ctr', 'CTR'],
-                        ]}
-                    />
-                    <BreakdownTable
-                        title="Pages"
-                        rows={breakdowns.pages}
-                        columns={[
-                            ['url', 'Page'],
-                            ['clicks', 'Clicks'],
-                            ['impressions', 'Impressions'],
-                        ]}
-                    />
-                    <BreakdownTable
-                        title="Countries"
-                        rows={breakdowns.countries}
-                        columns={[
-                            ['country', 'Country'],
-                            ['clicks', 'Clicks'],
-                            ['impressions', 'Impressions'],
-                        ]}
-                    />
-                    <BreakdownTable
-                        title="Devices"
-                        rows={breakdowns.devices}
-                        columns={[
-                            ['device', 'Device'],
-                            ['clicks', 'Clicks'],
-                            ['impressions', 'Impressions'],
-                        ]}
-                    />
-                </div>
-            )}
+            <Deferred data="breakdowns" fallback={<BreakdownsSkeleton />}>
+                <>
+                    {breakdowns && (
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <BreakdownTable
+                                title="Queries"
+                                rows={breakdowns.queries}
+                                columns={[
+                                    ['query', 'Query'],
+                                    ['clicks', 'Clicks'],
+                                    ['impressions', 'Impressions'],
+                                    ['ctr', 'CTR'],
+                                ]}
+                            />
+                            <BreakdownTable
+                                title="Pages"
+                                rows={breakdowns.pages}
+                                columns={[
+                                    ['url', 'Page'],
+                                    ['clicks', 'Clicks'],
+                                    ['impressions', 'Impressions'],
+                                ]}
+                            />
+                            <BreakdownTable
+                                title="Countries"
+                                rows={breakdowns.countries}
+                                columns={[
+                                    ['country', 'Country'],
+                                    ['clicks', 'Clicks'],
+                                    ['impressions', 'Impressions'],
+                                ]}
+                            />
+                            <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                                <h3 className="mb-3 text-sm font-semibold">Devices (clicks)</h3>
+                                <CategoryPieChart data={breakdowns.devices} labelKey="device" valueKey="clicks" order={DEVICE_ORDER} />
+                            </div>
+                        </div>
+                    )}
+                </>
+            </Deferred>
         </MarketingStatisticsShell>
     );
 }

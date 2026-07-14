@@ -178,6 +178,53 @@ class TrafficDashboardQuery
         return (int) ($rows[0]['key_events'] ?? 0);
     }
 
+    /** @return array<int, array{key_event: string, key_event_category: string, key_event_count: int, users: int}> */
+    public function keyEventsBreakdown(string|array|null $websiteDomain, Carbon $from, Carbon $to): array
+    {
+        [$clause, $params] = $this->optionalWebsiteClause($websiteDomain);
+
+        return $this->runner->rows(<<<SQL
+            SELECT key_event, key_event_category, SUM(key_event_count) AS key_event_count, SUM(users) AS users
+            FROM `analytics_core.vw_key_events`
+            WHERE event_date BETWEEN @date_from AND @date_to{$clause}
+            GROUP BY key_event, key_event_category
+            ORDER BY key_event_count DESC
+            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
+    }
+
+    /**
+     * One grouped query across every requested domain, instead of calling
+     * summary() once per website — used by the Website Comparison tab so
+     * comparing N sites costs a fixed 2 queries, not 2N.
+     *
+     * @param  array<int, string>  $domains
+     * @return array<string, array{users: int, sessions: int, engagement_rate: float|null}>
+     */
+    public function summaryByWebsite(array $domains, Carbon $from, Carbon $to): array
+    {
+        $rows = $this->runner->rows(<<<'SQL'
+            SELECT
+              website_domain,
+              SUM(users) AS users,
+              SUM(sessions) AS sessions,
+              SAFE_DIVIDE(SUM(engaged_sessions), SUM(sessions)) AS engagement_rate
+            FROM `analytics_core.vw_daily_website_metrics`
+            WHERE website_domain IN UNNEST(@domains) AND event_date BETWEEN @date_from AND @date_to
+            GROUP BY website_domain
+            SQL, ['domains' => array_values($domains), 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
+
+        $byDomain = [];
+        foreach ($rows as $row) {
+            $byDomain[$row['website_domain']] = [
+                'users' => (int) $row['users'],
+                'sessions' => (int) $row['sessions'],
+                'engagement_rate' => $row['engagement_rate'] !== null ? (float) $row['engagement_rate'] : null,
+            ];
+        }
+
+        return $byDomain;
+    }
+
     /**
      * Null aggregates across every site ("All Sites"); a string filters to
      * one; an array (2+ sites ticked for a scoped member report) filters to

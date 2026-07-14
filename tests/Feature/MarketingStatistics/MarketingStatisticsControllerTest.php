@@ -47,6 +47,13 @@ class MarketingStatisticsControllerTest extends TestCase
                     return [['event_date' => $parameters['date_from'], 'users' => $users, 'sessions' => $users + 10, 'engaged_sessions' => 5]];
                 }
 
+                if (str_contains($sql, 'vw_key_events') && str_contains($sql, 'GROUP BY')) {
+                    return [
+                        ['key_event' => 'whatsapp_click', 'key_event_category' => 'contact', 'key_event_count' => 12, 'users' => 10],
+                        ['key_event' => 'call_now', 'key_event_category' => 'contact', 'key_event_count' => 5, 'users' => 4],
+                    ];
+                }
+
                 if (str_contains($sql, 'vw_key_events')) {
                     return [['key_events' => 7]];
                 }
@@ -183,19 +190,41 @@ class MarketingStatisticsControllerTest extends TestCase
         $this->assertSame('2025-07-07', $selected['compare_to']);
     }
 
+    /**
+     * GSC/Ahrefs on the Overview page — and breakdowns on the GA4/GSC pages
+     * — are deferred (Inertia::defer) so the page paints immediately
+     * instead of waiting on every source. Simulates the follow-up partial
+     * reload the frontend's <Deferred> fires automatically, since a plain
+     * GET (as the browser's first request) never evaluates them.
+     */
+    private function partialReloadHeaders(string $component, string $only, string $version): array
+    {
+        return [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => $version,
+            'X-Inertia-Partial-Component' => $component,
+            'X-Inertia-Partial-Data' => $only,
+        ];
+    }
+
     public function test_a_failed_source_is_reported_without_breaking_the_page()
     {
         $this->bindFakeRunner();
         $ceo = User::factory()->create()->assignRole('CEO');
 
-        // Ahrefs has no BigQuery table yet — the fake throws for it, GA4/GSC succeed.
+        // GA4 is eager; Ahrefs has no BigQuery table yet — the fake throws for it, GSC succeeds.
         $response = $this->actingAs($ceo)->get('/marketing-statistics')->assertOk();
+        $this->assertSame('ok', $response->viewData('page')['props']['ga4_source']['status']);
 
-        $sources = $response->viewData('page')['props']['sources'];
-        $this->assertSame('ok', $sources['ga4']['status']);
-        $this->assertSame('ok', $sources['gsc']['status']);
-        $this->assertSame('failed', $sources['ahrefs']['status']);
-        $this->assertNotNull($sources['ahrefs']['error']);
+        $deferred = $this->actingAs($ceo)->get(
+            '/marketing-statistics',
+            $this->partialReloadHeaders('marketing-statistics/overview', 'gsc,ahrefs', $response->viewData('page')['version']),
+        )->assertOk();
+
+        $props = $deferred->json('props');
+        $this->assertSame('ok', $props['gsc']['source']['status']);
+        $this->assertSame('failed', $props['ahrefs']['source']['status']);
+        $this->assertNotNull($props['ahrefs']['source']['error']);
     }
 
     public function test_selected_filters_are_mirrored_back_exactly_for_url_persistence()
@@ -227,5 +256,100 @@ class MarketingStatisticsControllerTest extends TestCase
             'compare_from' => '2026-04-01',
             'compare_to' => '2026-04-15',
         ], $response->viewData('page')['props']['selected']);
+    }
+
+    public function test_ga4_initial_load_skips_the_deferred_breakdown_queries()
+    {
+        $this->bindFakeRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->get('/marketing-statistics/ga4')->assertOk();
+
+        $breakdownCall = collect($this->recordedCalls)->first(
+            fn ($call) => str_contains($call['sql'], 'vw_traffic_sources')
+                || str_contains($call['sql'], 'vw_device_breakdown')
+                || str_contains($call['sql'], 'vw_landing_pages')
+                || str_contains($call['sql'], 'vw_geo_breakdown')
+                || (str_contains($call['sql'], 'vw_key_events') && str_contains($call['sql'], 'GROUP BY')),
+        );
+
+        $this->assertNull($breakdownCall, 'breakdown queries should not run until the deferred partial reload requests them');
+    }
+
+    public function test_ga4_page_includes_a_key_events_breakdown()
+    {
+        $this->bindFakeRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $initial = $this->actingAs($ceo)->get('/marketing-statistics/ga4')->assertOk();
+
+        $response = $this->actingAs($ceo)->get(
+            '/marketing-statistics/ga4',
+            $this->partialReloadHeaders('marketing-statistics/ga4', 'breakdowns', $initial->viewData('page')['version']),
+        )->assertOk();
+
+        $keyEvents = $response->json('props.breakdowns.key_events');
+        $this->assertSame('whatsapp_click', $keyEvents[0]['key_event']);
+        $this->assertSame(12, $keyEvents[0]['key_event_count']);
+    }
+
+    public function test_comparison_issues_a_fixed_number_of_queries_regardless_of_website_count()
+    {
+        $runner = new class implements BigQueryRunner
+        {
+            public array $calls = [];
+
+            public function isConfigured(): bool
+            {
+                return true;
+            }
+
+            public function rows(string $sql, array $parameters = []): array
+            {
+                $this->calls[] = $sql;
+
+                if (str_contains($sql, 'metadata.websites')) {
+                    return [
+                        ['website_domain' => 'a.example.com', 'website_name' => 'Site A', 'country' => null],
+                        ['website_domain' => 'b.example.com', 'website_name' => 'Site B', 'country' => null],
+                        ['website_domain' => 'c.example.com', 'website_name' => 'Site C', 'country' => null],
+                    ];
+                }
+
+                if (str_contains($sql, 'vw_daily_website_metrics') && str_contains($sql, 'IN UNNEST')) {
+                    // Deliberately no row for c.example.com — proves a missing
+                    // domain degrades to null instead of erroring.
+                    return [
+                        ['website_domain' => 'a.example.com', 'users' => 100, 'sessions' => 150, 'engagement_rate' => 0.5],
+                        ['website_domain' => 'b.example.com', 'users' => 200, 'sessions' => 250, 'engagement_rate' => 0.6],
+                    ];
+                }
+
+                if (str_contains($sql, 'gsc_daily_site') && str_contains($sql, 'IN UNNEST')) {
+                    return [
+                        ['domain' => 'a.example.com', 'clicks' => 10, 'impressions' => 100, 'average_position' => 4.0],
+                    ];
+                }
+
+                return [];
+            }
+        };
+
+        $this->app->instance(BigQueryRunner::class, $runner);
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $response = $this->actingAs($ceo)->get('/marketing-statistics/comparison')->assertOk();
+
+        $batchedCalls = collect($runner->calls)->filter(fn ($sql) => str_contains($sql, 'IN UNNEST'))->count();
+        $this->assertSame(2, $batchedCalls, 'expected exactly one batched GA4 query and one batched GSC query, regardless of website count');
+
+        $rows = collect($response->viewData('page')['props']['rows']);
+        $siteA = $rows->firstWhere('domain', 'a.example.com');
+        $this->assertSame(100, $siteA['ga4']['users']);
+        $this->assertSame(10, $siteA['gsc']['clicks']);
+
+        $siteC = $rows->firstWhere('domain', 'c.example.com');
+        $this->assertNull($siteC['ga4']);
+        $this->assertNull($siteC['gsc']);
     }
 }

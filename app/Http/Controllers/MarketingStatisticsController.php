@@ -43,20 +43,29 @@ class MarketingStatisticsController extends Controller
         $domain = $filters->resolvedWebsiteId;
 
         $ga4Report = $reportBuilder->ga4Report($ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
-        $gscReport = $reportBuilder->gscReport($gsc, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
-        $ahrefsReport = $reportBuilder->ahrefsReport($ahrefs, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
 
+        // GSC and Ahrefs are each their own 1-2 query round trip — deferred
+        // as one group so the page paints with GA4's KPIs and headline
+        // trend immediately, then the other two sources pop in together
+        // right after instead of blocking first paint. Status and KPIs are
+        // bundled into one deferred prop per source (rather than two) so
+        // each report is only computed once.
         return Inertia::render('marketing-statistics/overview', [
             'selected' => $filters->toArray(),
             'websites' => $registry,
-            'sources' => [
-                'ga4' => $reportBuilder->sourceSummary($ga4Report),
-                'gsc' => $reportBuilder->sourceSummary($gscReport),
-                'ahrefs' => $reportBuilder->sourceSummary($ahrefsReport),
-            ],
+            'ga4_source' => $reportBuilder->sourceSummary($ga4Report),
             'ga4' => $ga4Report['kpis'],
-            'gsc' => $gscReport['kpis'],
-            'ahrefs' => $ahrefsReport['kpis'],
+            'ga4_trend' => $ga4Report['trend'],
+            'gsc' => Inertia::defer(function () use ($gsc, $domain, $filters, $reportBuilder) {
+                $report = $reportBuilder->gscReport($gsc, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
+
+                return ['source' => $reportBuilder->sourceSummary($report), 'kpis' => $report['kpis']];
+            }, 'secondary-sources'),
+            'ahrefs' => Inertia::defer(function () use ($ahrefs, $domain, $filters, $reportBuilder) {
+                $report = $reportBuilder->ahrefsReport($ahrefs, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
+
+                return ['source' => $reportBuilder->sourceSummary($report), 'kpis' => $report['kpis']];
+            }, 'secondary-sources'),
         ]);
     }
 
@@ -69,21 +78,6 @@ class MarketingStatisticsController extends Controller
         $domain = $filters->resolvedWebsiteId;
 
         $report = $reportBuilder->ga4Report($ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
-        $breakdowns = null;
-
-        if ($report['status'] !== 'failed') {
-            try {
-                $breakdowns = [
-                    'traffic_sources' => $ga4->trafficSources($domain, $filters->dateFrom, $filters->dateTo),
-                    'devices' => $ga4->devices($domain, $filters->dateFrom, $filters->dateTo),
-                    'landing_pages' => $ga4->landingPages($domain, $filters->dateFrom, $filters->dateTo),
-                    'locations' => $ga4->locations($domain, $filters->dateFrom, $filters->dateTo),
-                ];
-            } catch (\Throwable) {
-                // Summary succeeded but a breakdown query failed independently — the
-                // page still renders with KPIs, just without these detail lists.
-            }
-        }
 
         return Inertia::render('marketing-statistics/ga4', [
             'selected' => $filters->toArray(),
@@ -91,7 +85,28 @@ class MarketingStatisticsController extends Controller
             'source' => $reportBuilder->sourceSummary($report),
             'kpis' => $report['kpis'],
             'trend' => $report['trend'],
-            'breakdowns' => $breakdowns,
+            // Five extra BigQuery queries (each its own live scan over the
+            // GA4 UNION ALL view) — deferred so the KPIs and headline trend
+            // above paint immediately instead of waiting on all of them.
+            'breakdowns' => Inertia::defer(function () use ($report, $ga4, $domain, $filters) {
+                if ($report['status'] === 'failed') {
+                    return null;
+                }
+
+                try {
+                    return [
+                        'traffic_sources' => $ga4->trafficSources($domain, $filters->dateFrom, $filters->dateTo),
+                        'devices' => $ga4->devices($domain, $filters->dateFrom, $filters->dateTo),
+                        'landing_pages' => $ga4->landingPages($domain, $filters->dateFrom, $filters->dateTo),
+                        'locations' => $ga4->locations($domain, $filters->dateFrom, $filters->dateTo),
+                        'key_events' => $ga4->keyEventsBreakdown($domain, $filters->dateFrom, $filters->dateTo),
+                    ];
+                } catch (\Throwable) {
+                    // Summary succeeded but a breakdown query failed independently — the
+                    // page still renders with KPIs, just without these detail lists.
+                    return null;
+                }
+            }),
         ]);
     }
 
@@ -104,20 +119,6 @@ class MarketingStatisticsController extends Controller
         $domain = $filters->resolvedWebsiteId;
 
         $report = $reportBuilder->gscReport($gsc, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
-        $breakdowns = null;
-
-        if ($report['status'] !== 'failed') {
-            try {
-                $breakdowns = [
-                    'queries' => $gsc->queries($domain, $filters->dateFrom, $filters->dateTo),
-                    'pages' => $gsc->pages($domain, $filters->dateFrom, $filters->dateTo),
-                    'countries' => $gsc->countries($domain, $filters->dateFrom, $filters->dateTo),
-                    'devices' => $gsc->devices($domain, $filters->dateFrom, $filters->dateTo),
-                ];
-            } catch (\Throwable) {
-                // Summary succeeded but a breakdown query failed independently.
-            }
-        }
 
         return Inertia::render('marketing-statistics/gsc', [
             'selected' => $filters->toArray(),
@@ -125,7 +126,23 @@ class MarketingStatisticsController extends Controller
             'source' => $reportBuilder->sourceSummary($report),
             'kpis' => $report['kpis'],
             'trend' => $report['trend'],
-            'breakdowns' => $breakdowns,
+            // Four extra BigQuery queries — deferred for the same reason as GA4's.
+            'breakdowns' => Inertia::defer(function () use ($report, $gsc, $domain, $filters) {
+                if ($report['status'] === 'failed') {
+                    return null;
+                }
+
+                try {
+                    return [
+                        'queries' => $gsc->queries($domain, $filters->dateFrom, $filters->dateTo),
+                        'pages' => $gsc->pages($domain, $filters->dateFrom, $filters->dateTo),
+                        'countries' => $gsc->countries($domain, $filters->dateFrom, $filters->dateTo),
+                        'devices' => $gsc->devices($domain, $filters->dateFrom, $filters->dateTo),
+                    ];
+                } catch (\Throwable) {
+                    return null;
+                }
+            }),
         ]);
     }
 
@@ -147,6 +164,13 @@ class MarketingStatisticsController extends Controller
         ]);
     }
 
+    /**
+     * Two grouped BigQuery queries total, regardless of how many websites
+     * are registered — see TrafficDashboardQuery::summaryByWebsite() and
+     * GscReportQuery::summaryByWebsite(). The previous version called
+     * ga4Report()/gscReport() once per website (up to 3 queries each),
+     * which took minutes to render with ~20 real sites.
+     */
     public function comparison(
         Request $request, TrafficDashboardQuery $ga4, GscReportQuery $gsc, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
     ): Response {
@@ -154,24 +178,27 @@ class MarketingStatisticsController extends Controller
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $this->websiteRegistry($registryQuery, $reportBuilder);
+        $domains = array_column($registry, 'domain');
 
-        $rows = array_map(function (array $site) use ($ga4, $gsc, $filters, $reportBuilder) {
-            $ga4Report = $reportBuilder->ga4Report($ga4, $site['domain'], $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
-            $gscReport = $reportBuilder->gscReport($gsc, $site['domain'], $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo);
+        $ga4Summary = $reportBuilder->attempt(fn () => $ga4->summaryByWebsite($domains, $filters->dateFrom, $filters->dateTo));
+        $gscSummary = $reportBuilder->attempt(fn () => $gsc->summaryByWebsite($domains, $filters->dateFrom, $filters->dateTo));
 
-            return [
-                'website_id' => $site['website_id'],
-                'name' => $site['name'],
-                'domain' => $site['domain'],
-                'ga4' => $ga4Report['status'] === 'ok' ? $ga4Report['kpis'] : null,
-                'gsc' => $gscReport['status'] === 'ok' ? $gscReport['kpis'] : null,
-            ];
-        }, $registry);
+        $rows = array_map(fn (array $site) => [
+            'website_id' => $site['website_id'],
+            'name' => $site['name'],
+            'domain' => $site['domain'],
+            'ga4' => $ga4Summary['rows'][$site['domain']] ?? null,
+            'gsc' => $gscSummary['rows'][$site['domain']] ?? null,
+        ], $registry);
 
         return Inertia::render('marketing-statistics/comparison', [
             'selected' => $filters->toArray(),
             'websites' => $registry,
             'rows' => $rows,
+            'sources' => [
+                'ga4' => $reportBuilder->sourceSummary($ga4Summary),
+                'gsc' => $reportBuilder->sourceSummary($gscSummary),
+            ],
         ]);
     }
 
