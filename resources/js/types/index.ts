@@ -28,6 +28,7 @@ export interface NavItem {
 export interface SharedData {
     name: string;
     auth: Auth;
+    flash: { success: string | null; error: string | null };
     [key: string]: unknown;
 }
 

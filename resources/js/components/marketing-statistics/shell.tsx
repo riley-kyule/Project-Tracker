@@ -1,5 +1,5 @@
 import { FilterBar } from '@/components/marketing-statistics/filter-bar';
-import { SourceStatusBanner } from '@/components/marketing-statistics/source-status-banner';
+import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
@@ -54,6 +54,8 @@ export function MarketingStatisticsShell({
     const query = buildFilterQuery(selected);
     const activeTab = TABS.find((tab) => tab.key === active)!;
 
+    useSourceStatusToasts(sources);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Marketing Statistics — ${activeTab.label}`} />
@@ -75,8 +77,6 @@ export function MarketingStatisticsShell({
                         </Link>
                     ))}
                 </nav>
-
-                {sources && <SourceStatusBanner sources={sources} />}
 
                 <FilterBar websites={websites} selected={selected} basePath={activeTab.path} />
 

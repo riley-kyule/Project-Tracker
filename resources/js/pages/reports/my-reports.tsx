@@ -1,10 +1,10 @@
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
-import { SourceStatusBanner } from '@/components/marketing-statistics/source-status-banner';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type Kpi } from '@/types/marketing-statistics';
+import { type Kpi, type SourceStatus } from '@/types/marketing-statistics';
 import { Head, router } from '@inertiajs/react';
 import { Download } from 'lucide-react';
 import { useState } from 'react';
@@ -72,6 +72,17 @@ export default function MyReports({
 
     const marketingSites = assigned_websites.filter((website) => website.team === 'marketing');
     const csSites = assigned_websites.filter((website) => website.team === 'customer_service');
+
+    const marketing = report?.marketing;
+    const marketingSources: Record<string, SourceStatus> | undefined =
+        marketing && !marketing.error
+            ? {
+                  ga4: { status: marketing.ga4?.status ?? 'missing', error: marketing.ga4?.error ?? null },
+                  gsc: { status: marketing.gsc?.status ?? 'missing', error: marketing.gsc?.error ?? null },
+                  ahrefs: { status: marketing.ahrefs?.status ?? 'missing', error: marketing.ahrefs?.error ?? null },
+              }
+            : undefined;
+    useSourceStatusToasts(marketingSources);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -157,22 +168,6 @@ export default function MyReports({
                                     </div>
                                 ) : (
                                     <>
-                                        <SourceStatusBanner
-                                            sources={{
-                                                ga4: {
-                                                    status: report.marketing.ga4?.status ?? 'missing',
-                                                    error: report.marketing.ga4?.error ?? null,
-                                                },
-                                                gsc: {
-                                                    status: report.marketing.gsc?.status ?? 'missing',
-                                                    error: report.marketing.gsc?.error ?? null,
-                                                },
-                                                ahrefs: {
-                                                    status: report.marketing.ahrefs?.status ?? 'missing',
-                                                    error: report.marketing.ahrefs?.error ?? null,
-                                                },
-                                            }}
-                                        />
                                         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                                             <KpiTile
                                                 label="Aggregate Property Users"

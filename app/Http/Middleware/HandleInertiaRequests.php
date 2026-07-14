@@ -51,6 +51,10 @@ class HandleInertiaRequests extends Middleware
                     : false,
                 'hasWebsiteAssignments' => $user ? $user->websiteAssignments()->exists() : false,
             ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+            ],
         ];
     }
 }
