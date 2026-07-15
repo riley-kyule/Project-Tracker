@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BoardColumn;
 use App\Models\Task;
+use App\Notifications\TaskBlocked;
 use Illuminate\Support\Facades\DB;
 
 class TaskMover
@@ -16,13 +17,16 @@ class TaskMover
     public static function move(Task $task, BoardColumn $target, int $position): Task
     {
         $newlyCompleted = false;
+        $enteringBlocked = false;
 
-        $task = DB::transaction(function () use ($task, $target, $position, &$newlyCompleted) {
+        $task = DB::transaction(function () use ($task, $target, $position, &$newlyCompleted, &$enteringBlocked) {
             $task = Task::query()->lockForUpdate()->findOrFail($task->id);
 
             $fromColumnId = $task->board_column_id;
             $fromPosition = $task->position;
             $newlyCompleted = $target->is_completion_column && $task->completed_at === null;
+            $fromSemanticStatus = BoardColumn::query()->whereKey($fromColumnId)->value('semantic_status');
+            $enteringBlocked = $target->semantic_status === 'blocked' && $fromSemanticStatus !== 'blocked';
 
             $maxPosition = (int) Task::query()
                 ->where('board_column_id', $target->id)
@@ -60,6 +64,10 @@ class TaskMover
 
         if ($newlyCompleted) {
             RecurrenceService::generateFromCompletion($task);
+        }
+
+        if ($enteringBlocked && $task->assignee?->wantsNotification('task_blocked')) {
+            $task->assignee->notify(new TaskBlocked($task));
         }
 
         return $task;

@@ -53,6 +53,26 @@ class NotificationTest extends TestCase
         Notification::assertSentTo($assignee, TaskAssigned::class);
     }
 
+    public function test_disabled_preference_suppresses_the_notification()
+    {
+        Notification::fake();
+
+        $manager = User::factory()->create()->assignRole('Administrator');
+        $assignee = User::factory()->create(['notification_preferences' => ['task_assigned' => false]])->assignRole('Employee');
+
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_COMPANY]);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+
+        $this->actingAs($manager)->post("/boards/{$board->id}/tasks", [
+            'title' => 'Should not notify',
+            'board_column_id' => $column->id,
+            'priority' => 'medium',
+            'primary_assignee_id' => $assignee->id,
+        ]);
+
+        Notification::assertNotSentTo($assignee, TaskAssigned::class);
+    }
+
     public function test_notification_endpoints_list_and_mark_read()
     {
         $admin = User::factory()->create()->assignRole('Administrator');

@@ -97,6 +97,12 @@ class User extends Authenticatable
         return $this->status === self::STATUS_ACTIVE;
     }
 
+    /** Absent key means enabled — the column has no seeded default, so "never configured" must not silence anything. */
+    public function wantsNotification(string $type): bool
+    {
+        return ($this->notification_preferences[$type] ?? true) !== false;
+    }
+
     public function websiteAssignments(): HasMany
     {
         return $this->hasMany(WebsiteAssignment::class);

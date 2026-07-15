@@ -37,7 +37,8 @@ class SendDueNotifications extends Command
                 $overdue = $task->due_at->isPast();
                 $type = $overdue ? 'task_overdue' : 'task_due_soon';
 
-                if ($this->alreadySent($task->assignee->id, $type, 'task_id', $task->id)) {
+                if ($this->alreadySent($task->assignee->id, $type, 'task_id', $task->id)
+                    || ! $task->assignee->wantsNotification($type)) {
                     return;
                 }
 
@@ -52,7 +53,8 @@ class SendDueNotifications extends Command
             ->whereNotNull('assigned_to')
             ->with('assignee')
             ->each(function (Ticket $ticket) use (&$sentTickets) {
-                if ($this->alreadySent($ticket->assignee->id, 'ticket_overdue', 'ticket_id', $ticket->id)) {
+                if ($this->alreadySent($ticket->assignee->id, 'ticket_overdue', 'ticket_id', $ticket->id)
+                    || ! $ticket->assignee->wantsNotification('ticket_overdue')) {
                     return;
                 }
 
@@ -77,7 +79,8 @@ class SendDueNotifications extends Command
                     return;
                 }
 
-                if ($this->alreadySent($ticket->assignee->id, 'ticket_response_overdue', 'ticket_id', $ticket->id)) {
+                if ($this->alreadySent($ticket->assignee->id, 'ticket_response_overdue', 'ticket_id', $ticket->id)
+                    || ! $ticket->assignee->wantsNotification('ticket_response_overdue')) {
                     return;
                 }
 

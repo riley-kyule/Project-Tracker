@@ -47,7 +47,9 @@ class CommentService
         $mentionedIds = $comment->mentions()->pluck('mentioned_user_id')->all();
 
         foreach (User::query()->whereIn('id', $mentionedIds)->get() as $user) {
-            $user->notify(new CommentMention($comment));
+            if ($user->wantsNotification('comment_mention')) {
+                $user->notify(new CommentMention($comment));
+            }
         }
 
         $watchers = User::query()
@@ -58,7 +60,9 @@ class CommentService
             ->filter(fn (User $user) => Gate::forUser($user)->allows('view', $task));
 
         foreach ($watchers as $user) {
-            $user->notify(new TaskCommented($comment));
+            if ($user->wantsNotification('task_commented')) {
+                $user->notify(new TaskCommented($comment));
+            }
         }
 
         return $comment;

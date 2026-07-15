@@ -31,8 +31,8 @@ class RecurrenceService
 
                 $rule->update(['next_run_at' => $rule->calculateNextRun($rule->next_run_at ?? now())]);
 
-                if ($missed) {
-                    $rule->creator?->notify(new RecurrenceMissed($rule));
+                if ($missed && $rule->creator?->wantsNotification('recurrence_missed')) {
+                    $rule->creator->notify(new RecurrenceMissed($rule));
                 }
 
                 $generated++;

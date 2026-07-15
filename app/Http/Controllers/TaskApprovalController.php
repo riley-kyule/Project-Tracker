@@ -34,7 +34,7 @@ class TaskApprovalController extends Controller
 
         AuditLogger::log($task, 'approval_requested', [], ['approver_id' => $reviewer->id]);
 
-        if ($reviewer->id !== $request->user()->id) {
+        if ($reviewer->id !== $request->user()->id && $reviewer->wantsNotification('task_approval_requested')) {
             $reviewer->notify(new TaskApprovalRequested($task, $request->user()));
         }
 
@@ -87,8 +87,14 @@ class TaskApprovalController extends Controller
     private function notifyInterestedParties(Task $task, int $actorId): void
     {
         foreach (array_unique(array_filter([$task->created_by, $task->primary_assignee_id])) as $userId) {
-            if ($userId !== $actorId) {
-                User::find($userId)?->notify(new TaskApprovalDecided($task));
+            if ($userId === $actorId) {
+                continue;
+            }
+
+            $user = User::find($userId);
+
+            if ($user?->wantsNotification('task_approval_decided')) {
+                $user->notify(new TaskApprovalDecided($task));
             }
         }
     }

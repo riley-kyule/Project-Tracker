@@ -225,8 +225,9 @@ class TicketController extends Controller
 
         AuditLogger::log($ticket, $isInternal ? 'internal_note_added' : 'commented', [], ['comment_id' => $comment->id]);
 
-        if (! $isInternal && $request->user()->id !== $ticket->requester_id && $request->user()->can('tickets.manage')) {
-            $ticket->requester?->notify(new TicketUpdated($ticket));
+        if (! $isInternal && $request->user()->id !== $ticket->requester_id && $request->user()->can('tickets.manage')
+            && $ticket->requester?->wantsNotification('ticket_updated')) {
+            $ticket->requester->notify(new TicketUpdated($ticket));
         }
 
         return back();
