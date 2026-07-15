@@ -1,6 +1,5 @@
 import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { type MarketingFilters, type MarketingWebsite } from '@/types/marketing-statistics';
 import { Deferred } from '@inertiajs/react';
 
@@ -55,16 +54,6 @@ function SourceCard({ title, source }: { title: string; source: SourceFreshness 
     );
 }
 
-function FreshnessSkeleton() {
-    return (
-        <div className="grid gap-4 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-48 rounded-xl" />
-            ))}
-        </div>
-    );
-}
-
 export default function DataFreshness({
     selected,
     websites,
@@ -76,7 +65,7 @@ export default function DataFreshness({
 }) {
     return (
         <MarketingStatisticsShell active="freshness" selected={selected} websites={websites}>
-            <Deferred data="sources" fallback={<FreshnessSkeleton />}>
+            <Deferred data="sources" fallback={<></>}>
                 <>
                     {sources && (
                         <div className="grid gap-4 lg:grid-cols-3">

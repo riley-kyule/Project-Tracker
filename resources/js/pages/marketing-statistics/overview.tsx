@@ -1,7 +1,6 @@
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
 import { buildFilterQuery, MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { TrendChart } from '@/components/marketing-statistics/trend-chart';
-import { Skeleton } from '@/components/ui/skeleton';
 import { type Kpi, type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { Deferred } from '@inertiajs/react';
 
@@ -11,12 +10,34 @@ function pct(value: number): string {
 
 type SourceKpis = { source: SourceStatus; kpis: Record<string, Kpi> | null };
 
-function KpiTilesSkeleton() {
+function GscTiles({ gsc, query }: { gsc?: SourceKpis; query: string }) {
     return (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-xl" />
-            ))}
+            <KpiTile label="Clicks" kpi={gsc?.kpis?.clicks ?? null} href={`/marketing-statistics/gsc${query}`} />
+            <KpiTile label="Impressions" kpi={gsc?.kpis?.impressions ?? null} href={`/marketing-statistics/gsc${query}`} />
+            <KpiTile label="CTR" kpi={gsc?.kpis?.ctr ?? null} format={pct} href={`/marketing-statistics/gsc${query}`} />
+            <KpiTile
+                label="Average position"
+                kpi={gsc?.kpis?.average_position ?? null}
+                format={(v) => v.toFixed(1)}
+                href={`/marketing-statistics/gsc${query}`}
+            />
+        </div>
+    );
+}
+
+function AhrefsTiles({ ahrefs, query }: { ahrefs?: SourceKpis; query: string }) {
+    return (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiTile
+                label="Domain Rating"
+                kpi={ahrefs?.kpis?.domain_rating ?? null}
+                format={(v) => v.toFixed(1)}
+                href={`/marketing-statistics/ahrefs${query}`}
+            />
+            <KpiTile label="Backlinks" kpi={ahrefs?.kpis?.backlinks ?? null} href={`/marketing-statistics/ahrefs${query}`} />
+            <KpiTile label="Referring domains" kpi={ahrefs?.kpis?.referring_domains ?? null} href={`/marketing-statistics/ahrefs${query}`} />
+            <KpiTile label="Organic keywords" kpi={ahrefs?.kpis?.organic_keywords ?? null} href={`/marketing-statistics/ahrefs${query}`} />
         </div>
     );
 }
@@ -75,43 +96,15 @@ export default function Overview({
 
             <div className="flex flex-col gap-3">
                 <h2 className="text-sm font-semibold">Google Search Console</h2>
-                <Deferred data="gsc" fallback={<KpiTilesSkeleton />}>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <KpiTile label="Clicks" kpi={gsc?.kpis?.clicks ?? null} href={`/marketing-statistics/gsc${query}`} />
-                        <KpiTile label="Impressions" kpi={gsc?.kpis?.impressions ?? null} href={`/marketing-statistics/gsc${query}`} />
-                        <KpiTile label="CTR" kpi={gsc?.kpis?.ctr ?? null} format={pct} href={`/marketing-statistics/gsc${query}`} />
-                        <KpiTile
-                            label="Average position"
-                            kpi={gsc?.kpis?.average_position ?? null}
-                            format={(v) => v.toFixed(1)}
-                            href={`/marketing-statistics/gsc${query}`}
-                        />
-                    </div>
+                <Deferred data="gsc" fallback={<GscTiles query={query} />}>
+                    <GscTiles gsc={gsc} query={query} />
                 </Deferred>
             </div>
 
             <div className="flex flex-col gap-3">
                 <h2 className="text-sm font-semibold">Ahrefs</h2>
-                <Deferred data="ahrefs" fallback={<KpiTilesSkeleton />}>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <KpiTile
-                            label="Domain Rating"
-                            kpi={ahrefs?.kpis?.domain_rating ?? null}
-                            format={(v) => v.toFixed(1)}
-                            href={`/marketing-statistics/ahrefs${query}`}
-                        />
-                        <KpiTile label="Backlinks" kpi={ahrefs?.kpis?.backlinks ?? null} href={`/marketing-statistics/ahrefs${query}`} />
-                        <KpiTile
-                            label="Referring domains"
-                            kpi={ahrefs?.kpis?.referring_domains ?? null}
-                            href={`/marketing-statistics/ahrefs${query}`}
-                        />
-                        <KpiTile
-                            label="Organic keywords"
-                            kpi={ahrefs?.kpis?.organic_keywords ?? null}
-                            href={`/marketing-statistics/ahrefs${query}`}
-                        />
-                    </div>
+                <Deferred data="ahrefs" fallback={<AhrefsTiles query={query} />}>
+                    <AhrefsTiles ahrefs={ahrefs} query={query} />
                 </Deferred>
             </div>
         </MarketingStatisticsShell>

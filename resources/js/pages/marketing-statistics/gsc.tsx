@@ -1,8 +1,8 @@
-import { BreakdownsSkeleton } from '@/components/marketing-statistics/breakdowns-skeleton';
 import { CategoryPieChart } from '@/components/marketing-statistics/category-pie-chart';
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
 import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { TrendChart } from '@/components/marketing-statistics/trend-chart';
+import { Skeleton } from '@/components/ui/skeleton';
 import { type Kpi, type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { Deferred } from '@inertiajs/react';
 
@@ -18,6 +18,15 @@ type Breakdowns = {
     countries: { country: string; clicks: number; impressions: number }[];
     devices: { device: string; clicks: number; impressions: number }[];
 };
+
+function BreakdownCardShell({ title, children }: { title: string; children?: React.ReactNode }) {
+    return (
+        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+            <h3 className="mb-3 text-sm font-semibold">{title}</h3>
+            {children}
+        </div>
+    );
+}
 
 function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: [string, string][] }) {
     return (
@@ -130,7 +139,19 @@ export default function GscReport({
                 />
             </div>
 
-            <Deferred data="breakdowns" fallback={<BreakdownsSkeleton />}>
+            <Deferred
+                data="breakdowns"
+                fallback={
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <BreakdownCardShell title="Queries" />
+                        <BreakdownCardShell title="Pages" />
+                        <BreakdownCardShell title="Countries" />
+                        <BreakdownCardShell title="Devices (clicks)">
+                            <Skeleton className="h-[260px] rounded-lg" />
+                        </BreakdownCardShell>
+                    </div>
+                }
+            >
                 <>
                     {breakdowns && (
                         <div className="grid gap-4 lg:grid-cols-2">

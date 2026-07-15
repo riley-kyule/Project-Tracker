@@ -1,9 +1,9 @@
-import { BreakdownsSkeleton } from '@/components/marketing-statistics/breakdowns-skeleton';
 import { CategoryBarChart } from '@/components/marketing-statistics/category-bar-chart';
 import { CategoryPieChart } from '@/components/marketing-statistics/category-pie-chart';
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
 import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { TrendChart } from '@/components/marketing-statistics/trend-chart';
+import { Skeleton } from '@/components/ui/skeleton';
 import { type Kpi, type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { Deferred } from '@inertiajs/react';
 
@@ -20,6 +20,15 @@ type Breakdowns = {
     locations: { user_country: string; users: number }[];
     key_events: { key_event: string; key_event_category: string; key_event_count: number; users: number }[];
 };
+
+function BreakdownCardShell({ title, children }: { title: string; children?: React.ReactNode }) {
+    return (
+        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+            <h3 className="mb-3 text-sm font-semibold">{title}</h3>
+            {children}
+        </div>
+    );
+}
 
 function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: [string, string][] }) {
     return (
@@ -131,7 +140,21 @@ export default function Ga4Report({
                 />
             </div>
 
-            <Deferred data="breakdowns" fallback={<BreakdownsSkeleton />}>
+            <Deferred
+                data="breakdowns"
+                fallback={
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <BreakdownCardShell title="Traffic sources (users)">
+                            <Skeleton className="h-[260px] rounded-lg" />
+                        </BreakdownCardShell>
+                        <BreakdownCardShell title="Devices (users)">
+                            <Skeleton className="h-[260px] rounded-lg" />
+                        </BreakdownCardShell>
+                        <BreakdownCardShell title="Landing pages" />
+                        <BreakdownCardShell title="Visitor locations" />
+                    </div>
+                }
+            >
                 <>
                     {breakdowns && (
                         <div className="grid gap-4 lg:grid-cols-2">

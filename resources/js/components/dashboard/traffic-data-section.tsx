@@ -3,20 +3,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
-function TrafficDataSkeleton() {
+function TrafficChartsSkeleton() {
     return (
-        <div className="flex flex-col gap-4">
-            <Skeleton className="h-5 w-28" />
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-24 rounded-xl" />
-                ))}
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-72 rounded-xl" />
-                ))}
-            </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-72 rounded-xl" />
+            ))}
         </div>
     );
 }
@@ -197,7 +189,12 @@ export function TrafficDataSection() {
     }, [configured, websiteDomain, dateFrom, dateTo, comparisonPeriod]);
 
     if (configured === null) {
-        return <TrafficDataSkeleton />;
+        return (
+            <div className="flex flex-col gap-4">
+                <h2 className="text-sm font-semibold">Traffic data</h2>
+                <TrafficChartsSkeleton />
+            </div>
+        );
     }
 
     if (!configured) {
@@ -306,13 +303,7 @@ export function TrafficDataSection() {
                 </p>
             )}
 
-            {!current && loading && (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <Skeleton key={i} className="h-24 rounded-xl" />
-                    ))}
-                </div>
-            )}
+            {!current && loading && <TrafficChartsSkeleton />}
 
             {current && (
                 <>
