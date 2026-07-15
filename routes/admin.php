@@ -17,6 +17,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::delete('labels/{label}', [LabelController::class, 'destroy'])->name('labels.destroy');
 
     Route::get('users', [UserController::class, 'index'])->name('users.index');
+    Route::post('users', [UserController::class, 'store'])->name('users.store');
     Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update');
 
     Route::get('deployments/check', [DeploymentController::class, 'check'])->name('deployments.check');

@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
-import { Pencil } from 'lucide-react';
-import { useState } from 'react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { Copy, Pencil, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 type UserRow = {
     id: number;
@@ -42,6 +42,134 @@ const statusVariant: Record<UserRow['status'], 'default' | 'secondary' | 'destru
     inactive: 'secondary',
     suspended: 'destructive',
 };
+
+type NewUserForm = {
+    name: string;
+    email: string;
+    department_id: string;
+    job_title: string;
+    status: string;
+    role: string;
+};
+
+function NewUserDialog({ departments, roles }: { departments: DepartmentOption[]; roles: string[] }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, post, processing, errors, reset, transform } = useForm<NewUserForm>({
+        name: '',
+        email: '',
+        department_id: NONE,
+        job_title: '',
+        status: 'active',
+        role: 'Employee',
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((form) => ({ ...form, department_id: form.department_id === NONE ? null : Number(form.department_id) }));
+        post('/admin/users', {
+            preserveScroll: true,
+            onSuccess: () => {
+                setOpen(false);
+                reset();
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm">
+                    <Plus className="mr-1 size-4" /> New user
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>New user</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="name">Name</Label>
+                        <Input id="name" value={data.name} onChange={(e) => setData('name', e.target.value)} required autoFocus />
+                        <InputError message={errors.name} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input id="email" type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} required />
+                        <InputError message={errors.email} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Role</Label>
+                        <Select value={data.role} onValueChange={(value) => setData('role', value)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {roles.map((role) => (
+                                    <SelectItem key={role} value={role}>
+                                        {role}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.role} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Department</Label>
+                        <Select value={data.department_id} onValueChange={(value) => setData('department_id', value)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="No department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>No department</SelectItem>
+                                {departments.map((department) => (
+                                    <SelectItem key={department.id} value={department.id.toString()}>
+                                        {department.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.department_id} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="job_title">Job title</Label>
+                        <Input id="job_title" value={data.job_title} onChange={(e) => setData('job_title', e.target.value)} />
+                        <InputError message={errors.job_title} />
+                    </div>
+                    <Button type="submit" disabled={processing}>
+                        Create user
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function GeneratedPasswordBanner({ value, onDismiss }: { value: string; onDismiss: () => void }) {
+    const [copied, setCopied] = useState(false);
+    const [email, password] = value.split(' — ');
+
+    const copy = () => {
+        navigator.clipboard.writeText(password);
+        setCopied(true);
+    };
+
+    return (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-950">
+            <p className="font-medium">
+                Account created for <span className="font-mono">{email}</span>. Share this password with them now — it will not be shown again.
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+                <code className="rounded bg-white px-2 py-1 font-mono dark:bg-black/30">{password}</code>
+                <Button type="button" size="sm" variant="secondary" onClick={copy}>
+                    <Copy className="mr-1 size-3.5" /> {copied ? 'Copied' : 'Copy'}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" className="ml-auto" onClick={onDismiss}>
+                    Dismiss
+                </Button>
+            </div>
+        </div>
+    );
+}
 
 function EditUserDialog({ user, users, departments, roles }: { user: UserRow; users: UserRow[]; departments: DepartmentOption[]; roles: string[] }) {
     const [open, setOpen] = useState(false);
@@ -169,11 +297,24 @@ export default function UsersIndex({
     roles: string[];
     canManage: boolean;
 }) {
+    const { flash } = usePage<SharedData>().props;
+    const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (flash.generated_password) {
+            setGeneratedPassword(flash.generated_password);
+        }
+    }, [flash.generated_password]);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Users" />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">Users</h1>
+                <div className="flex items-center justify-between">
+                    <h1 className="text-xl font-semibold">Users</h1>
+                    {canManage && <NewUserDialog departments={departments} roles={roles} />}
+                </div>
+                {generatedPassword && <GeneratedPasswordBanner value={generatedPassword} onDismiss={() => setGeneratedPassword(null)} />}
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
                     <table className="w-full text-sm">
                         <thead>

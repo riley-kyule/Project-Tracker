@@ -58,6 +58,73 @@ class UserManagementTest extends TestCase
         ]);
     }
 
+    public function test_administrator_can_create_a_user_and_receives_a_generated_password()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $department = Department::query()->where('slug', 'it')->firstOrFail();
+
+        $response = $this->actingAs($admin)->post('/admin/users', [
+            'name' => 'New Hire',
+            'email' => 'new.hire@example.com',
+            'department_id' => $department->id,
+            'job_title' => 'Support Technician',
+            'status' => 'active',
+            'role' => 'IT Technician',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('generated_password');
+
+        $user = User::query()->where('email', 'new.hire@example.com')->firstOrFail();
+        $this->assertSame($department->id, $user->department_id);
+        $this->assertTrue($user->hasRole('IT Technician'));
+        $this->assertNotNull($user->password);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $admin->id,
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'event' => 'created',
+        ]);
+    }
+
+    public function test_generated_password_actually_authenticates()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+
+        $this->actingAs($admin)->post('/admin/users', [
+            'name' => 'New Hire',
+            'email' => 'new.hire@example.com',
+            'status' => 'active',
+            'role' => 'Employee',
+        ]);
+
+        $flashed = session('generated_password');
+        [$email, $password] = explode(' — ', $flashed);
+
+        $this->post('/logout');
+        $this->post('/login', ['email' => $email, 'password' => $password])->assertRedirect();
+        $this->assertAuthenticated();
+    }
+
+    public function test_employees_cannot_create_users()
+    {
+        $employee = User::factory()->create()->assignRole('Employee');
+
+        $this->actingAs($employee)
+            ->post('/admin/users', ['name' => 'Nope', 'email' => 'nope@example.com', 'status' => 'active', 'role' => 'Employee'])
+            ->assertForbidden();
+    }
+
+    public function test_email_must_be_unique()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $existing = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->post('/admin/users', ['name' => 'Dup', 'email' => $existing->email, 'status' => 'active', 'role' => 'Employee'])
+            ->assertSessionHasErrors('email');
+    }
+
     public function test_a_user_cannot_be_their_own_manager()
     {
         $admin = User::factory()->create()->assignRole('Administrator');
