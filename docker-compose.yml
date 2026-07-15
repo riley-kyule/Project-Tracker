@@ -1,0 +1,92 @@
+services:
+  app:
+    build:
+      context: .
+      target: app
+    restart: unless-stopped
+    volumes:
+      - storage:/var/www/html/storage
+      - ./.env:/var/www/html/.env:ro
+    networks:
+      - internal
+    depends_on:
+      - postgres
+      - redis
+
+  webserver:
+    build:
+      context: .
+      target: webserver
+    restart: unless-stopped
+    networks:
+      - internal
+      - web
+    depends_on:
+      - app
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web
+      - traefik.http.routers.ewms.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.ewms.entrypoints=websecure
+      - traefik.http.routers.ewms.tls.certresolver=letsencrypt
+      - traefik.http.services.ewms.loadbalancer.server.port=80
+
+  queue:
+    build:
+      context: .
+      target: app
+    restart: unless-stopped
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+    volumes:
+      - storage:/var/www/html/storage
+      - ./.env:/var/www/html/.env:ro
+    networks:
+      - internal
+    depends_on:
+      - postgres
+      - redis
+
+  scheduler:
+    build:
+      context: .
+      target: app
+    restart: unless-stopped
+    command: php artisan schedule:work
+    volumes:
+      - storage:/var/www/html/storage
+      - ./.env:/var/www/html/.env:ro
+    networks:
+      - internal
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    networks:
+      - internal
+
+networks:
+  internal:
+  web:
+    external: true
+
+volumes:
+  storage:
+  pgdata:
+  redisdata:
