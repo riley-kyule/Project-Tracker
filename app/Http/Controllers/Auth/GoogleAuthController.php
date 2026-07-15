@@ -54,6 +54,8 @@ class GoogleAuthController extends Controller
         $user = $this->findOrProvisionUser($googleUser);
 
         if (! $user->isActive()) {
+            AuditLogger::log($user, 'login_blocked_inactive', [], ['method' => 'google']);
+
             return redirect()->route('login')->withErrors([
                 'email' => __('auth.failed'),
             ]);
@@ -63,6 +65,7 @@ class GoogleAuthController extends Controller
         request()->session()->regenerate();
 
         $user->forceFill(['last_login_at' => now()])->save();
+        AuditLogger::log($user, 'login_succeeded', [], ['method' => 'google']);
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

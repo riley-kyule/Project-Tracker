@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -45,6 +47,9 @@ class LoginRequest extends FormRequest
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
+            $attempted = User::query()->where('email', $this->string('email'))->first();
+            AuditLogger::log($attempted, 'login_failed', [], $attempted ? [] : ['email' => $this->string('email')->toString()]);
+
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
@@ -52,8 +57,10 @@ class LoginRequest extends FormRequest
 
         // Same generic error as bad credentials: don't reveal account state.
         if (! Auth::user()->isActive()) {
+            $user = Auth::user();
             Auth::logout();
             RateLimiter::hit($this->throttleKey());
+            AuditLogger::log($user, 'login_blocked_inactive');
 
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
@@ -63,6 +70,7 @@ class LoginRequest extends FormRequest
         RateLimiter::clear($this->throttleKey());
 
         Auth::user()->forceFill(['last_login_at' => now()])->save();
+        AuditLogger::log(Auth::user(), 'login_succeeded');
     }
 
     /**
