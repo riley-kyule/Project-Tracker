@@ -22,7 +22,6 @@ class RoleSeeder extends Seeder
             'users.manage',
             'departments.view',
             'departments.manage',
-            'roles.manage',
             'boards.manage',
             'tasks.create',
             'labels.manage',
