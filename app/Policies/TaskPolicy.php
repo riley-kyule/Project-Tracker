@@ -11,7 +11,30 @@ class TaskPolicy
 {
     public function view(User $user, Task $task): bool
     {
-        return Gate::forUser($user)->allows('view', $task->board);
+        if (! Gate::forUser($user)->allows('view', $task->board)) {
+            return false;
+        }
+
+        if (! $task->isConfidential()) {
+            return true;
+        }
+
+        // Per PERMISSIONS_MATRIX.md "View confidential tasks": CEO/Administrator
+        // are always authorized; a Department Manager needs an explicit grant;
+        // everyone else (including IT Technician, Marketing, Customer Service,
+        // Employee, Viewer) is denied regardless of board visibility.
+        if ($user->hasAnyRole(['CEO', 'Administrator'])) {
+            return true;
+        }
+
+        return $user->hasRole('Department Manager')
+            && $task->confidentialGrants()->whereKey($user->id)->exists();
+    }
+
+    /** Per PERMISSIONS_MATRIX.md: only CEO/Administrator set confidentiality or manage its grant list. */
+    public function manageConfidentiality(User $user, Task $task): bool
+    {
+        return $user->hasAnyRole(['CEO', 'Administrator']);
     }
 
     public function create(User $user, Board $board): bool
@@ -31,7 +54,8 @@ class TaskPolicy
 
         return $task->created_by === $user->id
             || $task->primary_assignee_id === $user->id
-            || Gate::forUser($user)->allows('manage', $task->board);
+            || Gate::forUser($user)->allows('manage', $task->board)
+            || $task->assignees()->where('user_id', $user->id)->whereIn('assignment_type', ['assignee', 'collaborator'])->exists();
     }
 
     public function move(User $user, Task $task): bool

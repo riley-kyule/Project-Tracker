@@ -16,6 +16,20 @@ class Task extends Model
 
     public const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 
+    public const CONFIDENTIALITY_NORMAL = 'normal';
+
+    public const CONFIDENTIALITY_RESTRICTED = 'restricted';
+
+    public const CONFIDENTIALITY_CONFIDENTIAL = 'confidential';
+
+    public const CONFIDENTIALITY_LEVELS = [
+        self::CONFIDENTIALITY_NORMAL,
+        self::CONFIDENTIALITY_RESTRICTED,
+        self::CONFIDENTIALITY_CONFIDENTIAL,
+    ];
+
+    public const ASSIGNMENT_TYPES = ['assignee', 'collaborator', 'reviewer', 'watcher'];
+
     protected $fillable = [
         'title',
         'description',
@@ -102,9 +116,28 @@ class Task extends Model
         return $this->belongsTo(User::class, 'primary_assignee_id');
     }
 
+    /** Multi-person assignment (collaborators/reviewers/watchers), kept in sync with primary_assignee_id by TaskAssigneeSync. */
+    public function assignees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'task_assignees')->withPivot('assignment_type')->withTimestamps();
+    }
+
     public function labels(): BelongsToMany
     {
         return $this->belongsToMany(Label::class, 'task_labels');
+    }
+
+    /** Department Managers with an explicit grant to view this task despite its confidentiality level. */
+    public function confidentialGrants(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'task_confidential_grants')
+            ->withPivot('granted_by')
+            ->withTimestamps();
+    }
+
+    public function isConfidential(): bool
+    {
+        return $this->confidentiality !== self::CONFIDENTIALITY_NORMAL;
     }
 
     public function auditLogs(): MorphMany
@@ -149,6 +182,21 @@ class Task extends Model
     public function isBlocked(): bool
     {
         return $this->unresolvedDependencies()->exists();
+    }
+
+    /**
+     * task_relations is symmetric and normalized (lower task ID stored as
+     * task_id), so a given task can appear on either side of a row —
+     * these two relations cover both, combined into one list by callers.
+     */
+    public function relationsAsTask(): HasMany
+    {
+        return $this->hasMany(TaskRelation::class, 'task_id');
+    }
+
+    public function relationsAsRelatedTask(): HasMany
+    {
+        return $this->hasMany(TaskRelation::class, 'related_task_id');
     }
 
     public function recurrenceRule(): BelongsTo

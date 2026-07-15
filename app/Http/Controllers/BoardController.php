@@ -62,13 +62,22 @@ class BoardController extends Controller
                 ->whereNull('archived_at'),
         ]);
 
+        // Confidential tasks the viewer has no explicit access to must not
+        // appear as cards at all, not just be blocked at the detail endpoint.
+        $board->columns->each(fn ($column) => $column->setRelation(
+            'tasks',
+            $column->tasks->filter(fn (Task $task) => Gate::forUser($request->user())->allows('view', $task))->values(),
+        ));
+
         return Inertia::render('boards/show', [
             'board' => $board,
             'boardTaskOptions' => Task::query()
                 ->where('board_id', $board->id)
                 ->whereNull('archived_at')
                 ->orderBy('title')
-                ->get(['id', 'title', 'task_number']),
+                ->get(['id', 'title', 'task_number', 'confidentiality'])
+                ->filter(fn (Task $task) => Gate::forUser($request->user())->allows('view', $task))
+                ->values(),
             'members' => User::query()
                 ->where('status', User::STATUS_ACTIVE)
                 ->orderBy('name')

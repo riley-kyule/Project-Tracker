@@ -80,6 +80,7 @@ class RecurrenceService
 
             $task->forceFill(['task_number' => $task->id])->save();
             $task->labels()->sync($template->labels()->pluck('labels.id'));
+            TaskAssigneeSync::syncPrimary($task, null);
 
             AuditLogger::log($task, 'created_from_recurrence', [], ['recurrence_rule_id' => $rule->id]);
 

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { type SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
-import { Download, Lock, Paperclip, Trash2, X } from 'lucide-react';
+import { Download, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Reply = {
@@ -59,6 +59,11 @@ type BlockingNode = {
     successor: TaskRef;
 };
 
+type RelationNode = {
+    id: number;
+    task: TaskRef;
+};
+
 type RecurrenceRuleNode = {
     id: number;
     frequency: string;
@@ -87,12 +92,15 @@ type ApprovalNode = {
     note: string | null;
 };
 
+type AssigneeNode = Member & { assignment_type: 'assignee' | 'collaborator' | 'reviewer' | 'watcher' };
+
 type Detail = {
     comments: CommentNode[];
     checklists: ChecklistNode[];
     attachments: AttachmentNode[];
     dependencies: DependencyNode[];
     blocking: BlockingNode[];
+    relations: RelationNode[];
     recurrenceRule: RecurrenceRuleNode | null;
     canManageRecurrence: boolean;
     timeEntries: TimeEntryNode[];
@@ -101,6 +109,10 @@ type Detail = {
     actualMinutes: number;
     approval: ApprovalNode;
     canReviewApproval: boolean;
+    assignees: AssigneeNode[];
+    confidentiality: 'normal' | 'restricted' | 'confidential';
+    confidentialGrants: Member[];
+    canManageConfidentiality: boolean;
     activity: ActivityNode[];
 };
 
@@ -110,6 +122,7 @@ const emptyDetail: Detail = {
     attachments: [],
     dependencies: [],
     blocking: [],
+    relations: [],
     recurrenceRule: null,
     canManageRecurrence: false,
     timeEntries: [],
@@ -118,7 +131,17 @@ const emptyDetail: Detail = {
     actualMinutes: 0,
     approval: { status: null, approver: null, note: null },
     canReviewApproval: false,
+    assignees: [],
+    confidentiality: 'normal',
+    confidentialGrants: [],
+    canManageConfidentiality: false,
     activity: [],
+};
+
+const confidentialityLabels: Record<Detail['confidentiality'], string> = {
+    normal: 'Normal',
+    restricted: 'Restricted',
+    confidential: 'Confidential',
 };
 
 function formatDuration(totalSeconds: number) {
@@ -168,6 +191,7 @@ export function TaskCollaboration({
     const [checklistName, setChecklistName] = useState('');
     const [itemTitles, setItemTitles] = useState<Record<number, string>>({});
     const [newDependencyId, setNewDependencyId] = useState(NO_DEPENDENCY);
+    const [newRelationId, setNewRelationId] = useState(NO_DEPENDENCY);
     const [newFrequency, setNewFrequency] = useState('weekly');
     const [newInterval, setNewInterval] = useState(1);
     const [showManualEntry, setShowManualEntry] = useState(false);
@@ -175,6 +199,9 @@ export function TaskCollaboration({
     const [manualLocation, setManualLocation] = useState('unspecified');
     const [manualReason, setManualReason] = useState('');
     const [reviewerId, setReviewerId] = useState(NO_DEPENDENCY);
+    const [newGranteeId, setNewGranteeId] = useState(NO_DEPENDENCY);
+    const [newCollaboratorId, setNewCollaboratorId] = useState(NO_DEPENDENCY);
+    const [newCollaboratorType, setNewCollaboratorType] = useState<'collaborator' | 'reviewer' | 'watcher'>('collaborator');
     const [showRejectForm, setShowRejectForm] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
     const fileInput = useRef<HTMLInputElement>(null);
@@ -328,6 +355,159 @@ export function TaskCollaboration({
                 </form>
             </section>
 
+            {/* People */}
+            <section>
+                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                    <Users className="size-4" /> People
+                </h3>
+                <ul className="mb-2 space-y-1.5">
+                    {detail.assignees
+                        .filter((person) => person.assignment_type !== 'assignee')
+                        .map((person) => (
+                            <li key={person.id} className="flex items-center gap-2 text-sm">
+                                {person.name}
+                                <span className="text-muted-foreground text-xs capitalize">{person.assignment_type}</span>
+                                <button
+                                    type="button"
+                                    aria-label={`Remove ${person.name}`}
+                                    onClick={() => destroy(`/tasks/${taskId}/assignees/${person.id}`)}
+                                    className="text-muted-foreground hover:text-destructive ml-auto"
+                                >
+                                    <X className="size-3.5" />
+                                </button>
+                            </li>
+                        ))}
+                    {detail.assignees.filter((person) => person.assignment_type !== 'assignee').length === 0 && (
+                        <li className="text-muted-foreground text-sm">No collaborators, reviewers, or watchers yet.</li>
+                    )}
+                </ul>
+                <div className="flex flex-wrap gap-2">
+                    <Select value={newCollaboratorId} onValueChange={setNewCollaboratorId}>
+                        <SelectTrigger className="h-8 flex-1 text-sm">
+                            <SelectValue placeholder="Add a person…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {members
+                                .filter((member) => !detail.assignees.some((person) => person.id === member.id))
+                                .map((member) => (
+                                    <SelectItem key={member.id} value={member.id.toString()}>
+                                        {member.name}
+                                    </SelectItem>
+                                ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={newCollaboratorType} onValueChange={(value) => setNewCollaboratorType(value as typeof newCollaboratorType)}>
+                        <SelectTrigger className="h-8 w-32 text-sm">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="collaborator">Collaborator</SelectItem>
+                            <SelectItem value="reviewer">Reviewer</SelectItem>
+                            <SelectItem value="watcher">Watcher</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={newCollaboratorId === NO_DEPENDENCY}
+                        onClick={() =>
+                            post(`/tasks/${taskId}/assignees`, { user_id: Number(newCollaboratorId), assignment_type: newCollaboratorType }, () =>
+                                setNewCollaboratorId(NO_DEPENDENCY),
+                            )
+                        }
+                    >
+                        Add
+                    </Button>
+                </div>
+            </section>
+
+            {/* Confidentiality */}
+            {(detail.confidentiality !== 'normal' || detail.canManageConfidentiality) && (
+                <section>
+                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                        <ShieldAlert className="size-4" /> Confidentiality
+                    </h3>
+                    {detail.canManageConfidentiality ? (
+                        <Select
+                            value={detail.confidentiality}
+                            onValueChange={(value) =>
+                                router.patch(
+                                    `/tasks/${taskId}`,
+                                    { confidentiality: value },
+                                    { preserveScroll: true, preserveState: true, onSuccess: reload },
+                                )
+                            }
+                        >
+                            <SelectTrigger className="h-8 w-44 text-sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="normal">Normal</SelectItem>
+                                <SelectItem value="restricted">Restricted</SelectItem>
+                                <SelectItem value="confidential">Confidential</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <p className="text-sm">{confidentialityLabels[detail.confidentiality]}</p>
+                    )}
+                    {detail.confidentiality !== 'normal' && detail.canManageConfidentiality && (
+                        <div className="mt-2">
+                            <p className="text-muted-foreground mb-1 text-xs">
+                                Only CEO, Administrators, and department managers listed below can see this task.
+                            </p>
+                            <ul className="mb-2 space-y-1">
+                                {detail.confidentialGrants.map((grantee) => (
+                                    <li key={grantee.id} className="flex items-center gap-2 text-sm">
+                                        {grantee.name}
+                                        <button
+                                            type="button"
+                                            aria-label={`Remove ${grantee.name}'s access`}
+                                            onClick={() => destroy(`/tasks/${taskId}/confidential-grants/${grantee.id}`)}
+                                            className="text-muted-foreground hover:text-destructive ml-auto"
+                                        >
+                                            <X className="size-3.5" />
+                                        </button>
+                                    </li>
+                                ))}
+                                {detail.confidentialGrants.length === 0 && (
+                                    <li className="text-muted-foreground text-sm">No one else has been granted access.</li>
+                                )}
+                            </ul>
+                            <div className="flex gap-2">
+                                <Select value={newGranteeId} onValueChange={setNewGranteeId}>
+                                    <SelectTrigger className="h-8 flex-1 text-sm">
+                                        <SelectValue placeholder="Grant access to…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {members
+                                            .filter((member) => !detail.confidentialGrants.some((grantee) => grantee.id === member.id))
+                                            .map((member) => (
+                                                <SelectItem key={member.id} value={member.id.toString()}>
+                                                    {member.name}
+                                                </SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={newGranteeId === NO_DEPENDENCY}
+                                    onClick={() =>
+                                        post(`/tasks/${taskId}/confidential-grants`, { user_id: Number(newGranteeId) }, () =>
+                                            setNewGranteeId(NO_DEPENDENCY),
+                                        )
+                                    }
+                                >
+                                    Grant
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </section>
+            )}
+
             {/* Dependencies */}
             <section>
                 <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
@@ -389,6 +569,57 @@ export function TaskCollaboration({
                             post(`/tasks/${taskId}/dependencies`, { predecessor_task_id: Number(newDependencyId) }, () =>
                                 setNewDependencyId(NO_DEPENDENCY),
                             )
+                        }
+                    >
+                        Add
+                    </Button>
+                </div>
+            </section>
+
+            {/* Related tasks */}
+            <section>
+                <h3 className="mb-2 text-sm font-semibold">Related tasks</h3>
+                <ul className="space-y-1.5">
+                    {detail.relations.map((relation) => (
+                        <li key={relation.id} className="flex items-center gap-2 text-sm">
+                            <span>
+                                T-{relation.task.task_number} {relation.task.title}
+                            </span>
+                            <button
+                                type="button"
+                                aria-label="Remove relation"
+                                onClick={() => destroy(`/task-relations/${relation.id}`)}
+                                className="text-muted-foreground hover:text-destructive ml-auto"
+                            >
+                                <X className="size-3.5" />
+                            </button>
+                        </li>
+                    ))}
+                    {detail.relations.length === 0 && <li className="text-muted-foreground text-sm">No related tasks.</li>}
+                </ul>
+                <div className="mt-2 flex gap-2">
+                    <Select value={newRelationId} onValueChange={setNewRelationId}>
+                        <SelectTrigger className="h-8 flex-1 text-sm">
+                            <SelectValue placeholder="Link a related task…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={NO_DEPENDENCY}>Choose a task…</SelectItem>
+                            {boardTasks
+                                .filter((candidate) => candidate.id !== taskId && !detail.relations.some((r) => r.task.id === candidate.id))
+                                .map((candidate) => (
+                                    <SelectItem key={candidate.id} value={candidate.id.toString()}>
+                                        T-{candidate.task_number} {candidate.title}
+                                    </SelectItem>
+                                ))}
+                        </SelectContent>
+                    </Select>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={newRelationId === NO_DEPENDENCY}
+                        onClick={() =>
+                            post(`/tasks/${taskId}/relations`, { related_task_id: Number(newRelationId) }, () => setNewRelationId(NO_DEPENDENCY))
                         }
                     >
                         Add

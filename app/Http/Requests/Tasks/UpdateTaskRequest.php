@@ -20,6 +20,7 @@ class UpdateTaskRequest extends FormRequest
             'estimated_minutes' => ['nullable', 'integer', 'min:0'],
             'progress_percentage' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'ceo_priority' => ['sometimes', 'boolean'],
+            'confidentiality' => ['sometimes', Rule::in(Task::CONFIDENTIALITY_LEVELS)],
             'work_location' => ['sometimes', Rule::in(['unspecified', 'remote', 'office', 'onsite'])],
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => ['integer', 'exists:labels,id'],

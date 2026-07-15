@@ -10,6 +10,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAssigned;
 use App\Services\AuditLogger;
+use App\Services\TaskAssigneeSync;
 use App\Services\TaskMover;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -47,6 +48,7 @@ class TaskController extends Controller
             return $task;
         });
 
+        TaskAssigneeSync::syncPrimary($task, null);
         $this->notifyAssignee($task, null, $request->user());
 
         return back();
@@ -60,10 +62,14 @@ class TaskController extends Controller
             $this->guardAssigneeCanAccessBoard($request->validated('primary_assignee_id'), $task->board);
         }
 
-        $validated = $request->safe()->except(['label_ids', 'ceo_priority']);
+        $validated = $request->safe()->except(['label_ids', 'ceo_priority', 'confidentiality']);
 
         if ($request->has('ceo_priority') && $request->user()->hasAnyRole(['CEO', 'Administrator'])) {
             $validated['ceo_priority'] = $request->boolean('ceo_priority');
+        }
+
+        if ($request->has('confidentiality') && Gate::forUser($request->user())->allows('manageConfidentiality', $task)) {
+            $validated['confidentiality'] = $request->validated('confidentiality');
         }
 
         $previousAssignee = $task->primary_assignee_id;
@@ -86,7 +92,9 @@ class TaskController extends Controller
             }
         });
 
-        $this->notifyAssignee($task->refresh(), $previousAssignee, $request->user());
+        $task->refresh();
+        TaskAssigneeSync::syncPrimary($task, $previousAssignee);
+        $this->notifyAssignee($task, $previousAssignee, $request->user());
 
         return back();
     }
@@ -181,6 +189,13 @@ class TaskController extends Controller
             'attachments' => $task->attachments()->with('uploader:id,name')->latest()->get(),
             'dependencies' => $task->dependencies()->with('predecessor:id,title,task_number,completed_at')->get(),
             'blocking' => $task->blocks()->with('successor:id,title,task_number')->get(),
+            'relations' => $task->relationsAsTask()->with('relatedTask:id,title,task_number')->get()
+                ->map(fn ($r) => ['id' => $r->id, 'task' => $r->relatedTask])
+                ->concat(
+                    $task->relationsAsRelatedTask()->with('task:id,title,task_number')->get()
+                        ->map(fn ($r) => ['id' => $r->id, 'task' => $r->task]),
+                )
+                ->values(),
             'recurrenceRule' => $task->recurrenceRule()->first(['id', 'frequency', 'interval_value', 'next_run_at', 'is_active', 'template_task_id']),
             'canManageRecurrence' => $request->user()->can('manageRecurrence', $task),
             'timeEntries' => $task->timeEntries()->with(['user:id,name', 'approvedBy:id,name'])->latest('started_at')->get(),
@@ -193,6 +208,14 @@ class TaskController extends Controller
                 'note' => $task->approval_note,
             ],
             'canReviewApproval' => $request->user()->can('reviewApproval', $task),
+            'assignees' => $task->assignees()->get(['users.id', 'users.name'])->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'assignment_type' => $u->pivot->assignment_type,
+            ]),
+            'confidentiality' => $task->confidentiality,
+            'confidentialGrants' => $task->confidentialGrants()->get(['users.id', 'users.name']),
+            'canManageConfidentiality' => $request->user()->can('manageConfidentiality', $task),
             'activity' => $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
         ]);
     }
@@ -205,7 +228,9 @@ class TaskController extends Controller
             return;
         }
 
-        $task->assignee?->notify(new TaskAssigned($task, $actor));
+        if ($task->assignee?->wantsNotification('task_assigned')) {
+            $task->assignee->notify(new TaskAssigned($task, $actor));
+        }
     }
 
     private function guardAssigneeCanAccessBoard(?int $assigneeId, Board $board): void

@@ -1,14 +1,18 @@
 <?php
 
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\BoardColumnController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RecurrenceRuleController;
 use App\Http\Controllers\TaskApprovalController;
+use App\Http\Controllers\TaskAssigneeController;
+use App\Http\Controllers\TaskConfidentialGrantController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskDependencyController;
+use App\Http\Controllers\TaskRelationController;
 use App\Http\Controllers\TimeEntryController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +22,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('boards/{board}', [BoardController::class, 'show'])->name('boards.show');
     Route::patch('boards/{board}', [BoardController::class, 'update'])->name('boards.update');
 
+    Route::post('boards/{board}/columns', [BoardColumnController::class, 'store'])->name('board-columns.store');
+    Route::patch('board-columns/{column}', [BoardColumnController::class, 'update'])->name('board-columns.update');
+    Route::delete('board-columns/{column}', [BoardColumnController::class, 'destroy'])->name('board-columns.destroy');
+    Route::post('boards/{board}/reorder-columns', [BoardColumnController::class, 'reorder'])->name('board-columns.reorder');
+
     Route::post('boards/{board}/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::patch('tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::post('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
@@ -25,6 +34,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('tasks/{task}/detail', [TaskController::class, 'detail'])->name('tasks.detail');
     Route::post('tasks/{task}/dependencies', [TaskDependencyController::class, 'store'])->name('task-dependencies.store');
     Route::delete('task-dependencies/{dependency}', [TaskDependencyController::class, 'destroy'])->name('task-dependencies.destroy');
+    Route::post('tasks/{task}/confidential-grants', [TaskConfidentialGrantController::class, 'store'])->name('task-confidential-grants.store');
+    Route::delete('tasks/{task}/confidential-grants/{user}', [TaskConfidentialGrantController::class, 'destroy'])->name('task-confidential-grants.destroy');
+    Route::post('tasks/{task}/assignees', [TaskAssigneeController::class, 'store'])->name('task-assignees.store');
+    Route::delete('tasks/{task}/assignees/{assignee}', [TaskAssigneeController::class, 'destroy'])->name('task-assignees.destroy');
+    Route::post('tasks/{task}/relations', [TaskRelationController::class, 'store'])->name('task-relations.store');
+    Route::delete('task-relations/{relation}', [TaskRelationController::class, 'destroy'])->name('task-relations.destroy');
     Route::post('tasks/{task}/recurrence', [RecurrenceRuleController::class, 'store'])->name('recurrence-rules.store');
     Route::patch('recurrence-rules/{rule}', [RecurrenceRuleController::class, 'update'])->name('recurrence-rules.update');
 

@@ -1,6 +1,8 @@
 import { TaskCard, TaskDialog, type BoardTask, type Can, type LabelOption, type Member } from '@/components/board/task-card';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,8 +22,9 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 type BoardTaskOption = { id: number; title: string; task_number: number };
 
@@ -77,6 +80,79 @@ type Column = {
     wip_limit: number | null;
     tasks: BoardTask[];
 };
+
+const SEMANTIC_STATUS_OPTIONS: [string, string][] = [
+    ['idea', 'Idea'],
+    ['backlog', 'Backlog'],
+    ['ready', 'Ready'],
+    ['active', 'In progress'],
+    ['blocked', 'Blocked'],
+    ['review', 'Awaiting review'],
+    ['completed', 'Completed (marks tasks done)'],
+    ['archived', 'Archived (hides tasks)'],
+    ['custom', 'Custom'],
+];
+
+function ColumnDialog({ boardId, column, onClose }: { boardId: number; column?: Column; onClose: () => void }) {
+    const { data, setData, post, patch, processing, errors, transform } = useForm({
+        name: column?.name ?? '',
+        semantic_status: column?.semantic_status ?? 'custom',
+        wip_limit: column?.wip_limit?.toString() ?? '',
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((form) => ({ ...form, wip_limit: form.wip_limit === '' ? null : Number(form.wip_limit) }));
+        const options = { preserveScroll: true, onSuccess: onClose };
+
+        if (column) {
+            patch(`/board-columns/${column.id}`, options);
+        } else {
+            post(`/boards/${boardId}/columns`, options);
+        }
+    };
+
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{column ? `Edit ${column.name}` : 'New column'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="column-name">Name</Label>
+                        <Input id="column-name" value={data.name} onChange={(e) => setData('name', e.target.value)} required autoFocus />
+                        <InputError message={errors.name} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Column type</Label>
+                        <Select value={data.semantic_status} onValueChange={(value) => setData('semantic_status', value)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {SEMANTIC_STATUS_OPTIONS.map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>
+                                        {label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.semantic_status} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="column-wip">WIP limit (optional)</Label>
+                        <Input id="column-wip" type="number" min={1} value={data.wip_limit} onChange={(e) => setData('wip_limit', e.target.value)} />
+                        <InputError message={errors.wip_limit} />
+                    </div>
+                    <Button type="submit" disabled={processing}>
+                        {column ? 'Save changes' : 'Create column'}
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 type Board = {
     id: number;
@@ -137,24 +213,83 @@ function BoardColumn({
     column,
     boardId,
     canCreate,
+    canManage,
+    isFirst,
+    isLast,
     onOpenTask,
+    onEdit,
+    onMove,
 }: {
     column: Column;
     boardId: number;
     canCreate: boolean;
+    canManage: boolean;
+    isFirst: boolean;
+    isLast: boolean;
     onOpenTask: (task: BoardTask) => void;
+    onEdit: (column: Column) => void;
+    onMove: (columnId: number, direction: -1 | 1) => void;
 }) {
     const { setNodeRef } = useDroppable({ id: `column-${column.id}` });
     const overLimit = column.wip_limit !== null && column.tasks.length > column.wip_limit;
 
+    const destroy = () => {
+        if (column.tasks.length > 0 && !confirm(`Delete "${column.name}"? It has no tasks left to lose, so this can't be undone.`)) {
+            return;
+        }
+        router.delete(`/board-columns/${column.id}`, {
+            preserveScroll: true,
+            onError: (errors) => errors.column && toast.error(errors.column),
+        });
+    };
+
     return (
         <div className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-[85vw] max-w-72 shrink-0 flex-col rounded-xl border">
-            <div className="flex items-center justify-between p-3 pb-1">
+            <div className="flex items-center justify-between gap-1 p-3 pb-1">
                 <span className="text-sm font-semibold">{column.name}</span>
                 <span className={`text-xs ${overLimit ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
                     {column.tasks.length}
                     {column.wip_limit !== null && ` / ${column.wip_limit}`}
                 </span>
+                {canManage && (
+                    <div className="ml-auto flex items-center">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="size-6 p-0"
+                            aria-label={`Move ${column.name} left`}
+                            disabled={isFirst}
+                            onClick={() => onMove(column.id, -1)}
+                        >
+                            <ChevronLeft className="size-3.5" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="size-6 p-0"
+                            aria-label={`Move ${column.name} right`}
+                            disabled={isLast}
+                            onClick={() => onMove(column.id, 1)}
+                        >
+                            <ChevronRight className="size-3.5" />
+                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="size-6 p-0" aria-label={`${column.name} options`}>
+                                    <MoreVertical className="size-3.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => onEdit(column)}>
+                                    <Pencil className="mr-2 size-3.5" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={destroy}>
+                                    <Trash2 className="mr-2 size-3.5" /> Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                )}
             </div>
             <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div ref={setNodeRef} className="flex min-h-16 flex-1 flex-col gap-2 p-2">
@@ -186,6 +321,7 @@ export default function BoardShow({
     const [openTask, setOpenTask] = useState<BoardTask | null>(null);
     const [blockedMove, setBlockedMove] = useState<BlockedMove | null>(null);
     const [approvalBlockedMessage, setApprovalBlockedMessage] = useState<string | null>(null);
+    const [columnDialog, setColumnDialog] = useState<'new' | Column | null>(null);
     const [search, setSearch] = useState('');
     const [assigneeFilter, setAssigneeFilter] = useState(ALL);
     const [priorityFilter, setPriorityFilter] = useState(ALL);
@@ -211,6 +347,15 @@ export default function BoardShow({
     );
 
     const findColumn = (taskId: number) => columns.find((column) => column.tasks.some((task) => task.id === taskId));
+
+    const moveColumn = (columnId: number, direction: -1 | 1) => {
+        const ids = columns.map((c) => c.id);
+        const index = ids.indexOf(columnId);
+        const swapWith = index + direction;
+        if (swapWith < 0 || swapWith >= ids.length) return;
+        [ids[index], ids[swapWith]] = [ids[swapWith], ids[index]];
+        router.post(`/boards/${board.id}/reorder-columns`, { column_ids: ids }, { preserveScroll: true });
+    };
 
     const handleDragStart = ({ active }: DragStartEvent) => {
         const column = findColumn(Number(active.id));
@@ -361,15 +506,29 @@ export default function BoardShow({
                     onDragEnd={handleDragEnd}
                 >
                     <div className="flex flex-1 gap-3 overflow-x-auto pb-2">
-                        {visibleColumns.map((column) => (
+                        {visibleColumns.map((column, index) => (
                             <BoardColumn
                                 key={column.id}
                                 column={column}
                                 boardId={board.id}
                                 canCreate={can.createTask && !filtering}
+                                canManage={can.manage}
+                                isFirst={index === 0}
+                                isLast={index === visibleColumns.length - 1}
                                 onOpenTask={setOpenTask}
+                                onEdit={setColumnDialog}
+                                onMove={moveColumn}
                             />
                         ))}
+                        {can.manage && (
+                            <button
+                                type="button"
+                                onClick={() => setColumnDialog('new')}
+                                className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex w-24 shrink-0 flex-col items-center justify-center gap-1 self-start rounded-xl border border-dashed p-3 text-xs"
+                            >
+                                <Plus className="size-4" /> Add column
+                            </button>
+                        )}
                     </div>
                     <DragOverlay>{activeTask && <TaskCard task={activeTask} overlay />}</DragOverlay>
                 </DndContext>
@@ -385,6 +544,9 @@ export default function BoardShow({
                 />
             )}
             {blockedMove && <DependencyOverrideDialog move={blockedMove} onClose={() => setBlockedMove(null)} />}
+            {columnDialog && (
+                <ColumnDialog boardId={board.id} column={columnDialog === 'new' ? undefined : columnDialog} onClose={() => setColumnDialog(null)} />
+            )}
             {approvalBlockedMessage && (
                 <Dialog open onOpenChange={(open) => !open && setApprovalBlockedMessage(null)}>
                     <DialogContent>
