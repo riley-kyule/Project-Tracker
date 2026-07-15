@@ -11,6 +11,7 @@ use App\Notifications\TicketAssigned;
 use App\Notifications\TicketSubmitted;
 use App\Notifications\TicketUpdated;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class TicketService
@@ -44,7 +45,9 @@ class TicketService
             return $ticket;
         });
 
-        $requester->notify(new TicketSubmitted($ticket));
+        if ($requester->wantsNotification('ticket_submitted')) {
+            $requester->notify(new TicketSubmitted($ticket));
+        }
 
         return $ticket;
     }
@@ -66,7 +69,7 @@ class TicketService
             AuditLogger::log($ticket, 'assigned', ['assigned_to' => $previousAssignee], ['assigned_to' => $technician->id]);
         });
 
-        if ($technician->id !== $actor->id) {
+        if ($technician->id !== $actor->id && $technician->wantsNotification('ticket_assigned')) {
             $technician->notify(new TicketAssigned($ticket, $actor));
         }
 
@@ -171,6 +174,27 @@ class TicketService
             ]);
 
             $task->forceFill(['task_number' => $task->id])->save();
+            TaskAssigneeSync::syncPrimary($task, null);
+
+            foreach ($ticket->attachments as $original) {
+                $newPath = "attachments/tasks/{$task->id}/".basename($original->path);
+                Storage::disk($original->disk)->copy($original->path, $newPath);
+
+                $copy = $task->attachments()->create([
+                    'uploaded_by' => $original->uploaded_by,
+                    'disk' => $original->disk,
+                    'path' => $newPath,
+                    'original_name' => $original->original_name,
+                    'mime_type' => $original->mime_type,
+                    'size_bytes' => $original->size_bytes,
+                    'checksum' => $original->checksum,
+                ]);
+
+                AuditLogger::log($task, 'attachment_copied_from_ticket', [], [
+                    'attachment_id' => $copy->id,
+                    'source_attachment_id' => $original->id,
+                ]);
+            }
 
             $ticket->forceFill(['converted_task_id' => $task->id]);
             self::recordTransition($ticket, Ticket::STATUS_ESCALATED, $actor, 'Converted to task');
@@ -198,8 +222,8 @@ class TicketService
 
     private static function notifyRequester(Ticket $ticket, User $actor): void
     {
-        if ($ticket->requester_id !== $actor->id) {
-            $ticket->requester?->notify(new TicketUpdated($ticket));
+        if ($ticket->requester_id !== $actor->id && $ticket->requester?->wantsNotification('ticket_updated')) {
+            $ticket->requester->notify(new TicketUpdated($ticket));
         }
     }
 }
