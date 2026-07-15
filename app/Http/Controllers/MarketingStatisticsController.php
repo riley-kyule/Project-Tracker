@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Services\Analytics\AhrefsReportQuery;
+use App\Services\Analytics\AnalyticsFreshnessChecker;
 use App\Services\Analytics\AnalyticsReportBuilder;
 use App\Services\Analytics\GscReportQuery;
 use App\Services\Analytics\MarketingStatisticsFilters;
 use App\Services\Analytics\TrafficDashboardQuery;
 use App\Services\Analytics\WebsiteRegistryQuery;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,8 +30,6 @@ use Inertia\Response;
  */
 class MarketingStatisticsController extends Controller
 {
-    private const STALE_AFTER_DAYS = 3;
-
     public function overview(
         Request $request, TrafficDashboardQuery $ga4, GscReportQuery $gsc, AhrefsReportQuery $ahrefs,
         WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
@@ -203,7 +201,7 @@ class MarketingStatisticsController extends Controller
     }
 
     public function freshness(
-        Request $request, TrafficDashboardQuery $ga4, GscReportQuery $gsc, AhrefsReportQuery $ahrefs,
+        Request $request, AnalyticsFreshnessChecker $freshnessChecker,
         WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
     ): Response {
         abort_unless($request->user()->can('view marketing statistics'), 403);
@@ -218,34 +216,7 @@ class MarketingStatisticsController extends Controller
             // Ahrefs freshness) — deferred so the page paints immediately instead
             // of blocking on ~10s of sequential network calls, same as the other
             // Marketing Statistics tabs.
-            'sources' => Inertia::defer(function () use ($ga4, $gsc, $ahrefs, $reportBuilder) {
-                $ga4Probe = $reportBuilder->attempt(fn () => $ga4->dailyRows(null, now()->subDays(self::STALE_AFTER_DAYS), now()->subDay()));
-                $gscFreshness = $reportBuilder->attempt(fn () => $gsc->freshness());
-                $ahrefsProbe = $reportBuilder->attempt(fn () => $ahrefs->freshness());
-
-                return [
-                    'ga4' => [
-                        'status' => $this->probeStatus($ga4Probe, 'event_date'),
-                        'error' => $ga4Probe['error'],
-                        'sites' => [],
-                    ],
-                    'gsc' => [
-                        'status' => $gscFreshness['status'] === 'failed' ? 'failed' : 'ok',
-                        'error' => $gscFreshness['error'],
-                        'sites' => array_map(fn (array $row) => [
-                            'website_id' => $row['domain'],
-                            'latest_date' => $row['latest_date'],
-                            'days_behind' => $row['days_behind'],
-                            'status' => $row['days_behind'] === null ? 'missing' : ($row['days_behind'] > self::STALE_AFTER_DAYS ? 'delayed' : 'ok'),
-                        ], $gscFreshness['rows']),
-                    ],
-                    'ahrefs' => [
-                        'status' => $ahrefsProbe['status'] === 'failed' ? 'missing' : 'ok',
-                        'error' => null, // Ahrefs has no pipeline yet — "missing" is the honest state, not a query error to surface.
-                        'sites' => [],
-                    ],
-                ];
-            }),
+            'sources' => Inertia::defer(fn () => $freshnessChecker->check()),
         ]);
     }
 
@@ -259,21 +230,5 @@ class MarketingStatisticsController extends Controller
             'domain' => $row['domain'],
             'name' => $row['name'],
         ], $result['rows']);
-    }
-
-    private function probeStatus(array $probe, string $dateKey): string
-    {
-        if ($probe['status'] === 'failed') {
-            return 'failed';
-        }
-
-        if ($probe['rows'] === []) {
-            return 'missing';
-        }
-
-        $latest = collect($probe['rows'])->max($dateKey);
-        $daysBehind = Carbon::parse($latest)->diffInDays(now());
-
-        return $daysBehind > self::STALE_AFTER_DAYS ? 'delayed' : 'ok';
     }
 }
