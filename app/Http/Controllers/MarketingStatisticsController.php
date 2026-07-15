@@ -211,35 +211,41 @@ class MarketingStatisticsController extends Controller
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $this->websiteRegistry($registryQuery, $reportBuilder);
 
-        $ga4Probe = $reportBuilder->attempt(fn () => $ga4->dailyRows(null, now()->subDays(self::STALE_AFTER_DAYS), now()->subDay()));
-        $gscFreshness = $reportBuilder->attempt(fn () => $gsc->freshness());
-        $ahrefsProbe = $reportBuilder->attempt(fn () => $ahrefs->freshness());
-
         return Inertia::render('marketing-statistics/freshness', [
             'selected' => $filters->toArray(),
             'websites' => $registry,
-            'sources' => [
-                'ga4' => [
-                    'status' => $this->probeStatus($ga4Probe, 'event_date'),
-                    'error' => $ga4Probe['error'],
-                    'sites' => [],
-                ],
-                'gsc' => [
-                    'status' => $gscFreshness['status'] === 'failed' ? 'failed' : 'ok',
-                    'error' => $gscFreshness['error'],
-                    'sites' => array_map(fn (array $row) => [
-                        'website_id' => $row['domain'],
-                        'latest_date' => $row['latest_date'],
-                        'days_behind' => $row['days_behind'],
-                        'status' => $row['days_behind'] === null ? 'missing' : ($row['days_behind'] > self::STALE_AFTER_DAYS ? 'delayed' : 'ok'),
-                    ], $gscFreshness['rows']),
-                ],
-                'ahrefs' => [
-                    'status' => $ahrefsProbe['status'] === 'failed' ? 'missing' : 'ok',
-                    'error' => null, // Ahrefs has no pipeline yet — "missing" is the honest state, not a query error to surface.
-                    'sites' => [],
-                ],
-            ],
+            // Three independent BigQuery round-trips (GA4 probe, GSC freshness,
+            // Ahrefs freshness) — deferred so the page paints immediately instead
+            // of blocking on ~10s of sequential network calls, same as the other
+            // Marketing Statistics tabs.
+            'sources' => Inertia::defer(function () use ($ga4, $gsc, $ahrefs, $reportBuilder) {
+                $ga4Probe = $reportBuilder->attempt(fn () => $ga4->dailyRows(null, now()->subDays(self::STALE_AFTER_DAYS), now()->subDay()));
+                $gscFreshness = $reportBuilder->attempt(fn () => $gsc->freshness());
+                $ahrefsProbe = $reportBuilder->attempt(fn () => $ahrefs->freshness());
+
+                return [
+                    'ga4' => [
+                        'status' => $this->probeStatus($ga4Probe, 'event_date'),
+                        'error' => $ga4Probe['error'],
+                        'sites' => [],
+                    ],
+                    'gsc' => [
+                        'status' => $gscFreshness['status'] === 'failed' ? 'failed' : 'ok',
+                        'error' => $gscFreshness['error'],
+                        'sites' => array_map(fn (array $row) => [
+                            'website_id' => $row['domain'],
+                            'latest_date' => $row['latest_date'],
+                            'days_behind' => $row['days_behind'],
+                            'status' => $row['days_behind'] === null ? 'missing' : ($row['days_behind'] > self::STALE_AFTER_DAYS ? 'delayed' : 'ok'),
+                        ], $gscFreshness['rows']),
+                    ],
+                    'ahrefs' => [
+                        'status' => $ahrefsProbe['status'] === 'failed' ? 'missing' : 'ok',
+                        'error' => null, // Ahrefs has no pipeline yet — "missing" is the honest state, not a query error to surface.
+                        'sites' => [],
+                    ],
+                ];
+            }),
         ]);
     }
 

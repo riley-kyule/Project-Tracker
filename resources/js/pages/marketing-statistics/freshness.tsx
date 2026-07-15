@@ -1,6 +1,8 @@
 import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { type MarketingFilters, type MarketingWebsite } from '@/types/marketing-statistics';
+import { Deferred } from '@inertiajs/react';
 
 type SiteFreshness = { website_id: string; latest_date: string | null; days_behind: number | null; status: string };
 
@@ -53,6 +55,16 @@ function SourceCard({ title, source }: { title: string; source: SourceFreshness 
     );
 }
 
+function FreshnessSkeleton() {
+    return (
+        <div className="grid gap-4 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-48 rounded-xl" />
+            ))}
+        </div>
+    );
+}
+
 export default function DataFreshness({
     selected,
     websites,
@@ -60,15 +72,21 @@ export default function DataFreshness({
 }: {
     selected: MarketingFilters;
     websites: MarketingWebsite[];
-    sources: { ga4: SourceFreshness; gsc: SourceFreshness; ahrefs: SourceFreshness };
+    sources?: { ga4: SourceFreshness; gsc: SourceFreshness; ahrefs: SourceFreshness };
 }) {
     return (
         <MarketingStatisticsShell active="freshness" selected={selected} websites={websites}>
-            <div className="grid gap-4 lg:grid-cols-3">
-                <SourceCard title="GA4" source={sources.ga4} />
-                <SourceCard title="Google Search Console" source={sources.gsc} />
-                <SourceCard title="Ahrefs" source={sources.ahrefs} />
-            </div>
+            <Deferred data="sources" fallback={<FreshnessSkeleton />}>
+                <>
+                    {sources && (
+                        <div className="grid gap-4 lg:grid-cols-3">
+                            <SourceCard title="GA4" source={sources.ga4} />
+                            <SourceCard title="Google Search Console" source={sources.gsc} />
+                            <SourceCard title="Ahrefs" source={sources.ahrefs} />
+                        </div>
+                    )}
+                </>
+            </Deferred>
         </MarketingStatisticsShell>
     );
 }
