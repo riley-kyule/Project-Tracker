@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, useForm, usePage } from '@inertiajs/react';
-import { Copy, Pencil, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { type BreadcrumbItem } from '@/types';
+import { Head, useForm } from '@inertiajs/react';
+import { Pencil, Plus } from 'lucide-react';
+import { useState } from 'react';
 
 type UserRow = {
     id: number;
@@ -95,6 +95,7 @@ function NewUserDialog({ departments, roles }: { departments: DepartmentOption[]
                     <div className="grid gap-2">
                         <Label htmlFor="email">Email</Label>
                         <Input id="email" type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} required />
+                        <p className="text-muted-foreground text-xs">Must match their company Google account — that's how they'll sign in.</p>
                         <InputError message={errors.email} />
                     </div>
                     <div className="grid gap-2">
@@ -141,33 +142,6 @@ function NewUserDialog({ departments, roles }: { departments: DepartmentOption[]
                 </form>
             </DialogContent>
         </Dialog>
-    );
-}
-
-function GeneratedPasswordBanner({ value, onDismiss }: { value: string; onDismiss: () => void }) {
-    const [copied, setCopied] = useState(false);
-    const [email, password] = value.split(' — ');
-
-    const copy = () => {
-        navigator.clipboard.writeText(password);
-        setCopied(true);
-    };
-
-    return (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-950">
-            <p className="font-medium">
-                Account created for <span className="font-mono">{email}</span>. Share this password with them now — it will not be shown again.
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-                <code className="rounded bg-white px-2 py-1 font-mono dark:bg-black/30">{password}</code>
-                <Button type="button" size="sm" variant="secondary" onClick={copy}>
-                    <Copy className="mr-1 size-3.5" /> {copied ? 'Copied' : 'Copy'}
-                </Button>
-                <Button type="button" size="sm" variant="ghost" className="ml-auto" onClick={onDismiss}>
-                    Dismiss
-                </Button>
-            </div>
-        </div>
     );
 }
 
@@ -297,15 +271,6 @@ export default function UsersIndex({
     roles: string[];
     canManage: boolean;
 }) {
-    const { flash } = usePage<SharedData>().props;
-    const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (flash.generated_password) {
-            setGeneratedPassword(flash.generated_password);
-        }
-    }, [flash.generated_password]);
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Users" />
@@ -314,7 +279,6 @@ export default function UsersIndex({
                     <h1 className="text-xl font-semibold">Users</h1>
                     {canManage && <NewUserDialog departments={departments} roles={roles} />}
                 </div>
-                {generatedPassword && <GeneratedPasswordBanner value={generatedPassword} onDismiss={() => setGeneratedPassword(null)} />}
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
                     <table className="w-full text-sm">
                         <thead>

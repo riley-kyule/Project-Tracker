@@ -58,7 +58,7 @@ class UserManagementTest extends TestCase
         ]);
     }
 
-    public function test_administrator_can_create_a_user_and_receives_a_generated_password()
+    public function test_administrator_can_pre_provision_a_user_for_google_sign_in()
     {
         $admin = User::factory()->create()->assignRole('Administrator');
         $department = Department::query()->where('slug', 'it')->firstOrFail();
@@ -73,37 +73,17 @@ class UserManagementTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('generated_password');
 
         $user = User::query()->where('email', 'new.hire@example.com')->firstOrFail();
         $this->assertSame($department->id, $user->department_id);
         $this->assertTrue($user->hasRole('IT Technician'));
-        $this->assertNotNull($user->password);
+        $this->assertNull($user->password);
         $this->assertDatabaseHas('audit_logs', [
             'actor_id' => $admin->id,
             'auditable_type' => User::class,
             'auditable_id' => $user->id,
             'event' => 'created',
         ]);
-    }
-
-    public function test_generated_password_actually_authenticates()
-    {
-        $admin = User::factory()->create()->assignRole('Administrator');
-
-        $this->actingAs($admin)->post('/admin/users', [
-            'name' => 'New Hire',
-            'email' => 'new.hire@example.com',
-            'status' => 'active',
-            'role' => 'Employee',
-        ]);
-
-        $flashed = session('generated_password');
-        [$email, $password] = explode(' — ', $flashed);
-
-        $this->post('/logout');
-        $this->post('/login', ['email' => $email, 'password' => $password])->assertRedirect();
-        $this->assertAuthenticated();
     }
 
     public function test_employees_cannot_create_users()

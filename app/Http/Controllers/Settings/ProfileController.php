@@ -59,10 +59,6 @@ class ProfileController extends Controller
     {
         abort_unless(config('auth.allow_account_deletion'), 403, 'Account deletion is managed by an administrator.');
 
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
-
         $user = $request->user();
 
         Auth::logout();

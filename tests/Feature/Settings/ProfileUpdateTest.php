@@ -69,13 +69,10 @@ class ProfileUpdateTest extends TestCase
 
     public function test_user_can_delete_their_account()
     {
+        config(['auth.allow_account_deletion' => true]);
         $user = User::factory()->create();
 
-        $response = $this
-            ->actingAs($user)
-            ->delete('/settings/profile', [
-                'password' => 'password',
-            ]);
+        $response = $this->actingAs($user)->delete('/settings/profile');
 
         $response
             ->assertSessionHasNoErrors()
@@ -85,31 +82,13 @@ class ProfileUpdateTest extends TestCase
         $this->assertNull($user->fresh());
     }
 
-    public function test_correct_password_must_be_provided_to_delete_account()
-    {
-        $user = User::factory()->create();
-
-        $response = $this
-            ->actingAs($user)
-            ->from('/settings/profile')
-            ->delete('/settings/profile', [
-                'password' => 'wrong-password',
-            ]);
-
-        $response
-            ->assertSessionHasErrors('password')
-            ->assertRedirect('/settings/profile');
-
-        $this->assertNotNull($user->fresh());
-    }
-
     public function test_account_deletion_can_be_disabled_for_managed_workforce_accounts()
     {
         config(['auth.allow_account_deletion' => false]);
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->delete('/settings/profile', ['password' => 'password'])
+            ->delete('/settings/profile')
             ->assertForbidden();
 
         $this->assertNotNull($user->fresh());

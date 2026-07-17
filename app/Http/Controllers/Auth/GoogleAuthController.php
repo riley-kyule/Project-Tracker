@@ -46,6 +46,9 @@ class GoogleAuthController extends Controller
         }
 
         if (! $this->domainIsAllowed($googleUser)) {
+            $attempted = User::query()->where('email', Str::lower($googleUser->getEmail()))->first();
+            AuditLogger::log($attempted, 'login_failed', [], $attempted ? ['method' => 'google'] : ['method' => 'google', 'email' => $googleUser->getEmail()]);
+
             return redirect()->route('login')->withErrors([
                 'email' => 'Sign-in is restricted to company Google accounts.',
             ]);
