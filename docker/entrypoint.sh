@@ -57,4 +57,17 @@ chown -R www-data:www-data /var/www/html 2>/dev/null || true
 # extensions this image has, which a bare composer CLI doesn't.
 su-exec www-data php artisan package:discover --ansi
 
-exec su-exec www-data "$@"
+# php-fpm's own pool config (www.conf, stock in this image) already sets
+# user/group = www-data and drops each worker to it internally, after the
+# root master has set up logging — that's specifically why php-fpm needs to
+# stay root here rather than being su-exec'd like everything else: its
+# `error_log = /proc/self/fd/2` default only re-opens successfully for
+# whichever uid originally owned that fd (root, since this script starts as
+# root), and su-exec would hand it off to www-data *before* that happens.
+# artisan queue:work/schedule:work (queue/scheduler) have no equivalent
+# internal drop, so those still need su-exec to actually run as www-data.
+if [ "$1" = "php-fpm" ]; then
+    exec "$@"
+else
+    exec su-exec www-data "$@"
+fi
