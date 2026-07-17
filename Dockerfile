@@ -21,6 +21,22 @@ RUN apk add --no-cache \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" pdo_pgsql mbstring xml zip bcmath intl gd pcntl opcache
 
+# Re-key www-data to the host account's uid/gid instead of Alpine's default
+# 82:82. docker-compose.yml bind-mounts the real host checkout into these
+# containers, so whatever uid www-data ends up as is the uid that ends up
+# owning every file entrypoint.sh's chown (and composer/npm/git, all run as
+# www-data) touches in it — if that doesn't match the host account, the
+# host user loses write access to their own checkout, including .git.
+# Override at build time with --build-arg WWW_UID/WWW_GID if that account
+# isn't 1000:1000 (check with `id` on the host).
+ARG WWW_UID=1000
+ARG WWW_GID=1000
+RUN deluser www-data 2>/dev/null; \
+    delgroup www-data 2>/dev/null; \
+    addgroup -g "${WWW_GID}" www-data && \
+    adduser -D -u "${WWW_UID}" -G www-data -h /var/www -s /sbin/nologin www-data && \
+    chown -R www-data:www-data /var/www
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache-recommended.ini
@@ -28,9 +44,11 @@ COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/uploads-recommended.ini
 
 WORKDIR /var/www/html
 
-# entrypoint.sh starts as root (needed to chown the bind-mounted storage/
-# volume, which won't already be www-data-owned like a baked-in COPY was)
-# and drops to www-data via su-exec before running composer/npm/php-fpm.
+# entrypoint.sh starts as root (needed to chown the bind-mounted checkout,
+# which won't already be www-data-owned like a baked-in COPY was) and
+# drops to www-data via su-exec for composer/npm/artisan — but not for
+# php-fpm itself, which handles its own privilege drop internally (see the
+# comment in entrypoint.sh for why that distinction matters).
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
