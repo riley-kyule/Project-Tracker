@@ -29,42 +29,55 @@ class DeployLatestRelease implements ShouldQueue
         $branch = config('deploy.branch');
         $stepTimeout = config('deploy.timeout');
 
-        $this->deployment->update([
-            'status' => Deployment::STATUS_RUNNING,
-            'started_at' => now(),
-            'commit_before' => trim(Process::path($base)->run(['git', 'rev-parse', 'HEAD'])->output()),
-        ]);
+        // Same lock file docker/entrypoint.sh uses for its first-boot
+        // vendor/public-build install — holding it here for the whole
+        // deploy stops a container restart's bootstrap install from
+        // racing composer/npm against this job on the same bind-mounted
+        // code.
+        $lock = fopen(storage_path('.bootstrap.lock'), 'c');
+        flock($lock, LOCK_EX);
 
-        $steps = [
-            ['git', 'fetch', 'origin', $branch],
-            ['git', 'merge', '--ff-only', "origin/{$branch}"],
-            ['composer', 'install', '--no-dev', '--classmap-authoritative', '--no-interaction'],
-            ['npm', 'ci'],
-            ['npm', 'run', 'build'],
-            [PHP_BINARY, 'artisan', 'migrate', '--force'],
-            [PHP_BINARY, 'artisan', 'optimize'],
-            [PHP_BINARY, 'artisan', 'queue:restart'],
-        ];
+        try {
+            $this->deployment->update([
+                'status' => Deployment::STATUS_RUNNING,
+                'started_at' => now(),
+                'commit_before' => trim(Process::path($base)->run(['git', 'rev-parse', 'HEAD'])->output()),
+            ]);
 
-        foreach ($steps as $command) {
-            $this->deployment->appendOutput('$ '.implode(' ', $command));
+            $steps = [
+                ['git', 'fetch', 'origin', $branch],
+                ['git', 'merge', '--ff-only', "origin/{$branch}"],
+                ['composer', 'install', '--no-dev', '--classmap-authoritative', '--no-interaction'],
+                ['npm', 'ci'],
+                ['npm', 'run', 'build'],
+                [PHP_BINARY, 'artisan', 'migrate', '--force'],
+                [PHP_BINARY, 'artisan', 'optimize'],
+                [PHP_BINARY, 'artisan', 'queue:restart'],
+            ];
 
-            $result = Process::path($base)->timeout($stepTimeout)->run($command);
+            foreach ($steps as $command) {
+                $this->deployment->appendOutput('$ '.implode(' ', $command));
 
-            $this->deployment->appendOutput(trim($result->output().$result->errorOutput()));
+                $result = Process::path($base)->timeout($stepTimeout)->run($command);
 
-            if ($result->failed()) {
-                $this->deployment->update(['status' => Deployment::STATUS_FAILED, 'finished_at' => now()]);
+                $this->deployment->appendOutput(trim($result->output().$result->errorOutput()));
 
-                return;
+                if ($result->failed()) {
+                    $this->deployment->update(['status' => Deployment::STATUS_FAILED, 'finished_at' => now()]);
+
+                    return;
+                }
             }
-        }
 
-        $this->deployment->update([
-            'status' => Deployment::STATUS_SUCCEEDED,
-            'commit_after' => trim(Process::path($base)->run(['git', 'rev-parse', 'HEAD'])->output()),
-            'finished_at' => now(),
-        ]);
+            $this->deployment->update([
+                'status' => Deployment::STATUS_SUCCEEDED,
+                'commit_after' => trim(Process::path($base)->run(['git', 'rev-parse', 'HEAD'])->output()),
+                'finished_at' => now(),
+            ]);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
     }
 
     public function failed(Throwable $exception): void

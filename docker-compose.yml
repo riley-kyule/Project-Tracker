@@ -5,6 +5,7 @@ services:
       target: app
     restart: unless-stopped
     volumes:
+      - .:/var/www/html
       - storage:/var/www/html/storage
       - ./.env:/var/www/html/.env:ro
     networks:
@@ -18,6 +19,8 @@ services:
       context: .
       target: webserver
     restart: unless-stopped
+    volumes:
+      - .:/var/www/html:ro
     networks:
       - internal
       - web
@@ -38,6 +41,7 @@ services:
     restart: unless-stopped
     command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
     volumes:
+      - .:/var/www/html
       - storage:/var/www/html/storage
       - ./.env:/var/www/html/.env:ro
     networks:
@@ -53,6 +57,7 @@ services:
     restart: unless-stopped
     command: php artisan schedule:work
     volumes:
+      - .:/var/www/html
       - storage:/var/www/html/storage
       - ./.env:/var/www/html/.env:ro
     networks:

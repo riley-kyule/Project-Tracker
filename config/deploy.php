@@ -8,10 +8,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | Lets an Administrator/CEO trigger the documented release sequence
-    | (see docs/DEPLOYMENT.md) from the app itself. Off by default: enable
-    | only on hosts where the web/queue process is meant to own its own
-    | working directory (e.g. a single-server deployment), never behind an
-    | immutable-artifact pipeline.
+    | (see docs/DEPLOYMENT.md) from the app itself. Requires the app/queue/
+    | scheduler containers to bind-mount the real working directory (see
+    | docker-compose.yml) rather than bake code into the image — the app/
+    | queue/scheduler Dockerfile stage installs git/composer/npm for exactly
+    | this. Off by default; only turn on where that bind-mount setup is
+    | actually in place.
     |
     */
 
