@@ -17,6 +17,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Caddy terminates TLS in front of every environment that isn't a
+        // bare local dev server — trust its X-Forwarded-* headers so scheme/
+        // host/port/client-IP resolve correctly (secure cookies, HSTS,
+        // audit-log IPs, url() generation). `at: '*'` is safe here because
+        // the app is never reached except through that proxy.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+        );
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

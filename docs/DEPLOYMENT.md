@@ -29,7 +29,7 @@ REDIS_CLIENT=predis
 
 Use distinct database and Redis credentials with the least privileges required by the application. Configure a real `MAIL_MAILER` and organizational sender address so password resets and notifications are deliverable.
 
-If TLS terminates at a reverse proxy or load balancer, configure Laravel's trusted proxy handling so secure URLs, cookies, client IP audit data, and HSTS are correct.
+TLS terminates in front of the app at a reverse proxy — Caddy, run as a separate stack, not managed in this repo. `bootstrap/app.php` already trusts its `X-Forwarded-*` headers (`at: '*'`, safe since the app is only ever reachable through that proxy) so secure URLs, cookies, client IP audit data, and HSTS resolve correctly; `docker/nginx.conf` sets the matching FastCGI params since nginx itself sits between Caddy and PHP-FPM. `docker-compose.yml`'s `webserver` service joins an external Docker network named `proxy` (not created by this repo) for Caddy to reach it — if that network doesn't already exist on a new host, create it (`docker network create proxy`) or match whatever your Caddy stack expects before first `docker compose up`.
 
 ## Release sequence
 

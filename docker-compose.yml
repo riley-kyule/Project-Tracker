@@ -1,5 +1,7 @@
 services:
   app:
+    env_file:
+      - .env
     build:
       context: .
       target: app
@@ -15,6 +17,7 @@ services:
       - redis
 
   webserver:
+    container_name: ewms-webserver
     build:
       context: .
       target: webserver
@@ -26,15 +29,10 @@ services:
       - web
     depends_on:
       - app
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=web
-      - traefik.http.routers.ewms.rule=Host(`${APP_DOMAIN}`)
-      - traefik.http.routers.ewms.entrypoints=websecure
-      - traefik.http.routers.ewms.tls.certresolver=letsencrypt
-      - traefik.http.services.ewms.loadbalancer.server.port=80
 
   queue:
+    env_file:
+      - .env
     build:
       context: .
       target: app
@@ -51,6 +49,8 @@ services:
       - redis
 
   scheduler:
+    env_file:
+      - .env
     build:
       context: .
       target: app
@@ -90,6 +90,7 @@ networks:
   internal:
   web:
     external: true
+    name: proxy
 
 volumes:
   storage:

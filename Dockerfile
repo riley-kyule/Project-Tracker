@@ -41,8 +41,9 @@ CMD ["php-fpm"]
 # -----------------------------------------------------------------------------
 # webserver — nginx. Serves public/ directly (via the same bind mount as the
 # app service) and forwards *.php to the app service's php-fpm over the
-# internal Compose network. Traefik terminates TLS in front of this and
-# never talks to PHP directly.
+# internal Compose network. Caddy (a separate stack, not managed in this
+# repo — see the external "proxy" network in docker-compose.yml) terminates
+# TLS in front of this and never talks to PHP directly.
 # -----------------------------------------------------------------------------
 FROM nginx:1.27-alpine AS webserver
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
