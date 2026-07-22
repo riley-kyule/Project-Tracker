@@ -32,6 +32,7 @@ class DepartmentRequest extends FormRequest
             'manager_id' => ['nullable', 'integer', 'exists:users,id'],
             'assistant_manager_id' => ['nullable', 'integer', 'exists:users,id'],
             'is_active' => ['boolean'],
+            'daily_summary_time' => ['nullable', 'date_format:H:i'],
         ];
     }
 

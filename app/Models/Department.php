@@ -20,12 +20,15 @@ class Department extends Model
         'manager_id',
         'assistant_manager_id',
         'is_active',
+        'daily_summary_time',
+        'daily_summary_last_sent_on',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'daily_summary_last_sent_on' => 'date',
         ];
     }
 

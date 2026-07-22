@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DepartmentRequest;
+use App\Models\CompanySetting;
 use App\Models\Department;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -33,6 +34,7 @@ class DepartmentController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'canManage' => Gate::allows('create', Department::class),
+            'companySettings' => CompanySetting::current()->only(['ceo_summary_time']),
         ]);
     }
 
@@ -55,7 +57,7 @@ class DepartmentController extends Controller
     {
         Gate::authorize('update', $department);
 
-        $old = $department->only(['name', 'slug', 'description', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active']);
+        $old = $department->only(['name', 'slug', 'description', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active', 'daily_summary_time']);
         $department->update([
             ...$request->validated(),
             'slug' => $request->slug(),

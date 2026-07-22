@@ -24,6 +24,7 @@ type Department = {
     assistant_manager_id: number | null;
     assistant_manager: { id: number; name: string } | null;
     is_active: boolean;
+    daily_summary_time: string | null;
     users_count: number;
 };
 
@@ -37,6 +38,7 @@ type DepartmentForm = {
     manager_id: string;
     assistant_manager_id: string;
     is_active: boolean;
+    daily_summary_time: string;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Departments', href: '/admin/departments' }];
@@ -62,6 +64,7 @@ function DepartmentDialog({
         manager_id: department?.manager_id?.toString() ?? NONE,
         assistant_manager_id: department?.assistant_manager_id?.toString() ?? NONE,
         is_active: department?.is_active ?? true,
+        daily_summary_time: department?.daily_summary_time?.slice(0, 5) ?? '',
     });
 
     // A department that already has sub-departments can't become one itself.
@@ -74,6 +77,7 @@ function DepartmentDialog({
             parent_department_id: form.parent_department_id === NONE ? null : Number(form.parent_department_id),
             manager_id: form.manager_id === NONE ? null : Number(form.manager_id),
             assistant_manager_id: form.assistant_manager_id === NONE ? null : Number(form.assistant_manager_id),
+            daily_summary_time: form.daily_summary_time === '' ? null : form.daily_summary_time,
         }));
         const options = {
             preserveScroll: true,
@@ -159,6 +163,20 @@ function DepartmentDialog({
                         </Select>
                         <InputError message={errors.assistant_manager_id} />
                     </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="daily_summary_time">Daily summary email time</Label>
+                        <Input
+                            id="daily_summary_time"
+                            type="time"
+                            value={data.daily_summary_time}
+                            onChange={(e) => setData('daily_summary_time', e.target.value)}
+                            className="w-40"
+                        />
+                        <p className="text-muted-foreground text-xs">
+                            Sent to the head of department and assistant manager. Leave blank to disable.
+                        </p>
+                        <InputError message={errors.daily_summary_time} />
+                    </div>
                     <div className="flex items-center gap-2">
                         <Checkbox id="is_active" checked={data.is_active} onCheckedChange={(checked) => setData('is_active', checked === true)} />
                         <Label htmlFor="is_active">Active</Label>
@@ -172,16 +190,49 @@ function DepartmentDialog({
     );
 }
 
+function CompanySummarySettings({ ceoSummaryTime }: { ceoSummaryTime: string | null }) {
+    const { data, setData, patch, processing, errors, recentlySuccessful } = useForm({
+        ceo_summary_time: ceoSummaryTime?.slice(0, 5) ?? '',
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        patch('/admin/company-settings', { preserveScroll: true });
+    };
+
+    return (
+        <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border flex items-end gap-3 rounded-xl border p-4">
+            <div className="grid gap-2">
+                <Label htmlFor="ceo_summary_time">CEO daily summary email time</Label>
+                <Input
+                    id="ceo_summary_time"
+                    type="time"
+                    value={data.ceo_summary_time}
+                    onChange={(e) => setData('ceo_summary_time', e.target.value)}
+                    className="w-40"
+                />
+                <InputError message={errors.ceo_summary_time} />
+            </div>
+            <Button type="submit" size="sm" disabled={processing}>
+                Save
+            </Button>
+            {recentlySuccessful && <span className="text-muted-foreground text-xs">Saved.</span>}
+        </form>
+    );
+}
+
 export default function DepartmentsIndex({
     departments,
     managers,
     parentOptions,
     canManage,
+    companySettings,
 }: {
     departments: Department[];
     managers: Manager[];
     parentOptions: ParentOption[];
     canManage: boolean;
+    companySettings: { ceo_summary_time: string | null };
 }) {
     // Group children directly beneath their parent so a division and its teams read as one unit.
     const topLevel = departments.filter((department) => !department.parent_department_id);
@@ -208,6 +259,7 @@ export default function DepartmentsIndex({
                         />
                     )}
                 </div>
+                {canManage && <CompanySummarySettings ceoSummaryTime={companySettings.ceo_summary_time} />}
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
                     <table className="w-full text-sm">
                         <thead>
