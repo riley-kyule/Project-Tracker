@@ -7,6 +7,7 @@ use App\Http\Requests\Tasks\UpdateTaskRequest;
 use App\Mail\TaskAssignedMail;
 use App\Models\Board;
 use App\Models\BoardColumn;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAssigned;
@@ -117,6 +118,16 @@ class TaskController extends Controller
         return back();
     }
 
+    public function destroy(Request $request, Task $task): RedirectResponse
+    {
+        Gate::authorize('delete', $task);
+
+        AuditLogger::log($task, 'deleted', ['title' => $task->title], []);
+        $task->delete();
+
+        return back();
+    }
+
     public function move(Request $request, Task $task): RedirectResponse
     {
         Gate::authorize('move', $task);
@@ -198,6 +209,7 @@ class TaskController extends Controller
         Gate::authorize('view', $task);
 
         return response()->json([
+            'canDelete' => $request->user()->can('delete', $task),
             'comments' => $task->comments()
                 ->whereNull('parent_id')
                 ->with(['user:id,name', 'replies.user:id,name'])
@@ -205,6 +217,10 @@ class TaskController extends Controller
                 ->get(),
             'checklists' => $task->checklists()->with('items')->get(),
             'canEditChecklist' => $request->user()->can('update', $task),
+            'links' => $task->links()->with('creator:id,name')->get(),
+            'canEditLinks' => $request->user()->can('update', $task),
+            'project' => $task->project()->first(['projects.id', 'projects.name']),
+            'projectOptions' => Project::query()->orderBy('name')->get(['id', 'name']),
             'attachments' => $task->attachments()->with('uploader:id,name')->latest()->get(),
             'dependencies' => $task->dependencies()->with('predecessor:id,title,task_number,completed_at')->get(),
             'blocking' => $task->blocks()->with('successor:id,title,task_number')->get(),
