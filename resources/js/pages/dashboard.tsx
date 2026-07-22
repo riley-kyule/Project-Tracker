@@ -47,7 +47,15 @@ export default function Dashboard({
     recentlyAssigned,
     myTickets,
 }: {
-    counts: { open: number; due_today: number; overdue: number; blocked: number; awaiting_review: number; completed_today: number };
+    counts: {
+        open: number;
+        due_today: number;
+        overdue: number;
+        blocked: number;
+        awaiting_review: number;
+        completed_today: number;
+        completed_total: number;
+    };
     myTasks: DashTask[];
     recentlyAssigned: DashTask[];
     myTickets: DashTicket[];
@@ -60,13 +68,14 @@ export default function Dashboard({
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">Welcome back, {auth.user.name.split(' ')[0]}</h1>
 
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
                     <StatCard label="Open tasks" value={counts.open} />
                     <StatCard label="Due today" value={counts.due_today} alert />
                     <StatCard label="Overdue" value={counts.overdue} alert />
                     <StatCard label="Blocked" value={counts.blocked} alert />
                     <StatCard label="Awaiting review" value={counts.awaiting_review} />
                     <StatCard label="Completed today" value={counts.completed_today} />
+                    <StatCard label="Completed tasks" value={counts.completed_total} />
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-3">

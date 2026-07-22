@@ -17,7 +17,7 @@ type ExecTask = {
     assignee: Person | null;
 };
 
-type DeptRow = { id: number; name: string; open: number; overdue: number; completed_week: number };
+type DeptRow = { id: number; name: string; open: number; overdue: number; completed_week: number; completed_total: number };
 
 type Activity = { id: number; event: string; auditable_type: string; actor: Person | null; created_at: string };
 
@@ -73,6 +73,7 @@ export default function CeoDashboard({
         ceo_priority: number;
         completed_today: number;
         completed_week: number;
+        completed_total: number;
         critical_tickets: number;
         overdue_tickets: number;
     };
@@ -96,9 +97,10 @@ export default function CeoDashboard({
                     <StatCard label="Due today" value={counts.due_today} href="/reports/tasks?filter=due_today" />
                     <StatCard label="CEO priority" value={counts.ceo_priority} href="/reports/tasks?filter=ceo_priority" />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                     <StatCard label="Completed today" value={counts.completed_today} />
                     <StatCard label="Completed this week" value={counts.completed_week} href="/reports/tasks?filter=completed_week" />
+                    <StatCard label="Completed tasks" value={counts.completed_total} />
                     <StatCard label="Critical tickets" value={counts.critical_tickets} href="/tickets?priority=critical" alert />
                     <StatCard label="Overdue tickets" value={counts.overdue_tickets} href="/dashboards/it" alert />
                 </div>
@@ -113,6 +115,7 @@ export default function CeoDashboard({
                                     <th className="py-1.5 text-right font-medium">Open</th>
                                     <th className="py-1.5 text-right font-medium">Overdue</th>
                                     <th className="py-1.5 text-right font-medium">Done this week</th>
+                                    <th className="py-1.5 text-right font-medium">Total completed</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -131,6 +134,7 @@ export default function CeoDashboard({
                                             {department.overdue}
                                         </td>
                                         <td className="py-1.5 text-right">{department.completed_week}</td>
+                                        <td className="py-1.5 text-right">{department.completed_total}</td>
                                     </tr>
                                 ))}
                             </tbody>

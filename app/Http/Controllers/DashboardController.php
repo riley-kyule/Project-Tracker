@@ -34,6 +34,7 @@ class DashboardController extends Controller
                 'ceo_priority' => $open()->where('ceo_priority', true)->count(),
                 'completed_today' => Task::query()->whereDate('completed_at', today())->count(),
                 'completed_week' => Task::query()->where('completed_at', '>=', now()->startOfWeek())->count(),
+                'completed_total' => Task::query()->whereNotNull('completed_at')->count(),
                 'critical_tickets' => (clone $openTickets)->where('priority', 'critical')->count(),
                 'overdue_tickets' => (clone $openTickets)->whereNotNull('due_at')->where('due_at', '<', now())->count(),
             ],
@@ -83,6 +84,7 @@ class DashboardController extends Controller
         $openByDept = $counts($open());
         $overdueByDept = $counts($open()->where('due_at', '<', now()));
         $completedWeekByDept = $counts(Task::query()->where('completed_at', '>=', now()->startOfWeek()));
+        $completedTotalByDept = $counts(Task::query()->whereNotNull('completed_at'));
 
         return ($departments ?? Department::query()->active()->orderBy('name')->get(['id', 'name']))
             ->map(fn (Department $department) => [
@@ -91,6 +93,7 @@ class DashboardController extends Controller
                 'open' => $openByDept->get($department->id, 0),
                 'overdue' => $overdueByDept->get($department->id, 0),
                 'completed_week' => $completedWeekByDept->get($department->id, 0),
+                'completed_total' => $completedTotalByDept->get($department->id, 0),
             ]);
     }
 
@@ -175,6 +178,10 @@ class DashboardController extends Controller
                 'completed_today' => Task::query()
                     ->where('primary_assignee_id', $user->id)
                     ->whereDate('completed_at', today())
+                    ->count(),
+                'completed_total' => Task::query()
+                    ->where('primary_assignee_id', $user->id)
+                    ->whereNotNull('completed_at')
                     ->count(),
             ],
             'myTasks' => $mine()
