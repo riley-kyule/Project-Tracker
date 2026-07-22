@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -92,6 +93,18 @@ const SEMANTIC_STATUS_OPTIONS: [string, string][] = [
     ['archived', 'Archived (hides tasks)'],
     ['custom', 'Custom'],
 ];
+
+const SEMANTIC_STATUS_DESCRIPTIONS: Record<string, string> = {
+    idea: "Early-stage ideas that aren't ready to be worked on yet.",
+    backlog: 'Not started — waiting to be picked up.',
+    ready: 'Ready to be worked on next.',
+    active: 'Currently being worked on.',
+    blocked: "Blocked on something and can't proceed right now.",
+    review: 'Work is done and awaiting review or approval.',
+    completed: 'Marks a task as done — moving a card here completes it.',
+    archived: 'Hides a task from active views without deleting it.',
+    custom: 'A custom stage with no special automatic behavior.',
+};
 
 function ColumnDialog({ boardId, column, onClose }: { boardId: number; column?: Column; onClose: () => void }) {
     const { data, setData, post, patch, processing, errors, transform } = useForm({
@@ -250,7 +263,16 @@ function BoardColumn({
     return (
         <div className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-[85vw] max-w-72 shrink-0 flex-col rounded-xl border">
             <div className="flex items-center justify-between gap-1 p-3 pb-1">
-                <span className="text-sm font-semibold">{column.name}</span>
+                <TooltipProvider>
+                    <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                            <span className="text-sm font-semibold">{column.name}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {SEMANTIC_STATUS_DESCRIPTIONS[column.semantic_status] ?? SEMANTIC_STATUS_DESCRIPTIONS.custom}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
                 <span className={`text-xs ${overLimit ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
                     {column.tasks.length}
                     {column.wip_limit !== null && ` / ${column.wip_limit}`}
@@ -311,12 +333,14 @@ export default function BoardShow({
     board,
     boardTaskOptions,
     members,
+    allMembers,
     labels,
     can,
 }: {
     board: Board;
     boardTaskOptions: BoardTaskOption[];
     members: Member[];
+    allMembers: Member[];
     labels: LabelOption[];
     can: Can;
 }) {
@@ -567,6 +591,7 @@ export default function BoardShow({
                 <TaskDialog
                     task={openTask}
                     members={members}
+                    allMembers={allMembers}
                     labels={labels}
                     can={can}
                     boardTasks={boardTaskOptions}
