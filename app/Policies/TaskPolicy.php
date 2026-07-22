@@ -11,7 +11,14 @@ class TaskPolicy
 {
     public function view(User $user, Task $task): bool
     {
-        if (! Gate::forUser($user)->allows('view', $task->board)) {
+        // Being added to a task directly (any assignment type) grants visibility
+        // into that one task regardless of department/board access — the point
+        // of adding someone from outside your department is that they couldn't
+        // already see the board.
+        $hasDirectAccess = Gate::forUser($user)->allows('view', $task->board)
+            || $task->assignees()->where('user_id', $user->id)->exists();
+
+        if (! $hasDirectAccess) {
             return false;
         }
 
@@ -59,6 +66,11 @@ class TaskPolicy
     }
 
     public function move(User $user, Task $task): bool
+    {
+        return $this->update($user, $task);
+    }
+
+    public function delete(User $user, Task $task): bool
     {
         return $this->update($user, $task);
     }
