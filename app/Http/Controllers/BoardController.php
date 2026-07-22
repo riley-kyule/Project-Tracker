@@ -58,8 +58,10 @@ class BoardController extends Controller
                 ->with(['assignee:id,name', 'labels:id,name,color'])
                 ->withCount(['dependencies as unresolved_dependencies_count' => fn ($q) => $q
                     ->whereNull('overridden_at')
-                    ->whereHas('predecessor', fn ($qq) => $qq->whereNull('completed_at'))])
-                ->whereNull('archived_at'),
+                    ->whereHas('predecessor', fn ($qq) => $qq->whereNull('completed_at'))]),
+            // No archived_at exclusion here: a task's board_column_id only ever
+            // points at the archive column once archived_at is set, so this lets
+            // archived cards show up there instead of vanishing everywhere.
         ]);
 
         // Confidential tasks the viewer has no explicit access to must not
