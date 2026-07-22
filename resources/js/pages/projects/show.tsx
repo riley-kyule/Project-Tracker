@@ -1,8 +1,12 @@
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { X } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 type Option = { id: number; name: string };
 
@@ -30,6 +34,8 @@ type ProjectDetail = {
     countries: Option[];
     websites: Option[];
     boards: { id: number; name: string }[];
+    members: Option[];
+    departments: Option[];
 };
 
 const healthVariant: Record<string, 'default' | 'secondary' | 'destructive'> = {
@@ -38,24 +44,85 @@ const healthVariant: Record<string, 'default' | 'secondary' | 'destructive'> = {
     off_track: 'destructive',
 };
 
+const NO_SELECTION = 'none';
+
 export default function ProjectShow({
     project,
     tasks,
+    allUsers,
+    allDepartments,
+    unlinkedTasks,
     canManage,
 }: {
     project: ProjectDetail;
     tasks: ProjectTask[];
     countries: Option[];
     websites: Option[];
+    allUsers: Option[];
+    allDepartments: Option[];
+    unlinkedTasks: { id: number; title: string; task_number: number }[];
     canManage: boolean;
 }) {
+    const [newMemberId, setNewMemberId] = useState(NO_SELECTION);
+    const [newDepartmentId, setNewDepartmentId] = useState(NO_SELECTION);
+    const [taskToLinkId, setTaskToLinkId] = useState(NO_SELECTION);
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Projects', href: '/projects' },
         { title: project.name, href: `/projects/${project.id}` },
     ];
 
+    const onError = (errors: Record<string, string>) => toast.error(Object.values(errors)[0] ?? 'That action failed.');
+
     const updateField = (field: string, value: string) => {
-        router.patch(`/projects/${project.id}`, { [field]: value }, { preserveScroll: true });
+        router.patch(`/projects/${project.id}`, { [field]: value }, { preserveScroll: true, onError });
+    };
+
+    const addMember = () => {
+        if (newMemberId === NO_SELECTION) return;
+        router.patch(
+            `/projects/${project.id}`,
+            { member_ids: [...project.members.map((m) => m.id), Number(newMemberId)] },
+            { preserveScroll: true, onError, onSuccess: () => setNewMemberId(NO_SELECTION) },
+        );
+    };
+
+    const removeMember = (userId: number) => {
+        router.patch(
+            `/projects/${project.id}`,
+            { member_ids: project.members.filter((m) => m.id !== userId).map((m) => m.id) },
+            { preserveScroll: true, onError },
+        );
+    };
+
+    const addDepartment = () => {
+        if (newDepartmentId === NO_SELECTION) return;
+        router.patch(
+            `/projects/${project.id}`,
+            { department_ids: [...project.departments.map((d) => d.id), Number(newDepartmentId)] },
+            { preserveScroll: true, onError, onSuccess: () => setNewDepartmentId(NO_SELECTION) },
+        );
+    };
+
+    const removeDepartment = (departmentId: number) => {
+        router.patch(
+            `/projects/${project.id}`,
+            { department_ids: project.departments.filter((d) => d.id !== departmentId).map((d) => d.id) },
+            { preserveScroll: true, onError },
+        );
+    };
+
+    const linkTask = () => {
+        if (taskToLinkId === NO_SELECTION) return;
+        router.patch(
+            `/tasks/${taskToLinkId}`,
+            { project_id: project.id },
+            { preserveScroll: true, onError, onSuccess: () => setTaskToLinkId(NO_SELECTION) },
+        );
+    };
+
+    const unlinkTask = (taskId: number) => {
+        router.patch(`/tasks/${taskId}`, { project_id: null }, { preserveScroll: true, onError });
     };
 
     return (
@@ -102,7 +169,7 @@ export default function ProjectShow({
                         <span className="text-muted-foreground">Owner:</span> {project.owner.name}
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Department:</span> {project.department?.name ?? 'Company-wide'}
+                        <span className="text-muted-foreground">Home department:</span> {project.department?.name ?? 'Company-wide'}
                     </div>
                     <div>
                         <span className="text-muted-foreground">Deadline:</span>{' '}
@@ -144,6 +211,96 @@ export default function ProjectShow({
                 )}
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                    <h2 className="mb-1 text-sm font-semibold">People</h2>
+                    <p className="text-muted-foreground mb-2 text-xs">
+                        Beyond the owner above — anyone can be added here, regardless of department.
+                    </p>
+                    <ul className="mb-2 space-y-1.5">
+                        {project.members.map((member) => (
+                            <li key={member.id} className="flex items-center gap-2 text-sm">
+                                {member.name}
+                                {canManage && (
+                                    <button
+                                        type="button"
+                                        aria-label={`Remove ${member.name}`}
+                                        onClick={() => removeMember(member.id)}
+                                        className="text-muted-foreground hover:text-destructive ml-auto"
+                                    >
+                                        <X className="size-3.5" />
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                        {project.members.length === 0 && <li className="text-muted-foreground text-sm">No additional people yet.</li>}
+                    </ul>
+                    {canManage && (
+                        <div className="flex gap-2">
+                            <Select value={newMemberId} onValueChange={setNewMemberId}>
+                                <SelectTrigger className="h-8 flex-1 text-sm">
+                                    <SelectValue placeholder="Add a person…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {allUsers
+                                        .filter((user) => !project.members.some((m) => m.id === user.id) && user.id !== project.owner.id)
+                                        .map((user) => (
+                                            <SelectItem key={user.id} value={user.id.toString()}>
+                                                {user.name}
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+                            <Button type="button" size="sm" variant="secondary" disabled={newMemberId === NO_SELECTION} onClick={addMember}>
+                                Add
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                    <h2 className="mb-1 text-sm font-semibold">Departments</h2>
+                    <p className="text-muted-foreground mb-2 text-xs">Additional whole departments involved, beyond the home department above.</p>
+                    <ul className="mb-2 space-y-1.5">
+                        {project.departments.map((department) => (
+                            <li key={department.id} className="flex items-center gap-2 text-sm">
+                                {department.name}
+                                {canManage && (
+                                    <button
+                                        type="button"
+                                        aria-label={`Remove ${department.name}`}
+                                        onClick={() => removeDepartment(department.id)}
+                                        className="text-muted-foreground hover:text-destructive ml-auto"
+                                    >
+                                        <X className="size-3.5" />
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                        {project.departments.length === 0 && <li className="text-muted-foreground text-sm">No additional departments yet.</li>}
+                    </ul>
+                    {canManage && (
+                        <div className="flex gap-2">
+                            <Select value={newDepartmentId} onValueChange={setNewDepartmentId}>
+                                <SelectTrigger className="h-8 flex-1 text-sm">
+                                    <SelectValue placeholder="Add a department…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {allDepartments
+                                        .filter((department) => !project.departments.some((d) => d.id === department.id))
+                                        .map((department) => (
+                                            <SelectItem key={department.id} value={department.id.toString()}>
+                                                {department.name}
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+                            <Button type="button" size="sm" variant="secondary" disabled={newDepartmentId === NO_SELECTION} onClick={addDepartment}>
+                                Add
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                     <h2 className="mb-2 text-sm font-semibold">Tasks</h2>
                     <ul className="divide-sidebar-border/40 dark:divide-sidebar-border/40 divide-y">
                         {tasks.map((task) => (
@@ -162,10 +319,39 @@ export default function ProjectShow({
                                         <span className="text-muted-foreground ml-auto text-xs">{new Date(task.due_at).toLocaleDateString()}</span>
                                     )
                                 )}
+                                {canManage && (
+                                    <button
+                                        type="button"
+                                        aria-label={`Unlink ${task.title}`}
+                                        onClick={() => unlinkTask(task.id)}
+                                        className="text-muted-foreground hover:text-destructive"
+                                    >
+                                        <X className="size-3.5" />
+                                    </button>
+                                )}
                             </li>
                         ))}
                         {tasks.length === 0 && <li className="text-muted-foreground py-2 text-sm">No tasks linked to this project yet.</li>}
                     </ul>
+                    {canManage && (
+                        <div className="mt-2 flex gap-2">
+                            <Select value={taskToLinkId} onValueChange={setTaskToLinkId}>
+                                <SelectTrigger className="h-8 flex-1 text-sm">
+                                    <SelectValue placeholder="Link an existing task…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {unlinkedTasks.map((candidate) => (
+                                        <SelectItem key={candidate.id} value={candidate.id.toString()}>
+                                            T-{candidate.task_number} {candidate.title}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button type="button" size="sm" variant="secondary" disabled={taskToLinkId === NO_SELECTION} onClick={linkTask}>
+                                Link
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
         </AppLayout>
