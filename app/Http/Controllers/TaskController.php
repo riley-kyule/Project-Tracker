@@ -186,6 +186,7 @@ class TaskController extends Controller
                 ->oldest()
                 ->get(),
             'checklists' => $task->checklists()->with('items')->get(),
+            'canEditChecklist' => $request->user()->can('update', $task),
             'attachments' => $task->attachments()->with('uploader:id,name')->latest()->get(),
             'dependencies' => $task->dependencies()->with('predecessor:id,title,task_number,completed_at')->get(),
             'blocking' => $task->blocks()->with('successor:id,title,task_number')->get(),

@@ -97,6 +97,7 @@ type AssigneeNode = Member & { assignment_type: 'assignee' | 'collaborator' | 'r
 type Detail = {
     comments: CommentNode[];
     checklists: ChecklistNode[];
+    canEditChecklist: boolean;
     attachments: AttachmentNode[];
     dependencies: DependencyNode[];
     blocking: BlockingNode[];
@@ -119,6 +120,7 @@ type Detail = {
 const emptyDetail: Detail = {
     comments: [],
     checklists: [],
+    canEditChecklist: false,
     attachments: [],
     dependencies: [],
     blocking: [],
@@ -190,6 +192,8 @@ export function TaskCollaboration({
     const [showMentions, setShowMentions] = useState(false);
     const [checklistName, setChecklistName] = useState('');
     const [itemTitles, setItemTitles] = useState<Record<number, string>>({});
+    const [editingItemId, setEditingItemId] = useState<number | null>(null);
+    const [editingItemTitle, setEditingItemTitle] = useState('');
     const [newDependencyId, setNewDependencyId] = useState(NO_DEPENDENCY);
     const [newRelationId, setNewRelationId] = useState(NO_DEPENDENCY);
     const [newFrequency, setNewFrequency] = useState('weekly');
@@ -290,8 +294,9 @@ export function TaskCollaboration({
                                     <button
                                         type="button"
                                         aria-label={`Delete ${checklist.name}`}
+                                        disabled={!detail.canEditChecklist}
                                         onClick={() => destroy(`/checklists/${checklist.id}`)}
-                                        className="text-muted-foreground hover:text-destructive ml-2"
+                                        className="text-muted-foreground hover:text-destructive ml-2 disabled:pointer-events-none disabled:opacity-40"
                                     >
                                         <Trash2 className="inline size-3.5" />
                                     </button>
@@ -299,9 +304,10 @@ export function TaskCollaboration({
                             </div>
                             <ul className="space-y-1.5">
                                 {checklist.items.map((item) => (
-                                    <li key={item.id} className="flex items-center gap-2 text-sm">
+                                    <li key={item.id} className="group flex items-center gap-2 text-sm">
                                         <Checkbox
                                             checked={item.is_completed}
+                                            disabled={!detail.canEditChecklist}
                                             onCheckedChange={(checked) =>
                                                 router.patch(
                                                     `/checklist-items/${item.id}`,
@@ -310,7 +316,56 @@ export function TaskCollaboration({
                                                 )
                                             }
                                         />
-                                        <span className={item.is_completed ? 'text-muted-foreground line-through' : ''}>{item.title}</span>
+                                        {editingItemId === item.id ? (
+                                            <form
+                                                className="flex-1"
+                                                onSubmit={(e) => {
+                                                    e.preventDefault();
+                                                    const title = editingItemTitle.trim();
+                                                    if (!title) return;
+                                                    router.patch(
+                                                        `/checklist-items/${item.id}`,
+                                                        { title },
+                                                        {
+                                                            preserveScroll: true,
+                                                            preserveState: true,
+                                                            onSuccess: () => {
+                                                                setEditingItemId(null);
+                                                                reload();
+                                                            },
+                                                        },
+                                                    );
+                                                }}
+                                            >
+                                                <Input
+                                                    autoFocus
+                                                    value={editingItemTitle}
+                                                    onChange={(e) => setEditingItemTitle(e.target.value)}
+                                                    onBlur={(e) => e.currentTarget.form?.requestSubmit()}
+                                                    className="h-7 text-sm"
+                                                />
+                                            </form>
+                                        ) : (
+                                            <span
+                                                className={`flex-1 ${item.is_completed ? 'text-muted-foreground line-through' : ''} ${detail.canEditChecklist ? 'cursor-text' : ''}`}
+                                                onClick={() => {
+                                                    if (!detail.canEditChecklist) return;
+                                                    setEditingItemId(item.id);
+                                                    setEditingItemTitle(item.title);
+                                                }}
+                                            >
+                                                {item.title}
+                                            </span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            aria-label={`Delete ${item.title}`}
+                                            disabled={!detail.canEditChecklist}
+                                            onClick={() => destroy(`/checklist-items/${item.id}`)}
+                                            className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-0"
+                                        >
+                                            <Trash2 className="size-3.5" />
+                                        </button>
                                     </li>
                                 ))}
                             </ul>
@@ -329,6 +384,7 @@ export function TaskCollaboration({
                                     placeholder="Add item…"
                                     value={itemTitles[checklist.id] ?? ''}
                                     onChange={(e) => setItemTitles((current) => ({ ...current, [checklist.id]: e.target.value }))}
+                                    disabled={!detail.canEditChecklist}
                                     className="h-8 text-sm"
                                 />
                             </form>
@@ -347,9 +403,10 @@ export function TaskCollaboration({
                         placeholder="New checklist name…"
                         value={checklistName}
                         onChange={(e) => setChecklistName(e.target.value)}
+                        disabled={!detail.canEditChecklist}
                         className="h-8 text-sm"
                     />
-                    <Button type="submit" size="sm" variant="secondary">
+                    <Button type="submit" size="sm" variant="secondary" disabled={!detail.canEditChecklist}>
                         Add
                     </Button>
                 </form>
