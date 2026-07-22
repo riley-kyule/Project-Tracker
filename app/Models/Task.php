@@ -160,6 +160,11 @@ class Task extends Model
         return $this->morphMany(Attachment::class, 'attachable');
     }
 
+    public function links(): HasMany
+    {
+        return $this->hasMany(TaskLink::class)->latest();
+    }
+
     /** Prerequisites this task depends on (rows where this task is the successor). */
     public function dependencies(): HasMany
     {
