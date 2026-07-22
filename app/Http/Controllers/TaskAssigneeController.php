@@ -25,7 +25,11 @@ class TaskAssigneeController extends Controller
         ]);
 
         $user = User::query()->findOrFail($validated['user_id']);
-        abort_unless(Gate::forUser($user)->allows('view', $task), 422, 'That person cannot access this task.');
+        // Deliberately not gated on Gate::forUser($user)->allows('view', $task) — the
+        // whole point of adding someone here is to grant a person who couldn't
+        // otherwise see this task (e.g. outside the board's department) access to
+        // it specifically; TaskPolicy::view() grants that once they're attached below.
+        abort_unless($user->isActive(), 422, 'That user is not active.');
 
         $task->assignees()->syncWithoutDetaching([
             $user->id => ['assignment_type' => $validated['assignment_type']],
