@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Tasks\StoreTaskRequest;
 use App\Http\Requests\Tasks\UpdateTaskRequest;
+use App\Mail\TaskAssignedMail;
 use App\Models\Board;
 use App\Models\BoardColumn;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAssigned;
 use App\Services\AuditLogger;
+use App\Services\PushNotifier;
 use App\Services\TaskAssigneeSync;
 use App\Services\TaskMover;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -18,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
@@ -246,6 +249,11 @@ class TaskController extends Controller
 
         if ($task->assignee?->wantsNotification('task_assigned')) {
             $task->assignee->notify(new TaskAssigned($task, $actor));
+            Mail::to($task->assignee)->queue(new TaskAssignedMail($task, $actor));
+            app(PushNotifier::class)->notify($task->assignee, 'task_assigned', [
+                'title' => "New task: {$task->title}",
+                'url' => url("/boards/{$task->board_id}?task={$task->id}"),
+            ]);
         }
     }
 
