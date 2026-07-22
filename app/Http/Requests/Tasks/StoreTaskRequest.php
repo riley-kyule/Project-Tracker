@@ -16,6 +16,7 @@ class StoreTaskRequest extends FormRequest
             'primary_assignee_id' => ['nullable', 'integer', 'exists:users,id'],
             'priority' => ['required', Rule::in(Task::PRIORITIES)],
             'due_at' => ['nullable', 'date'],
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
         ];
     }
 }
