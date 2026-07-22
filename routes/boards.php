@@ -12,6 +12,7 @@ use App\Http\Controllers\TaskAssigneeController;
 use App\Http\Controllers\TaskConfidentialGrantController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskDependencyController;
+use App\Http\Controllers\TaskLinkController;
 use App\Http\Controllers\TaskRelationController;
 use App\Http\Controllers\TimeEntryController;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('boards/{board}/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::patch('tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+    Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
     Route::get('tasks/{task}/activity', [TaskController::class, 'activity'])->name('tasks.activity');
     Route::get('tasks/{task}/detail', [TaskController::class, 'detail'])->name('tasks.detail');
@@ -61,6 +63,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('checklists/{checklist}/items', [ChecklistController::class, 'storeItem'])->name('checklist-items.store');
     Route::patch('checklist-items/{item}', [ChecklistController::class, 'updateItem'])->name('checklist-items.update');
     Route::delete('checklist-items/{item}', [ChecklistController::class, 'destroyItem'])->name('checklist-items.destroy');
+
+    Route::post('tasks/{task}/links', [TaskLinkController::class, 'store'])->name('task-links.store');
+    Route::delete('task-links/{link}', [TaskLinkController::class, 'destroy'])->name('task-links.destroy');
 
     Route::post('tasks/{task}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
     Route::get('attachments/{attachment}', [AttachmentController::class, 'download'])->name('attachments.download');
