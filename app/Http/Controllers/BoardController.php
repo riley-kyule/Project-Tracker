@@ -86,6 +86,13 @@ class BoardController extends Controller
                 ->get(['id', 'name'])
                 ->filter(fn (User $user) => Gate::forUser($user)->allows('view', $board))
                 ->values(),
+            // Deliberately not board-scoped: adding someone as a task collaborator
+            // is how a person outside this board's department gets access at all,
+            // so the picker for that action needs to offer every active user.
+            'allMembers' => User::query()
+                ->where('status', User::STATUS_ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'labels' => Label::query()->orderBy('name')->get(),
             'can' => [
                 'manage' => $request->user()->can('manage', $board),
