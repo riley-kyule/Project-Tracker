@@ -68,6 +68,18 @@ class Project extends Model
         return $this->belongsToMany(Website::class, 'project_website');
     }
 
+    /** Additional people beyond the primary owner_id. */
+    public function members(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'project_members');
+    }
+
+    /** Additional departments beyond the single, primary department_id. */
+    public function departments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'project_department');
+    }
+
     public function isAtRisk(): bool
     {
         return $this->health_status !== 'on_track'
