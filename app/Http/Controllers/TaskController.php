@@ -73,6 +73,11 @@ class TaskController extends Controller
         }
 
         $previousAssignee = $task->primary_assignee_id;
+        // Reaching 100% must count as completed everywhere (dashboards key off
+        // completed_at, not progress_percentage) — route it through TaskMover so
+        // completed_at, the completion column, and recurrence/notifications all
+        // stay in the same place a drag-to-Completed move would put them.
+        $completingByProgress = ($validated['progress_percentage'] ?? null) === 100 && $task->completed_at === null;
 
         DB::transaction(function () use ($request, $task, $validated) {
             $old = $task->only(array_keys($validated));
@@ -93,6 +98,16 @@ class TaskController extends Controller
         });
 
         $task->refresh();
+
+        if ($completingByProgress) {
+            $completionColumn = $task->board->columns()->where('is_completion_column', true)->first();
+
+            if ($completionColumn && $completionColumn->id !== $task->board_column_id) {
+                $position = (int) $completionColumn->tasks()->max('position') + 1;
+                $task = TaskMover::move($task, $completionColumn, $position);
+            }
+        }
+
         TaskAssigneeSync::syncPrimary($task, $previousAssignee);
         $this->notifyAssignee($task, $previousAssignee, $request->user());
 

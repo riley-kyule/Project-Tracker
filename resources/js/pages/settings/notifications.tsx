@@ -25,6 +25,8 @@ const GROUPS: { title: string; types: [string, string][] }[] = [
             ['task_approval_requested', 'You’re asked to review a task'],
             ['task_approval_decided', 'A task you requested approval on is decided'],
             ['recurrence_missed', 'A recurring task is generated late'],
+            ['task_completed_ceo', 'Any task across the company is completed (CEO only)'],
+            ['task_completed_department', 'A task in your department is completed (department heads only)'],
         ],
     },
     {

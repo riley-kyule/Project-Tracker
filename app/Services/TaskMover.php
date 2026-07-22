@@ -53,6 +53,11 @@ class TaskMover
                 'position' => $position,
                 'completed_at' => $target->is_completion_column ? ($task->completed_at ?? now()) : null,
                 'archived_at' => $target->is_archive_column ? ($task->archived_at ?? now()) : null,
+                // Keep the two "is this done" signals in sync — a task landing in the
+                // completion column must read as 100% everywhere that checks progress
+                // instead of only via completed_at (dashboards vs. board card disagreed
+                // otherwise: see DashboardController's overdue queries).
+                'progress_percentage' => $target->is_completion_column ? 100 : $task->progress_percentage,
             ])->save();
 
             if ($fromColumnId !== $target->id) {
@@ -64,6 +69,7 @@ class TaskMover
 
         if ($newlyCompleted) {
             RecurrenceService::generateFromCompletion($task);
+            TaskCompletionNotifier::notify($task);
         }
 
         if ($enteringBlocked && $task->assignee?->wantsNotification('task_blocked')) {
