@@ -11,6 +11,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useForm } from '@inertiajs/react';
 import { Calendar, Lock, Star } from 'lucide-react';
 
+
 export type Member = { id: number; name: string };
 export type LabelOption = { id: number; name: string; color: string };
 export type Can = { manage: boolean; createTask: boolean; flagCeoPriority: boolean };
@@ -141,6 +142,7 @@ export function TaskCard({
 export function TaskDialog({
     task,
     members,
+    allMembers,
     labels,
     can,
     boardTasks,
@@ -148,6 +150,7 @@ export function TaskDialog({
 }: {
     task: BoardTask;
     members: Member[];
+    allMembers: Member[];
     labels: LabelOption[];
     can: Can;
     boardTasks: { id: number; title: string; task_number: number }[];
@@ -159,6 +162,9 @@ export function TaskDialog({
         primary_assignee_id: task.assignee?.id.toString() ?? NONE,
         priority: task.priority,
         due_at: task.due_at?.slice(0, 10) ?? '',
+        // Defaults to end of day rather than midnight — a task due "today" with no
+        // explicit time shouldn't read as overdue the instant the clock passes 00:00.
+        due_time: task.due_at && task.due_at.length > 10 ? task.due_at.slice(11, 16) : '23:59',
         progress_percentage: task.progress_percentage,
         ceo_priority: task.ceo_priority,
         label_ids: task.labels.map((label) => label.id),
@@ -169,7 +175,7 @@ export function TaskDialog({
         transform((form) => ({
             ...form,
             primary_assignee_id: form.primary_assignee_id === NONE ? null : Number(form.primary_assignee_id),
-            due_at: form.due_at === '' ? null : form.due_at,
+            due_at: form.due_at === '' ? null : `${form.due_at}T${form.due_time || '23:59'}`,
         }));
         patch(`/tasks/${task.id}`, { preserveScroll: true, onSuccess: onClose });
     };
@@ -243,17 +249,45 @@ export function TaskDialog({
                             <InputError message={errors.due_at} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="task-progress">Progress: {data.progress_percentage}%</Label>
-                            <input
-                                id="task-progress"
-                                type="range"
-                                min={0}
-                                max={100}
-                                step={5}
-                                value={data.progress_percentage}
-                                onChange={(e) => setData('progress_percentage', Number(e.target.value))}
-                                className="accent-brand-600"
+                            <Label htmlFor="task-due-time">Due time</Label>
+                            <Input
+                                id="task-due-time"
+                                type="time"
+                                value={data.due_time}
+                                disabled={data.due_at === ''}
+                                onChange={(e) => setData('due_time', e.target.value)}
                             />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="task-progress">Progress</Label>
+                            {data.progress_percentage === 100 ? (
+                                <div className="flex items-center gap-2">
+                                    <Button type="submit" size="sm" disabled={processing} className="w-fit">
+                                        Mark as Completed
+                                    </Button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setData('progress_percentage', 90)}
+                                        className="text-muted-foreground text-xs hover:underline"
+                                    >
+                                        Not done yet?
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        id="task-progress"
+                                        type="range"
+                                        min={0}
+                                        max={100}
+                                        step={5}
+                                        value={data.progress_percentage}
+                                        onChange={(e) => setData('progress_percentage', Number(e.target.value))}
+                                        className="accent-brand-600"
+                                    />
+                                    <span className="text-muted-foreground text-xs">{data.progress_percentage}%</span>
+                                </>
+                            )}
                             <InputError message={errors.progress_percentage} />
                         </div>
                     </div>
@@ -290,7 +324,13 @@ export function TaskDialog({
                     </Button>
                 </form>
                 <div className="border-t pt-4">
-                    <TaskCollaboration taskId={task.id} members={members} boardTasks={boardTasks} />
+                    <TaskCollaboration
+                        taskId={task.id}
+                        members={members}
+                        allMembers={allMembers}
+                        boardTasks={boardTasks}
+                        onDeleted={onClose}
+                    />
                 </div>
             </DialogContent>
         </Dialog>
