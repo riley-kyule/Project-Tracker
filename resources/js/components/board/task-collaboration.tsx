@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type SharedData } from '@/types';
-import { router, usePage } from '@inertiajs/react';
-import { Download, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 type Reply = {
     id: number;
@@ -36,6 +37,13 @@ type AttachmentNode = {
     size_bytes: number;
     uploader: Member;
     created_at: string;
+};
+
+type LinkNode = {
+    id: number;
+    url: string;
+    label: string | null;
+    creator: Member;
 };
 
 type ActivityNode = {
@@ -95,9 +103,14 @@ type ApprovalNode = {
 type AssigneeNode = Member & { assignment_type: 'assignee' | 'collaborator' | 'reviewer' | 'watcher' };
 
 type Detail = {
+    canDelete: boolean;
     comments: CommentNode[];
     checklists: ChecklistNode[];
     canEditChecklist: boolean;
+    links: LinkNode[];
+    canEditLinks: boolean;
+    project: { id: number; name: string } | null;
+    projectOptions: { id: number; name: string }[];
     attachments: AttachmentNode[];
     dependencies: DependencyNode[];
     blocking: BlockingNode[];
@@ -118,9 +131,14 @@ type Detail = {
 };
 
 const emptyDetail: Detail = {
+    canDelete: false,
     comments: [],
     checklists: [],
     canEditChecklist: false,
+    links: [],
+    canEditLinks: false,
+    project: null,
+    projectOptions: [],
     attachments: [],
     dependencies: [],
     blocking: [],
@@ -177,11 +195,15 @@ function formatBytes(bytes: number) {
 export function TaskCollaboration({
     taskId,
     members,
+    allMembers,
     boardTasks,
+    onDeleted,
 }: {
     taskId: number;
     members: Member[];
+    allMembers: Member[];
     boardTasks: { id: number; title: string; task_number: number }[];
+    onDeleted: () => void;
 }) {
     const { auth } = usePage<SharedData>().props;
     const [detail, setDetail] = useState<Detail>(emptyDetail);
@@ -191,6 +213,8 @@ export function TaskCollaboration({
     const [mentionIds, setMentionIds] = useState<number[]>([]);
     const [showMentions, setShowMentions] = useState(false);
     const [checklistName, setChecklistName] = useState('');
+    const [newLinkUrl, setNewLinkUrl] = useState('');
+    const [newLinkLabel, setNewLinkLabel] = useState('');
     const [itemTitles, setItemTitles] = useState<Record<number, string>>({});
     const [editingItemId, setEditingItemId] = useState<number | null>(null);
     const [editingItemTitle, setEditingItemTitle] = useState('');
@@ -225,6 +249,10 @@ export function TaskCollaboration({
 
     useEffect(reload, [reload]);
 
+    const showError = (errors: Record<string, string>) => {
+        toast.error(Object.values(errors)[0] ?? 'That action failed.');
+    };
+
     const post = (url: string, data: Parameters<typeof router.post>[1], done?: () => void) => {
         router.post(url, data, {
             preserveScroll: true,
@@ -233,11 +261,12 @@ export function TaskCollaboration({
                 reload();
                 done?.();
             },
+            onError: showError,
         });
     };
 
     const destroy = (url: string) => {
-        router.delete(url, { preserveScroll: true, preserveState: true, onSuccess: reload });
+        router.delete(url, { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError });
     };
 
     const submitComment = (e: React.FormEvent) => {
@@ -312,7 +341,7 @@ export function TaskCollaboration({
                                                 router.patch(
                                                     `/checklist-items/${item.id}`,
                                                     { is_completed: checked === true },
-                                                    { preserveScroll: true, preserveState: true, onSuccess: reload },
+                                                    { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
                                                 )
                                             }
                                         />
@@ -333,6 +362,7 @@ export function TaskCollaboration({
                                                                 setEditingItemId(null);
                                                                 reload();
                                                             },
+                                                            onError: showError,
                                                         },
                                                     );
                                                 }}
@@ -414,9 +444,13 @@ export function TaskCollaboration({
 
             {/* People */}
             <section>
-                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
                     <Users className="size-4" /> People
                 </h3>
+                <p className="text-muted-foreground mb-2 text-xs">
+                    Anyone can be added, including people outside this board's department — adding them here is what gives them access to this
+                    task specifically.
+                </p>
                 <ul className="mb-2 space-y-1.5">
                     {detail.assignees
                         .filter((person) => person.assignment_type !== 'assignee')
@@ -444,7 +478,7 @@ export function TaskCollaboration({
                             <SelectValue placeholder="Add a person…" />
                         </SelectTrigger>
                         <SelectContent>
-                            {members
+                            {allMembers
                                 .filter((member) => !detail.assignees.some((person) => person.id === member.id))
                                 .map((member) => (
                                     <SelectItem key={member.id} value={member.id.toString()}>
@@ -492,7 +526,7 @@ export function TaskCollaboration({
                                 router.patch(
                                     `/tasks/${taskId}`,
                                     { confidentiality: value },
-                                    { preserveScroll: true, preserveState: true, onSuccess: reload },
+                                    { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
                                 )
                             }
                         >
@@ -682,6 +716,63 @@ export function TaskCollaboration({
                         Add
                     </Button>
                 </div>
+            </section>
+
+            {/* Project */}
+            <section>
+                <h3 className="mb-2 text-sm font-semibold">Project</h3>
+                {detail.project ? (
+                    <div className="flex items-center gap-2 text-sm">
+                        <Link href={`/projects/${detail.project.id}`} className="text-brand-600 dark:text-brand-400 hover:underline">
+                            {detail.project.name}
+                        </Link>
+                        {detail.canEditLinks && (
+                            <button
+                                type="button"
+                                aria-label="Unlink project"
+                                onClick={() =>
+                                    router.patch(
+                                        `/tasks/${taskId}`,
+                                        { project_id: null },
+                                        { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
+                                    )
+                                }
+                                className="text-muted-foreground hover:text-destructive ml-auto"
+                            >
+                                <X className="size-3.5" />
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <p className="text-muted-foreground text-sm">Not linked to a project.</p>
+                )}
+                {detail.canEditLinks && (
+                    <div className="mt-2 flex gap-2">
+                        <Select
+                            value={NO_DEPENDENCY}
+                            onValueChange={(value) =>
+                                router.patch(
+                                    `/tasks/${taskId}`,
+                                    { project_id: Number(value) },
+                                    { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
+                                )
+                            }
+                        >
+                            <SelectTrigger className="h-8 flex-1 text-sm">
+                                <SelectValue placeholder={detail.project ? 'Change project…' : 'Link a project…'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {detail.projectOptions
+                                    .filter((project) => project.id !== detail.project?.id)
+                                    .map((project) => (
+                                        <SelectItem key={project.id} value={project.id.toString()}>
+                                            {project.name}
+                                        </SelectItem>
+                                    ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
             </section>
 
             {/* Recurrence */}
@@ -1008,6 +1099,7 @@ export function TaskCollaboration({
                                 preserveScroll: true,
                                 preserveState: true,
                                 onSuccess: reload,
+                                onError: showError,
                                 onFinish: () => {
                                     if (fileInput.current) fileInput.current.value = '';
                                 },
@@ -1018,6 +1110,68 @@ export function TaskCollaboration({
                 <Button type="button" size="sm" variant="secondary" className="mt-2" onClick={() => fileInput.current?.click()}>
                     <Download className="mr-1 size-4 rotate-180" /> Upload file
                 </Button>
+            </section>
+
+            {/* Links */}
+            <section>
+                <h3 className="mb-2 text-sm font-semibold">Links</h3>
+                <ul className="space-y-1.5">
+                    {detail.links.map((link) => (
+                        <li key={link.id} className="flex items-center gap-2 text-sm">
+                            <ExternalLink className="text-muted-foreground size-3.5 shrink-0" />
+                            <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-brand-600 dark:text-brand-400 truncate hover:underline"
+                            >
+                                {link.label || link.url}
+                            </a>
+                            <span className="text-muted-foreground text-xs">{link.creator.name}</span>
+                            {detail.canEditLinks && (
+                                <button
+                                    type="button"
+                                    aria-label={`Delete ${link.label || link.url}`}
+                                    onClick={() => destroy(`/task-links/${link.id}`)}
+                                    className="text-muted-foreground hover:text-destructive ml-auto"
+                                >
+                                    <Trash2 className="size-3.5" />
+                                </button>
+                            )}
+                        </li>
+                    ))}
+                    {detail.links.length === 0 && <li className="text-muted-foreground text-sm">No links yet.</li>}
+                </ul>
+                {detail.canEditLinks && (
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            const url = newLinkUrl.trim();
+                            if (!url) return;
+                            post(`/tasks/${taskId}/links`, { url, label: newLinkLabel.trim() || null }, () => {
+                                setNewLinkUrl('');
+                                setNewLinkLabel('');
+                            });
+                        }}
+                        className="mt-2 flex gap-2"
+                    >
+                        <Input
+                            placeholder="https://…"
+                            value={newLinkUrl}
+                            onChange={(e) => setNewLinkUrl(e.target.value)}
+                            className="h-8 flex-1 text-sm"
+                        />
+                        <Input
+                            placeholder="Label (optional)"
+                            value={newLinkLabel}
+                            onChange={(e) => setNewLinkLabel(e.target.value)}
+                            className="h-8 flex-1 text-sm"
+                        />
+                        <Button type="submit" size="sm" variant="secondary">
+                            Add
+                        </Button>
+                    </form>
+                )}
             </section>
 
             {/* Comments */}
@@ -1129,6 +1283,24 @@ export function TaskCollaboration({
                     {detail.activity.length === 0 && <li className="text-muted-foreground text-xs">No activity recorded yet.</li>}
                 </ul>
             </section>
+
+            {/* Danger zone */}
+            {detail.canDelete && (
+                <section className="border-destructive/30 rounded-lg border p-3">
+                    <h3 className="text-destructive mb-2 text-sm font-semibold">Danger zone</h3>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                            if (!confirm('Delete this task permanently? This cannot be undone.')) return;
+                            router.delete(`/tasks/${taskId}`, { onSuccess: onDeleted, onError: showError });
+                        }}
+                    >
+                        <Trash2 className="mr-1 size-3.5" /> Delete task
+                    </Button>
+                </section>
+            )}
         </div>
     );
 }
