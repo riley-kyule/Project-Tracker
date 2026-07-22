@@ -46,4 +46,12 @@ return [
         ))),
     ],
 
+    // Exotic Push Engine — per-user browser push. Left blank, PushNotifier
+    // no-ops until both are set (same "unavailable until configured" pattern
+    // as the Ahrefs/CRM analytics sources).
+    'epe' => [
+        'api_url' => env('EPE_API_URL'),
+        'site_key' => env('EPE_SITE_KEY'),
+    ],
+
 ];

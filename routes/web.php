@@ -19,3 +19,4 @@ require __DIR__.'/tickets.php';
 require __DIR__.'/projects.php';
 require __DIR__.'/marketing.php';
 require __DIR__.'/reports.php';
+require __DIR__.'/push.php';

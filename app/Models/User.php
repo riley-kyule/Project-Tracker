@@ -38,6 +38,7 @@ class User extends Authenticatable
         'status',
         'timezone',
         'notification_preferences',
+        'epe_subscriber_id',
     ];
 
     /**
