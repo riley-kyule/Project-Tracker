@@ -55,7 +55,21 @@ function overdue(task: BoardTask) {
     return task.due_at !== null && new Date(task.due_at) < new Date() && task.progress_percentage < 100;
 }
 
-export function TaskCard({ task, onOpen, overlay = false }: { task: BoardTask; onOpen?: (task: BoardTask) => void; overlay?: boolean }) {
+export type ColumnOption = { id: number; name: string };
+
+export function TaskCard({
+    task,
+    onOpen,
+    columns,
+    onMove,
+    overlay = false,
+}: {
+    task: BoardTask;
+    onOpen?: (task: BoardTask) => void;
+    columns?: ColumnOption[];
+    onMove?: (taskId: number, columnId: number) => void;
+    overlay?: boolean;
+}) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, disabled: overlay });
 
     return (
@@ -78,6 +92,22 @@ export function TaskCard({ task, onOpen, overlay = false }: { task: BoardTask; o
                     {task.ceo_priority && <Star className="size-4 fill-amber-400 text-amber-400" aria-label="CEO priority" />}
                 </span>
             </div>
+            {columns && onMove && (
+                <div className="mt-2" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                    <Select value={task.board_column_id.toString()} onValueChange={(value) => onMove(task.id, Number(value))}>
+                        <SelectTrigger className="h-7 text-xs" aria-label="Move to column">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {columns.map((column) => (
+                                <SelectItem key={column.id} value={column.id.toString()}>
+                                    {column.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
             {task.labels.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                     {task.labels.map((label) => (

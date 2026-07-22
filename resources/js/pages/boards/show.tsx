@@ -1,4 +1,4 @@
-import { TaskCard, TaskDialog, type BoardTask, type Can, type LabelOption, type Member } from '@/components/board/task-card';
+import { TaskCard, TaskDialog, type BoardTask, type Can, type ColumnOption, type LabelOption, type Member } from '@/components/board/task-card';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -211,6 +211,7 @@ function QuickAdd({ boardId, columnId }: { boardId: number; columnId: number }) 
 
 function BoardColumn({
     column,
+    columnOptions,
     boardId,
     canCreate,
     canManage,
@@ -219,8 +220,10 @@ function BoardColumn({
     onOpenTask,
     onEdit,
     onMove,
+    onMoveTask,
 }: {
     column: Column;
+    columnOptions: ColumnOption[];
     boardId: number;
     canCreate: boolean;
     canManage: boolean;
@@ -229,6 +232,7 @@ function BoardColumn({
     onOpenTask: (task: BoardTask) => void;
     onEdit: (column: Column) => void;
     onMove: (columnId: number, direction: -1 | 1) => void;
+    onMoveTask: (taskId: number, columnId: number) => void;
 }) {
     const { setNodeRef } = useDroppable({ id: `column-${column.id}` });
     const overLimit = column.wip_limit !== null && column.tasks.length > column.wip_limit;
@@ -294,7 +298,7 @@ function BoardColumn({
             <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div ref={setNodeRef} className="flex min-h-16 flex-1 flex-col gap-2 p-2">
                     {column.tasks.map((task) => (
-                        <TaskCard key={task.id} task={task} onOpen={onOpenTask} />
+                        <TaskCard key={task.id} task={task} onOpen={onOpenTask} columns={columnOptions} onMove={onMoveTask} />
                     ))}
                 </div>
             </SortableContext>
@@ -345,6 +349,8 @@ export default function BoardShow({
             })),
         [columns, search, assigneeFilter, priorityFilter],
     );
+
+    const columnOptions: ColumnOption[] = useMemo(() => columns.map((column) => ({ id: column.id, name: column.name })), [columns]);
 
     const findColumn = (taskId: number) => columns.find((column) => column.tasks.some((task) => task.id === taskId));
 
@@ -439,6 +445,28 @@ export default function BoardShow({
         );
     };
 
+    // Picked from the "Move to" dropdown rather than dragged — there's no local
+    // reorder to compute, so just append to the end of the target column (the
+    // backend clamps an oversized position down to the real max anyway).
+    const moveTaskToColumn = (taskId: number, columnId: number) => {
+        const position = 9999;
+
+        router.post(
+            `/tasks/${taskId}/move`,
+            { board_column_id: columnId, position },
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    if (errors.dependencies) {
+                        setBlockedMove({ taskId, columnId, position, message: errors.dependencies });
+                    } else if (errors.approval) {
+                        setApprovalBlockedMessage(errors.approval);
+                    }
+                },
+            },
+        );
+    };
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Boards', href: '/boards' },
         { title: board.name, href: `/boards/${board.id}` },
@@ -510,6 +538,7 @@ export default function BoardShow({
                             <BoardColumn
                                 key={column.id}
                                 column={column}
+                                columnOptions={columnOptions}
                                 boardId={board.id}
                                 canCreate={can.createTask && !filtering}
                                 canManage={can.manage}
@@ -518,6 +547,7 @@ export default function BoardShow({
                                 onOpenTask={setOpenTask}
                                 onEdit={setColumnDialog}
                                 onMove={moveColumn}
+                                onMoveTask={moveTaskToColumn}
                             />
                         ))}
                         {can.manage && (
