@@ -198,12 +198,14 @@ export function TaskCollaboration({
     allMembers,
     boardTasks,
     onDeleted,
+    onChecklistProgressChange,
 }: {
     taskId: number;
     members: Member[];
     allMembers: Member[];
     boardTasks: { id: number; title: string; task_number: number }[];
     onDeleted: () => void;
+    onChecklistProgressChange?: (percentage: number | null, completed: number, total: number) => void;
 }) {
     const { auth } = usePage<SharedData>().props;
     const [detail, setDetail] = useState<Detail>(emptyDetail);
@@ -234,6 +236,13 @@ export function TaskCollaboration({
     const [rejectReason, setRejectReason] = useState('');
     const fileInput = useRef<HTMLInputElement>(null);
 
+    // Kept in a ref rather than a reload() dependency: the parent (TaskDialog)
+    // passes a new inline function on every render it does in response to this
+    // callback, which would otherwise recreate reload() and retrigger its
+    // effect in a loop.
+    const onChecklistProgressChangeRef = useRef(onChecklistProgressChange);
+    onChecklistProgressChangeRef.current = onChecklistProgressChange;
+
     const reload = useCallback(() => {
         fetch(`/tasks/${taskId}/detail`, { headers: { Accept: 'application/json' } })
             .then((response) => {
@@ -243,6 +252,11 @@ export function TaskCollaboration({
             .then((data) => {
                 setDetail(data);
                 setStatus('ready');
+
+                const items: ChecklistItemNode[] = (data.checklists ?? []).flatMap((c: ChecklistNode) => c.items);
+                const total = items.length;
+                const completed = items.filter((item) => item.is_completed).length;
+                onChecklistProgressChangeRef.current?.(total > 0 ? Math.round((completed / total) * 100) : null, completed, total);
             })
             .catch(() => setStatus('error'));
     }, [taskId]);
