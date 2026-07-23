@@ -32,7 +32,7 @@ function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
             <h3 className="mb-3 text-sm font-semibold">{title}</h3>
-            <div className="max-h-64 overflow-y-auto">
+            <div className="max-h-64 overflow-x-auto overflow-y-auto">
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-muted-foreground text-left">

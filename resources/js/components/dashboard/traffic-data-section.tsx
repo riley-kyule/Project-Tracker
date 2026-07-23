@@ -435,7 +435,7 @@ export function TrafficDataSection() {
                         </ChartCard>
 
                         <ChartCard title="Top landing pages">
-                            <div className="max-h-[260px] overflow-y-auto">
+                            <div className="max-h-[260px] overflow-x-auto overflow-y-auto">
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="text-muted-foreground text-left">
@@ -468,7 +468,7 @@ export function TrafficDataSection() {
                     </div>
 
                     <ChartCard title="Top visitor countries">
-                        <div className="max-h-64 overflow-y-auto">
+                        <div className="max-h-64 overflow-x-auto overflow-y-auto">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="text-muted-foreground text-left">

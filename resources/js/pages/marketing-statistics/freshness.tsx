@@ -27,28 +27,30 @@ function SourceCard({ title, source }: { title: string; source: SourceFreshness 
             </div>
             {source.error && <p className="text-muted-foreground mb-2 font-mono text-xs">{source.error}</p>}
             {source.sites.length > 0 && (
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="text-muted-foreground text-left">
-                            <th className="py-1.5 font-medium">Website</th>
-                            <th className="py-1.5 font-medium">Latest data</th>
-                            <th className="py-1.5 text-right font-medium">Days behind</th>
-                            <th className="py-1.5 text-right font-medium">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {source.sites.map((site) => (
-                            <tr key={site.website_id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
-                                <td className="py-1.5">{site.website_id}</td>
-                                <td className="py-1.5">{site.latest_date ?? '—'}</td>
-                                <td className="py-1.5 text-right tabular-nums">{site.days_behind ?? '—'}</td>
-                                <td className="py-1.5 text-right">
-                                    <StatusBadge status={site.status} />
-                                </td>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="text-muted-foreground text-left">
+                                <th className="py-1.5 font-medium">Website</th>
+                                <th className="py-1.5 font-medium">Latest data</th>
+                                <th className="py-1.5 text-right font-medium">Days behind</th>
+                                <th className="py-1.5 text-right font-medium">Status</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {source.sites.map((site) => (
+                                <tr key={site.website_id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                                    <td className="py-1.5">{site.website_id}</td>
+                                    <td className="py-1.5">{site.latest_date ?? '—'}</td>
+                                    <td className="py-1.5 text-right tabular-nums">{site.days_behind ?? '—'}</td>
+                                    <td className="py-1.5 text-right">
+                                        <StatusBadge status={site.status} />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </div>
     );
