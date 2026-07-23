@@ -141,13 +141,16 @@ export function UpdateChecker() {
                     </DialogTrigger>
                 </SidebarMenuItem>
             </SidebarMenu>
-            <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[85vh] max-w-xl flex-col overflow-hidden">
+                <DialogHeader className="shrink-0">
                     <DialogTitle>Check for Updates</DialogTitle>
                     <DialogDescription>Fetches the latest commits on the deploy branch and, if enabled, runs the release sequence.</DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4">
+                {/* Independently scrollable — bounded to whatever space is left between the
+                    header and footer, so long commit lists or deployment logs can never push
+                    the action buttons out of the modal. */}
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-1">
                     {!enabled && (
                         <p className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
                             Self-deploy is disabled on this environment. Updates must be released through the normal deployment pipeline.
@@ -198,7 +201,7 @@ export function UpdateChecker() {
                     )}
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="shrink-0 border-t pt-4">
                     <Button variant="outline" onClick={checkForUpdates} disabled={checking}>
                         Check again
                     </Button>
