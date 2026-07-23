@@ -141,7 +141,7 @@ export function UpdateChecker() {
                     </DialogTrigger>
                 </SidebarMenuItem>
             </SidebarMenu>
-            <DialogContent className="max-w-xl">
+            <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Check for Updates</DialogTitle>
                     <DialogDescription>Fetches the latest commits on the deploy branch and, if enabled, runs the release sequence.</DialogDescription>
