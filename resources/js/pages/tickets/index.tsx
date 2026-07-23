@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,6 +37,7 @@ type TicketRow = {
 };
 
 type Category = { id: number; name: string };
+type Person = { id: number; name: string };
 
 export const statusLabels: Record<TicketStatus, string> = {
     new: 'New',
@@ -72,13 +74,15 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Service Desk', href: '/tickets'
 
 const ALL = 'all';
 
-function NewTicketDialog({ categories }: { categories: Category[] }) {
+function NewTicketDialog({ categories, canCreateForOthers, users }: { categories: Category[]; canCreateForOthers: boolean; users: Person[] }) {
     const [open, setOpen] = useState(false);
+    const [onBehalf, setOnBehalf] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         title: '',
         description: '',
         category_id: '',
         impact: 'medium',
+        requester_id: '',
     });
 
     const submit = (e: React.FormEvent) => {
@@ -86,6 +90,7 @@ function NewTicketDialog({ categories }: { categories: Category[] }) {
         post('/tickets', {
             onSuccess: () => {
                 setOpen(false);
+                setOnBehalf(false);
                 reset();
             },
         });
@@ -103,6 +108,38 @@ function NewTicketDialog({ categories }: { categories: Category[] }) {
                     <DialogTitle>Submit a support ticket</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="space-y-4">
+                    {canCreateForOthers && (
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                    checked={onBehalf}
+                                    onCheckedChange={(checked) => {
+                                        setOnBehalf(checked === true);
+                                        if (checked !== true) setData('requester_id', '');
+                                    }}
+                                />
+                                Raise this for someone else
+                            </label>
+                            {onBehalf && (
+                                <div className="grid gap-2">
+                                    <Label>Requester</Label>
+                                    <Select value={data.requester_id} onValueChange={(value) => setData('requester_id', value)}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Who is this ticket for?" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {users.map((user) => (
+                                                <SelectItem key={user.id} value={user.id.toString()}>
+                                                    {user.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError message={errors.requester_id} />
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="grid gap-2">
                         <Label>Category</Label>
                         <Select value={data.category_id} onValueChange={(value) => setData('category_id', value)}>
@@ -163,11 +200,15 @@ export default function TicketsIndex({
     tickets,
     categories,
     isManager,
+    canCreateForOthers,
+    users,
     filters,
 }: {
     tickets: { data: TicketRow[]; links: { url: string | null; label: string; active: boolean }[] };
     categories: Category[];
     isManager: boolean;
+    canCreateForOthers: boolean;
+    users: Person[];
     filters: { status?: string; priority?: string; assigned?: string };
 }) {
     const applyFilter = (key: string, value: string) => {
@@ -220,7 +261,7 @@ export default function TicketsIndex({
                                 </Select>
                             </>
                         )}
-                        <NewTicketDialog categories={categories} />
+                        <NewTicketDialog categories={categories} canCreateForOthers={canCreateForOthers} users={users} />
                     </div>
                 </div>
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
