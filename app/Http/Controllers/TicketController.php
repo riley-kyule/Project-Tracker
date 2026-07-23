@@ -7,8 +7,8 @@ use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
-use App\Notifications\TicketUpdated;
 use App\Services\AuditLogger;
+use App\Services\TicketNotifier;
 use App\Services\TicketService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +22,7 @@ class TicketController extends Controller
     public function index(Request $request): Response
     {
         $manager = $request->user()->can('tickets.manage');
+        $canCreateForOthers = Gate::allows('createForOthers', Ticket::class);
 
         $tickets = Ticket::query()
             ->with(['requester:id,name', 'assignee:id,name', 'category:id,name'])
@@ -39,6 +40,10 @@ class TicketController extends Controller
             'tickets' => $tickets,
             'categories' => TicketCategory::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'isManager' => $manager,
+            'canCreateForOthers' => $canCreateForOthers,
+            'users' => $canCreateForOthers
+                ? User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])
+                : [],
             'filters' => $request->only(['status', 'priority', 'assigned']),
         ]);
     }
@@ -51,6 +56,7 @@ class TicketController extends Controller
 
         $ticket->load([
             'requester:id,name,email',
+            'submittedBy:id,name',
             'assignee:id,name',
             'category:id,name',
             'department:id,name',
@@ -58,14 +64,31 @@ class TicketController extends Controller
             'statusHistory.changedBy:id,name',
         ]);
 
+        $comments = $ticket->comments()
+            ->whereNull('parent_id')
+            ->when(! $manager, fn ($query) => $query->where('is_internal', false))
+            ->with(['user:id,name', 'replies.user:id,name'])
+            ->oldest()
+            ->get();
+
+        // Annotate each public response with how long it took after the previous one —
+        // the automatic "time between responses" metric, derived at read time rather
+        // than stored, since comments are never edited/deleted in this app.
+        $lastResponseAt = $ticket->assigned_at ?? $ticket->created_at;
+        $comments->each(function ($comment) use (&$lastResponseAt) {
+            if ($comment->is_internal) {
+                $comment->gap_minutes = null;
+
+                return;
+            }
+
+            $comment->gap_minutes = $lastResponseAt?->diffInMinutes($comment->created_at);
+            $lastResponseAt = $comment->created_at;
+        });
+
         return Inertia::render('tickets/show', [
             'ticket' => $ticket,
-            'comments' => $ticket->comments()
-                ->whereNull('parent_id')
-                ->when(! $manager, fn ($query) => $query->where('is_internal', false))
-                ->with(['user:id,name', 'replies.user:id,name'])
-                ->oldest()
-                ->get(),
+            'comments' => $comments,
             'attachments' => $ticket->attachments()->with('uploader:id,name')->latest()->get(),
             'technicians' => $manager
                 ? User::query()->permission('tickets.manage')->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])
@@ -81,6 +104,8 @@ class TicketController extends Controller
                 : [],
             'isManager' => $manager,
             'allowedTransitions' => $manager ? (Ticket::TRANSITIONS[$ticket->status] ?? []) : [],
+            'canDelete' => Gate::allows('delete', $ticket),
+            'canConfirmResolved' => $ticket->status === Ticket::STATUS_CLOSED && $ticket->closed_reason === 'inactivity',
         ]);
     }
 
@@ -93,12 +118,20 @@ class TicketController extends Controller
             'description' => ['required', 'string', 'max:20000'],
             'category_id' => ['required', Rule::exists('ticket_categories', 'id')->where('is_active', true)],
             'impact' => ['required', Rule::in(['low', 'medium', 'high'])],
+            'requester_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         $category = TicketCategory::query()->findOrFail($validated['category_id']);
         $validated['priority'] = $category->default_priority ?? 'medium';
 
-        $ticket = TicketService::submit($request->user(), $validated);
+        $requester = null;
+        if (($validated['requester_id'] ?? null) !== null && Gate::allows('createForOthers', Ticket::class)) {
+            $requester = User::query()->findOrFail($validated['requester_id']);
+            abort_unless($requester->isActive(), 422, 'Requester must be an active user.');
+        }
+        unset($validated['requester_id']);
+
+        $ticket = TicketService::submit($request->user(), $validated, $requester);
 
         return redirect()->route('tickets.show', $ticket);
     }
@@ -218,17 +251,42 @@ class TicketController extends Controller
             'is_internal' => $isInternal,
         ]);
 
-        // A technician's first public reply counts as first response.
-        if ($request->user()->can('tickets.manage') && ! $isInternal && $ticket->first_responded_at === null) {
-            $ticket->forceFill(['first_responded_at' => now()])->save();
+        if (! $isInternal) {
+            // Resets the "waiting on a reply" clock feeding the response-gap SLA (Ticket::last_response_at),
+            // regardless of which side responded.
+            $ticket->forceFill(['last_response_at' => now()]);
+
+            // A technician's first public reply counts as first response.
+            if ($request->user()->can('tickets.manage') && $ticket->first_responded_at === null) {
+                $ticket->forceFill(['first_responded_at' => now()]);
+            }
+
+            $ticket->save();
         }
 
         AuditLogger::log($ticket, $isInternal ? 'internal_note_added' : 'commented', [], ['comment_id' => $comment->id]);
 
-        if (! $isInternal && $request->user()->id !== $ticket->requester_id && $request->user()->can('tickets.manage')
-            && $ticket->requester?->wantsNotification('ticket_updated')) {
-            $ticket->requester->notify(new TicketUpdated($ticket));
+        if (! $isInternal) {
+            TicketNotifier::responded($ticket, $comment, $request->user());
         }
+
+        return back();
+    }
+
+    public function destroy(Ticket $ticket): RedirectResponse
+    {
+        Gate::authorize('delete', $ticket);
+
+        $ticket->delete();
+
+        return redirect()->route('tickets.index')->with('success', 'Ticket deleted.');
+    }
+
+    public function confirmResolved(Request $request, Ticket $ticket): RedirectResponse
+    {
+        Gate::authorize('view', $ticket); // Requester or IT may confirm, same rule as reopen().
+
+        TicketService::confirmResolvedAfterInactivity($ticket, $request->user());
 
         return back();
     }
