@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\CompanySetting;
 use App\Services\Analytics\Contracts\BigQueryRunner;
 use App\Services\Analytics\GoogleBigQueryRunner;
 use Illuminate\Support\ServiceProvider;
@@ -25,5 +26,10 @@ class AppServiceProvider extends ServiceProvider
         Password::defaults(fn () => app()->isProduction()
             ? Password::min(12)->mixedCase()->numbers()->symbols()
             : Password::min(8));
+
+        // DB-stored mail/push credentials (Settings > Integrations) override
+        // .env on every boot — including queued jobs, which only re-read this
+        // when their worker process restarts (hence queue:restart on save).
+        CompanySetting::applyRuntimeConfig();
     }
 }
