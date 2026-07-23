@@ -257,16 +257,14 @@ function BoardColumn({
     };
 
     return (
-        <div className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-[85vw] max-w-72 shrink-0 flex-col rounded-xl border">
-            <div className="flex items-center justify-between gap-1 p-3 pb-1">
+        <div className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-[85vw] max-w-72 shrink-0 flex-col overflow-hidden rounded-xl border">
+            <div className="flex shrink-0 items-center justify-between gap-1 p-3 pb-1">
                 <TooltipProvider>
                     <Tooltip delayDuration={300}>
                         <TooltipTrigger asChild>
                             <span className="text-sm font-semibold">{column.name}</span>
                         </TooltipTrigger>
-                        <TooltipContent>
-                            {SEMANTIC_STATUS_DESCRIPTIONS[column.semantic_status] ?? SEMANTIC_STATUS_DESCRIPTIONS.custom}
-                        </TooltipContent>
+                        <TooltipContent>{SEMANTIC_STATUS_DESCRIPTIONS[column.semantic_status] ?? SEMANTIC_STATUS_DESCRIPTIONS.custom}</TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
                 <span className={`text-xs ${overLimit ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
@@ -314,13 +312,17 @@ function BoardColumn({
                 )}
             </div>
             <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-                <div ref={setNodeRef} className="flex min-h-16 flex-1 flex-col gap-2 p-2">
+                <div ref={setNodeRef} className="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto p-2">
                     {column.tasks.map((task) => (
                         <TaskCard key={task.id} task={task} onOpen={onOpenTask} />
                     ))}
                 </div>
             </SortableContext>
-            {canCreate && <QuickAdd boardId={boardId} columnId={column.id} />}
+            {canCreate && (
+                <div className="shrink-0">
+                    <QuickAdd boardId={boardId} columnId={column.id} />
+                </div>
+            )}
         </div>
     );
 }
@@ -495,7 +497,11 @@ export default function BoardShow({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={board.name} />
-            <div className="flex h-full flex-col gap-3 p-4">
+            {/* The shared sidebar layout only guarantees a *minimum* height (min-h-svh),
+                so without an explicit bound here the board just grows the whole page
+                taller as tasks pile up, instead of fitting the viewport with each
+                column scrolling its own overflow. 4rem matches AppSidebarHeader's h-16. */}
+            <div className="flex h-[calc(100svh-4rem)] flex-col gap-3 overflow-hidden p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
                     <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -553,7 +559,7 @@ export default function BoardShow({
                     onDragOver={filtering ? undefined : handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <div className="flex flex-1 gap-3 overflow-x-auto pb-2">
+                    <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
                         {visibleColumns.map((column, index) => (
                             <BoardColumn
                                 key={column.id}
