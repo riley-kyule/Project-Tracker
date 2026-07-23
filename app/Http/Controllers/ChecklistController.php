@@ -6,6 +6,7 @@ use App\Models\Checklist;
 use App\Models\ChecklistItem;
 use App\Models\Task;
 use App\Services\AuditLogger;
+use App\Services\TaskChecklistProgress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -35,6 +36,7 @@ class ChecklistController extends Controller
         $old = $checklist->only(['id', 'name']);
         $checklist->delete();
         AuditLogger::log($task, 'checklist_removed', $old, []);
+        TaskChecklistProgress::sync($task);
 
         return back();
     }
@@ -50,6 +52,7 @@ class ChecklistController extends Controller
             'position' => (int) $checklist->items()->max('position') + 1,
         ]);
         AuditLogger::log($checklist->task, 'checklist_item_created', [], ['item_id' => $item->id, 'title' => $item->title]);
+        TaskChecklistProgress::sync($checklist->task);
 
         return back();
     }
@@ -72,6 +75,10 @@ class ChecklistController extends Controller
         $item->update($validated);
         AuditLogger::log($item->checklist->task, 'checklist_item_updated', $old, $item->only(array_keys($validated)));
 
+        if (array_key_exists('is_completed', $validated)) {
+            TaskChecklistProgress::sync($item->checklist->task);
+        }
+
         return back();
     }
 
@@ -83,6 +90,7 @@ class ChecklistController extends Controller
         $old = $item->only(['id', 'title']);
         $item->delete();
         AuditLogger::log($task, 'checklist_item_removed', $old, []);
+        TaskChecklistProgress::sync($task);
 
         return back();
     }
