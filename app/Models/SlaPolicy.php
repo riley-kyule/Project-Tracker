@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SlaPolicy extends Model
 {
-    protected $fillable = ['priority', 'first_response_minutes', 'resolution_minutes', 'business_hours_only', 'is_active'];
+    protected $fillable = ['priority', 'first_response_minutes', 'resolution_minutes', 'response_gap_minutes', 'business_hours_only', 'is_active'];
 
     protected function casts(): array
     {

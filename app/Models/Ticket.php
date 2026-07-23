@@ -59,6 +59,7 @@ class Ticket extends Model
         'title',
         'description',
         'requester_id',
+        'created_by',
         'department_id',
         'assigned_to',
         'category_id',
@@ -80,6 +81,8 @@ class Ticket extends Model
         return [
             'first_responded_at' => 'datetime',
             'due_at' => 'datetime',
+            'assigned_at' => 'datetime',
+            'last_response_at' => 'datetime',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
@@ -88,6 +91,12 @@ class Ticket extends Model
     public function requester(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requester_id');
+    }
+
+    /** Who actually filed the ticket — differs from requester() when IT raises it on someone's behalf. */
+    public function submittedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function assignee(): BelongsTo
