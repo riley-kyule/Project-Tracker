@@ -104,12 +104,7 @@ class TaskController extends Controller
         $task->refresh();
 
         if ($completingByProgress) {
-            $completionColumn = $task->board->columns()->where('is_completion_column', true)->first();
-
-            if ($completionColumn && $completionColumn->id !== $task->board_column_id) {
-                $position = (int) $completionColumn->tasks()->max('position') + 1;
-                $task = TaskMover::move($task, $completionColumn, $position);
-            }
+            $task = TaskMover::moveToCompletionColumnIfReady($task);
         }
 
         TaskAssigneeSync::syncPrimary($task, $previousAssignee);
