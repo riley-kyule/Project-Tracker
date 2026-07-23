@@ -32,6 +32,8 @@ export type BoardTask = {
     assignee: Member | null;
     labels: LabelOption[];
     unresolved_dependencies_count?: number;
+    checklist_items_count?: number;
+    completed_checklist_items_count?: number;
 };
 
 const priorityStyles: Record<BoardTask['priority'], string> = {
@@ -260,7 +262,17 @@ export function TaskDialog({
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="task-progress">Progress</Label>
-                            {data.progress_percentage === 100 ? (
+                            {(task.checklist_items_count ?? 0) > 0 ? (
+                                <>
+                                    <div className="bg-secondary h-2 w-full overflow-hidden rounded-full">
+                                        <div className="bg-brand-600 h-full" style={{ width: `${data.progress_percentage}%` }} />
+                                    </div>
+                                    <span className="text-muted-foreground text-xs">
+                                        {data.progress_percentage}% — {task.completed_checklist_items_count ?? 0} of {task.checklist_items_count}{' '}
+                                        checklist items done
+                                    </span>
+                                </>
+                            ) : data.progress_percentage === 100 ? (
                                 <div className="flex items-center gap-2">
                                     <Button type="submit" size="sm" disabled={processing} className="w-fit">
                                         Mark as Completed
