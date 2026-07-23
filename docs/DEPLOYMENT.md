@@ -54,10 +54,15 @@ Manual redeploy on a host running this stack:
 git pull origin main
 docker compose build
 docker compose up -d
+docker compose exec app composer install --no-dev --classmap-authoritative --no-interaction
+docker compose exec app npm ci
+docker compose exec app npm run build
 docker compose exec app php artisan migrate --force
 docker compose exec app php artisan optimize
 docker compose restart queue scheduler
 ```
+
+The `composer install`/`npm ci`/`npm run build` steps are not optional here, even though this looks redundant with what `entrypoint.sh` does on container start. `entrypoint.sh` only installs those on a container's *first ever* boot (guarded by `vendor/autoload.php`/`public/build/manifest.json` already existing) — on every later `git pull`, that guard means neither one reruns automatically, so a manual redeploy that skips these two steps silently leaves the old Composer classmap and the old JS bundle in place: new PHP classes 500 with "Class ... not found", and new frontend code never reaches the browser no matter how many times it's hard-refreshed. `App\Jobs\DeployLatestRelease` (the in-app "Deploy now" button) already runs both unconditionally on every deploy for exactly this reason — this manual path must match it.
 
 `docker/entrypoint.sh` installs `vendor/` and `public/build/` on first boot if they're missing (both are gitignored, so a fresh checkout won't have them) — a `flock` around that section stops `app`/`queue`/`scheduler` from racing each other since they all share the same bind-mounted code and can start concurrently.
 
