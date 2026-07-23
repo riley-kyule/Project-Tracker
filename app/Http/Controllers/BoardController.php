@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Boards\BoardRequest;
 use App\Models\Board;
+use App\Models\BoardColumn;
 use App\Models\Department;
 use App\Models\Label;
 use App\Models\Task;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -70,10 +72,20 @@ class BoardController extends Controller
 
         // Confidential tasks the viewer has no explicit access to must not
         // appear as cards at all, not just be blocked at the detail endpoint.
-        $board->columns->each(fn ($column) => $column->setRelation(
-            'tasks',
-            $column->tasks->filter(fn (Task $task) => Gate::forUser($request->user())->allows('view', $task))->values(),
-        ));
+        // Display order is date-driven rather than the manual drag position:
+        // completion/archive columns read newest-first (most recently
+        // finished at the top), everything else reads soonest-due-first.
+        $board->columns->each(function (BoardColumn $column) use ($request) {
+            $visible = $column->tasks->filter(fn (Task $task) => Gate::forUser($request->user())->allows('view', $task));
+
+            $sorted = match (true) {
+                $column->is_completion_column => $visible->sortByDesc(fn (Task $task) => $task->completed_at ?? $task->created_at),
+                $column->is_archive_column => $visible->sortByDesc(fn (Task $task) => $task->archived_at ?? $task->created_at),
+                default => $visible->sortBy(fn (Task $task) => $task->due_at ?? Carbon::create(9999, 12, 31)),
+            };
+
+            $column->setRelation('tasks', $sorted->values());
+        });
 
         return Inertia::render('boards/show', [
             'board' => $board,
