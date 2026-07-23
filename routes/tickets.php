@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\SlaPolicyController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
@@ -26,7 +27,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('tickets/{ticket}/transition', [TicketController::class, 'transition'])->name('tickets.transition');
     Route::post('tickets/{ticket}/resolve', [TicketController::class, 'resolve'])->name('tickets.resolve');
     Route::post('tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->name('tickets.reopen');
+    Route::post('tickets/{ticket}/confirm-resolved', [TicketController::class, 'confirmResolved'])->name('tickets.confirm-resolved');
     Route::post('tickets/{ticket}/convert-to-task', [TicketController::class, 'convertToTask'])->name('tickets.convert');
     Route::post('tickets/{ticket}/comments', [TicketController::class, 'comment'])->name('tickets.comments.store');
     Route::post('tickets/{ticket}/attachments', [AttachmentController::class, 'storeForTicket'])->name('tickets.attachments.store');
+    Route::delete('tickets/{ticket}', [TicketController::class, 'destroy'])->name('tickets.destroy');
+
+    Route::get('admin/sla-policies', [SlaPolicyController::class, 'index'])->name('admin.sla-policies.index');
+    Route::patch('admin/sla-policies/{slaPolicy}', [SlaPolicyController::class, 'update'])->name('admin.sla-policies.update');
 });
