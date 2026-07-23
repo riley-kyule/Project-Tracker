@@ -56,9 +56,13 @@ class BoardController extends Controller
             'columns',
             'columns.tasks' => fn ($query) => $query
                 ->with(['assignee:id,name', 'labels:id,name,color'])
-                ->withCount(['dependencies as unresolved_dependencies_count' => fn ($q) => $q
-                    ->whereNull('overridden_at')
-                    ->whereHas('predecessor', fn ($qq) => $qq->whereNull('completed_at'))]),
+                ->withCount([
+                    'dependencies as unresolved_dependencies_count' => fn ($q) => $q
+                        ->whereNull('overridden_at')
+                        ->whereHas('predecessor', fn ($qq) => $qq->whereNull('completed_at')),
+                    'checklistItems as checklist_items_count',
+                    'checklistItems as completed_checklist_items_count' => fn ($q) => $q->where('is_completed', true),
+                ]),
             // No archived_at exclusion here: a task's board_column_id only ever
             // points at the archive column once archived_at is set, so this lets
             // archived cards show up there instead of vanishing everywhere.
