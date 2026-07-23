@@ -64,7 +64,12 @@ export default function ItDashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="IT Dashboard" />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">IT Dashboard</h1>
+                <div className="flex items-center justify-between">
+                    <h1 className="text-xl font-semibold">IT Dashboard</h1>
+                    <Link href="/admin/sla-policies" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
+                        Configure SLAs
+                    </Link>
+                </div>
 
                 <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
                     <StatCard label="New" value={counts.new} alert={counts.new > 0} />

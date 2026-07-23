@@ -16,6 +16,7 @@ import {
     LifeBuoy,
     LineChart,
     ListTodo,
+    Sliders,
     Tag,
     Users,
     UsersRound,
@@ -58,6 +59,7 @@ export function AppSidebar() {
             ? [{ title: 'Marketing Statistics', url: '/marketing-statistics', icon: LineChart }]
             : []),
         ...(auth.permissions.includes('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
+        ...(auth.permissions.includes('tickets.manage') ? [{ title: 'SLA Policies', url: '/admin/sla-policies', icon: Sliders }] : []),
         ...(auth.permissions.includes('registry.manage') ? [{ title: 'Websites', url: '/admin/websites', icon: Globe }] : []),
         ...(auth.permissions.includes('departments.view') ? [{ title: 'Departments', url: '/admin/departments', icon: Building2 }] : []),
         ...(auth.permissions.includes('labels.manage') ? [{ title: 'Labels', url: '/admin/labels', icon: Tag }] : []),
