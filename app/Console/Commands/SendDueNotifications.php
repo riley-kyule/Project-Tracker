@@ -8,6 +8,7 @@ use App\Models\Ticket;
 use App\Notifications\TaskDue;
 use App\Notifications\TicketOverdue;
 use App\Notifications\TicketResponseOverdue;
+use App\Services\TicketService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -25,6 +26,7 @@ class SendDueNotifications extends Command
         $sentTasks = 0;
         $sentTickets = 0;
         $sentResponseAlerts = 0;
+        $closedForInactivity = 0;
 
         Task::query()
             ->whereNotNull('due_at')
@@ -88,7 +90,28 @@ class SendDueNotifications extends Command
                 $sentResponseAlerts++;
             });
 
-        $this->info("Sent {$sentTasks} task, {$sentTickets} ticket overdue, and {$sentResponseAlerts} ticket response SLA notifications.");
+        // Inactivity auto-close: a ticket sitting in waiting_user for longer than its
+        // priority's response_gap_minutes means the requester never replied — close it
+        // automatically rather than leaving it stuck forever.
+        Ticket::query()
+            ->where('status', Ticket::STATUS_WAITING_USER)
+            ->each(function (Ticket $ticket) use ($slaPolicies, &$closedForInactivity) {
+                $policy = $slaPolicies->get($ticket->priority);
+                $waitingSince = $ticket->last_response_at ?? $ticket->assigned_at;
+
+                if (! $policy || ! $policy->response_gap_minutes || ! $waitingSince
+                    || $waitingSince->copy()->addMinutes($policy->response_gap_minutes)->isFuture()) {
+                    return;
+                }
+
+                TicketService::closeForInactivity($ticket);
+                $closedForInactivity++;
+            });
+
+        $this->info(
+            "Sent {$sentTasks} task, {$sentTickets} ticket overdue, and {$sentResponseAlerts} ticket response SLA notifications. ".
+            "Closed {$closedForInactivity} ticket(s) for inactivity.",
+        );
 
         return self::SUCCESS;
     }
