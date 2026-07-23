@@ -224,7 +224,6 @@ function QuickAdd({ boardId, columnId }: { boardId: number; columnId: number }) 
 
 function BoardColumn({
     column,
-    columnOptions,
     boardId,
     canCreate,
     canManage,
@@ -233,10 +232,8 @@ function BoardColumn({
     onOpenTask,
     onEdit,
     onMove,
-    onMoveTask,
 }: {
     column: Column;
-    columnOptions: ColumnOption[];
     boardId: number;
     canCreate: boolean;
     canManage: boolean;
@@ -245,7 +242,6 @@ function BoardColumn({
     onOpenTask: (task: BoardTask) => void;
     onEdit: (column: Column) => void;
     onMove: (columnId: number, direction: -1 | 1) => void;
-    onMoveTask: (taskId: number, columnId: number) => void;
 }) {
     const { setNodeRef } = useDroppable({ id: `column-${column.id}` });
     const overLimit = column.wip_limit !== null && column.tasks.length > column.wip_limit;
@@ -320,7 +316,7 @@ function BoardColumn({
             <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div ref={setNodeRef} className="flex min-h-16 flex-1 flex-col gap-2 p-2">
                     {column.tasks.map((task) => (
-                        <TaskCard key={task.id} task={task} onOpen={onOpenTask} columns={columnOptions} onMove={onMoveTask} />
+                        <TaskCard key={task.id} task={task} onOpen={onOpenTask} />
                     ))}
                 </div>
             </SortableContext>
@@ -562,7 +558,6 @@ export default function BoardShow({
                             <BoardColumn
                                 key={column.id}
                                 column={column}
-                                columnOptions={columnOptions}
                                 boardId={board.id}
                                 canCreate={can.createTask && !filtering}
                                 canManage={can.manage}
@@ -571,7 +566,6 @@ export default function BoardShow({
                                 onOpenTask={setOpenTask}
                                 onEdit={setColumnDialog}
                                 onMove={moveColumn}
-                                onMoveTask={moveTaskToColumn}
                             />
                         ))}
                         {can.manage && (
@@ -595,6 +589,8 @@ export default function BoardShow({
                     labels={labels}
                     can={can}
                     boardTasks={boardTaskOptions}
+                    columns={columnOptions}
+                    onMove={moveTaskToColumn}
                     onClose={() => setOpenTask(null)}
                 />
             )}
