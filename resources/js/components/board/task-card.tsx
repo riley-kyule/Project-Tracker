@@ -10,7 +10,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useForm } from '@inertiajs/react';
 import { Calendar, Lock, Star } from 'lucide-react';
-
+import { useState } from 'react';
 
 export type Member = { id: number; name: string };
 export type LabelOption = { id: number; name: string; color: string };
@@ -60,19 +60,7 @@ function overdue(task: BoardTask) {
 
 export type ColumnOption = { id: number; name: string };
 
-export function TaskCard({
-    task,
-    onOpen,
-    columns,
-    onMove,
-    overlay = false,
-}: {
-    task: BoardTask;
-    onOpen?: (task: BoardTask) => void;
-    columns?: ColumnOption[];
-    onMove?: (taskId: number, columnId: number) => void;
-    overlay?: boolean;
-}) {
+export function TaskCard({ task, onOpen, overlay = false }: { task: BoardTask; onOpen?: (task: BoardTask) => void; overlay?: boolean }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, disabled: overlay });
 
     return (
@@ -95,22 +83,6 @@ export function TaskCard({
                     {task.ceo_priority && <Star className="size-4 fill-amber-400 text-amber-400" aria-label="CEO priority" />}
                 </span>
             </div>
-            {columns && onMove && (
-                <div className="mt-2" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-                    <Select value={task.board_column_id.toString()} onValueChange={(value) => onMove(task.id, Number(value))}>
-                        <SelectTrigger className="h-7 text-xs" aria-label="Move to column">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {columns.map((column) => (
-                                <SelectItem key={column.id} value={column.id.toString()}>
-                                    {column.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
             {task.labels.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                     {task.labels.map((label) => (
@@ -148,6 +120,8 @@ export function TaskDialog({
     labels,
     can,
     boardTasks,
+    columns,
+    onMove,
     onClose,
 }: {
     task: BoardTask;
@@ -156,8 +130,14 @@ export function TaskDialog({
     labels: LabelOption[];
     can: Can;
     boardTasks: { id: number; title: string; task_number: number }[];
+    columns: ColumnOption[];
+    onMove: (taskId: number, columnId: number) => void;
     onClose: () => void;
 }) {
+    const [checklistCounts, setChecklistCounts] = useState({
+        total: task.checklist_items_count ?? 0,
+        completed: task.completed_checklist_items_count ?? 0,
+    });
     const { data, setData, patch, processing, errors, transform } = useForm({
         title: task.title,
         description: task.description ?? '',
@@ -261,15 +241,29 @@ export function TaskDialog({
                             />
                         </div>
                         <div className="grid gap-2">
+                            <Label>Column</Label>
+                            <Select value={task.board_column_id.toString()} onValueChange={(value) => onMove(task.id, Number(value))}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {columns.map((column) => (
+                                        <SelectItem key={column.id} value={column.id.toString()}>
+                                            {column.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
                             <Label htmlFor="task-progress">Progress</Label>
-                            {(task.checklist_items_count ?? 0) > 0 ? (
+                            {checklistCounts.total > 0 ? (
                                 <>
                                     <div className="bg-secondary h-2 w-full overflow-hidden rounded-full">
                                         <div className="bg-brand-600 h-full" style={{ width: `${data.progress_percentage}%` }} />
                                     </div>
                                     <span className="text-muted-foreground text-xs">
-                                        {data.progress_percentage}% — {task.completed_checklist_items_count ?? 0} of {task.checklist_items_count}{' '}
-                                        checklist items done
+                                        {data.progress_percentage}% — {checklistCounts.completed} of {checklistCounts.total} checklist items done
                                     </span>
                                 </>
                             ) : data.progress_percentage === 100 ? (
@@ -342,6 +336,10 @@ export function TaskDialog({
                         allMembers={allMembers}
                         boardTasks={boardTasks}
                         onDeleted={onClose}
+                        onChecklistProgressChange={(percentage, completed, total) => {
+                            setChecklistCounts({ completed, total });
+                            if (percentage !== null) setData('progress_percentage', percentage);
+                        }}
                     />
                 </div>
             </DialogContent>
