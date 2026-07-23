@@ -7,18 +7,18 @@ use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\User;
-use App\Notifications\TicketAssigned;
-use App\Notifications\TicketSubmitted;
-use App\Notifications\TicketUpdated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class TicketService
 {
-    public static function submit(User $requester, array $data): Ticket
+    /** $requester defaults to the submitter; differs when IT files a ticket on someone else's behalf. */
+    public static function submit(User $submitter, array $data, ?User $requester = null): Ticket
     {
-        $ticket = DB::transaction(function () use ($requester, $data) {
+        $requester ??= $submitter;
+
+        $ticket = DB::transaction(function () use ($submitter, $requester, $data) {
             $priority = $data['priority'] ?? 'medium';
             $sla = SlaPolicy::forPriority($priority);
 
@@ -26,6 +26,7 @@ class TicketService
                 ...$data,
                 'priority' => $priority,
                 'requester_id' => $requester->id,
+                'created_by' => $submitter->id,
                 'department_id' => $requester->department_id,
                 'status' => Ticket::STATUS_NEW,
                 'due_at' => $sla ? now()->addMinutes($sla->resolution_minutes) : null,
@@ -36,18 +37,19 @@ class TicketService
             $ticket->statusHistory()->create([
                 'from_status' => null,
                 'to_status' => Ticket::STATUS_NEW,
-                'changed_by' => $requester->id,
+                'changed_by' => $submitter->id,
                 'created_at' => now(),
             ]);
 
-            AuditLogger::log($ticket, 'created', [], ['title' => $ticket->title]);
+            AuditLogger::log($ticket, 'created', [], [
+                'title' => $ticket->title,
+                'submitted_by' => $submitter->id !== $requester->id ? $submitter->id : null,
+            ]);
 
             return $ticket;
         });
 
-        if ($requester->wantsNotification('ticket_submitted')) {
-            $requester->notify(new TicketSubmitted($ticket));
-        }
+        TicketNotifier::created($ticket);
 
         return $ticket;
     }
@@ -58,6 +60,7 @@ class TicketService
             $previousAssignee = $ticket->assigned_to;
             $ticket->forceFill([
                 'assigned_to' => $technician->id,
+                'assigned_at' => $ticket->assigned_at ?? now(),
                 'first_responded_at' => $ticket->first_responded_at ?? now(),
             ]);
 
@@ -69,9 +72,7 @@ class TicketService
             AuditLogger::log($ticket, 'assigned', ['assigned_to' => $previousAssignee], ['assigned_to' => $technician->id]);
         });
 
-        if ($technician->id !== $actor->id && $technician->wantsNotification('ticket_assigned')) {
-            $technician->notify(new TicketAssigned($ticket, $actor));
-        }
+        TicketNotifier::assigned($ticket, $actor);
 
         return $ticket;
     }
@@ -98,7 +99,7 @@ class TicketService
             AuditLogger::log($ticket, 'status_changed', ['status' => $from], ['status' => $to, 'reason' => $reason]);
         });
 
-        self::notifyRequester($ticket, $actor);
+        TicketNotifier::statusChanged($ticket, $actor);
 
         return $ticket;
     }
@@ -123,7 +124,7 @@ class TicketService
             AuditLogger::log($ticket, 'resolved', [], ['resolution_method' => $method]);
         });
 
-        self::notifyRequester($ticket, $actor);
+        TicketNotifier::statusChanged($ticket, $actor);
 
         return $ticket;
     }
@@ -141,6 +142,7 @@ class TicketService
             $ticket->forceFill([
                 'resolved_at' => null,
                 'closed_at' => null,
+                'closed_reason' => null,
                 'resolution_method' => null,
             ])->save();
 
@@ -151,6 +153,61 @@ class TicketService
                 ['status' => Ticket::STATUS_REOPENED, 'reason' => $reason],
             );
         });
+
+        TicketNotifier::statusChanged($ticket, $actor);
+
+        return $ticket;
+    }
+
+    /** System-triggered: a ticket sat in waiting_user past its SLA's response_gap_minutes with no reply. */
+    public static function closeForInactivity(Ticket $ticket): Ticket
+    {
+        DB::transaction(function () use ($ticket) {
+            self::recordTransition(
+                $ticket,
+                Ticket::STATUS_CLOSED,
+                $ticket->assignee,
+                'Closed automatically — no reply received in time',
+            );
+
+            $ticket->forceFill(['closed_at' => now(), 'closed_reason' => 'inactivity'])->save();
+
+            AuditLogger::log(
+                $ticket,
+                'closed_for_inactivity',
+                ['status' => Ticket::STATUS_WAITING_USER],
+                ['status' => Ticket::STATUS_CLOSED],
+            );
+        });
+
+        TicketNotifier::closedForInactivity($ticket);
+
+        return $ticket;
+    }
+
+    /** Lets the requester or IT confirm an inactivity-closed ticket is actually done, skipping the full resolve form. */
+    public static function confirmResolvedAfterInactivity(Ticket $ticket, User $actor): Ticket
+    {
+        if ($ticket->status !== Ticket::STATUS_CLOSED || $ticket->closed_reason !== 'inactivity') {
+            throw ValidationException::withMessages([
+                'status' => 'Only tickets closed due to inactivity can be confirmed resolved this way.',
+            ]);
+        }
+
+        DB::transaction(function () use ($ticket, $actor) {
+            self::recordTransition($ticket, Ticket::STATUS_RESOLVED, $actor, 'Confirmed resolved after inactivity closure');
+
+            $ticket->forceFill([
+                'resolved_at' => now(),
+                'resolution_summary' => 'Confirmed resolved after inactivity closure',
+                'closed_at' => null,
+                'closed_reason' => null,
+            ])->save();
+
+            AuditLogger::log($ticket, 'resolved', ['status' => Ticket::STATUS_CLOSED], ['status' => Ticket::STATUS_RESOLVED]);
+        });
+
+        TicketNotifier::statusChanged($ticket, $actor);
 
         return $ticket;
     }
@@ -220,10 +277,4 @@ class TicketService
         $ticket->status = $to;
     }
 
-    private static function notifyRequester(Ticket $ticket, User $actor): void
-    {
-        if ($ticket->requester_id !== $actor->id && $ticket->requester?->wantsNotification('ticket_updated')) {
-            $ticket->requester->notify(new TicketUpdated($ticket));
-        }
-    }
 }
