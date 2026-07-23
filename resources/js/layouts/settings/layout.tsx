@@ -2,10 +2,10 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
+import { type NavItem, type SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
 
-const sidebarNavItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
     {
         title: 'Profile',
         url: '/settings/profile',
@@ -25,6 +25,12 @@ const sidebarNavItems: NavItem[] = [
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
     const currentPath = window.location.pathname;
+    const { auth } = usePage<SharedData>().props;
+    const canManageIntegrations = auth.roles.includes('CEO') || auth.roles.includes('Administrator');
+
+    const sidebarNavItems: NavItem[] = canManageIntegrations
+        ? [...baseNavItems, { title: 'Integrations', url: '/settings/integrations', icon: null }]
+        : baseNavItems;
 
     return (
         <div className="px-4 py-6">
