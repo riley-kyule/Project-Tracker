@@ -37,6 +37,8 @@ const GROUPS: { title: string; types: [string, string][] }[] = [
             ['ticket_updated', 'A ticket you submitted changes status'],
             ['ticket_overdue', 'A ticket assigned to you is past its SLA'],
             ['ticket_response_overdue', 'A ticket assigned to you is past its first-response SLA'],
+            ['ticket_response', 'A new response is posted on a ticket you’re part of'],
+            ['ticket_closed_inactivity', 'A ticket is closed automatically after no reply'],
         ],
     },
     {

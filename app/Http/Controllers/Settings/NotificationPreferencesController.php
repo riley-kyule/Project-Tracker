@@ -15,6 +15,7 @@ class NotificationPreferencesController extends Controller
         'task_assigned', 'task_commented', 'comment_mention', 'task_due_soon', 'task_overdue',
         'task_blocked', 'task_collaborator_added', 'task_approval_requested', 'task_approval_decided', 'recurrence_missed',
         'ticket_submitted', 'ticket_assigned', 'ticket_updated', 'ticket_overdue', 'ticket_response_overdue',
+        'ticket_response', 'ticket_closed_inactivity',
         'analytics_source_stale', 'task_completed_ceo', 'task_completed_department',
     ];
 
