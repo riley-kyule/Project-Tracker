@@ -78,4 +78,27 @@ class TaskMover
 
         return $task;
     }
+
+    /**
+     * Shared by any path that can push a task to 100% without a real drag
+     * (the edit form's progress field, checklist-driven auto-progress) — moves
+     * it into the board's completion column so it completes the same way a
+     * drag-to-Completed would, instead of just sitting at 100% uncompleted.
+     */
+    public static function moveToCompletionColumnIfReady(Task $task): Task
+    {
+        if ($task->completed_at !== null) {
+            return $task;
+        }
+
+        $completionColumn = $task->board->columns()->where('is_completion_column', true)->first();
+
+        if (! $completionColumn || $completionColumn->id === $task->board_column_id) {
+            return $task;
+        }
+
+        $position = (int) $completionColumn->tasks()->max('position') + 1;
+
+        return self::move($task, $completionColumn, $position);
+    }
 }
