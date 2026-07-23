@@ -24,6 +24,9 @@ type TicketDetail = {
     priority: 'critical' | 'high' | 'medium' | 'low';
     impact: string;
     requester: Person & { email: string };
+    requester_id: number;
+    created_by: number;
+    submitted_by: Person | null;
     assignee: Person | null;
     category: { id: number; name: string };
     department: { id: number; name: string } | null;
@@ -31,6 +34,7 @@ type TicketDetail = {
     due_at: string | null;
     first_responded_at: string | null;
     resolved_at: string | null;
+    closed_reason: string | null;
     resolution_method: string | null;
     resolution_summary: string | null;
     time_spent_minutes: number;
@@ -51,8 +55,16 @@ type TicketComment = {
     is_internal: boolean;
     user: Person;
     created_at: string;
+    gap_minutes: number | null;
     replies: { id: number; body: string; is_internal: boolean; user: Person; created_at: string }[];
 };
+
+function formatGap(minutes: number): string {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ${minutes % 60}m`;
+    return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
 
 type TicketAttachment = {
     id: number;
@@ -209,6 +221,8 @@ export default function TicketShow({
     boards,
     isManager,
     allowedTransitions,
+    canDelete,
+    canConfirmResolved,
 }: {
     ticket: TicketDetail;
     comments: TicketComment[];
@@ -217,6 +231,8 @@ export default function TicketShow({
     boards: BoardOption[];
     isManager: boolean;
     allowedTransitions: TicketStatus[];
+    canDelete: boolean;
+    canConfirmResolved: boolean;
 }) {
     const { auth } = usePage<SharedData>().props;
     const fileInput = useRef<HTMLInputElement>(null);
@@ -236,6 +252,12 @@ export default function TicketShow({
     };
 
     const canReopen = (ticket.status === 'resolved' || ticket.status === 'closed') && (isManager || auth.user.id === ticket.requester.id);
+    const canConfirmResolvedNow = canConfirmResolved && (isManager || auth.user.id === ticket.requester.id);
+
+    const destroy = () => {
+        if (!confirm(`Delete ticket TK-${ticket.ticket_number}? This cannot be undone from the UI.`)) return;
+        router.delete(`/tickets/${ticket.id}`);
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -250,7 +272,43 @@ export default function TicketShow({
                     <Badge variant="secondary" className="capitalize">
                         {ticket.priority}
                     </Badge>
+                    {canDelete && (
+                        <Button size="sm" variant="destructive" className="ml-auto" onClick={destroy}>
+                            Delete ticket
+                        </Button>
+                    )}
                 </div>
+
+                {ticket.submitted_by && ticket.submitted_by.id !== ticket.requester_id && (
+                    <p className="text-muted-foreground text-sm">
+                        Filed by {ticket.submitted_by.name} on behalf of {ticket.requester.name}
+                    </p>
+                )}
+
+                {ticket.closed_reason === 'inactivity' && (
+                    <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-700 dark:bg-amber-950/30">
+                        <p className="mb-2">This ticket was closed automatically — no reply was received in time.</p>
+                        <div className="flex gap-2">
+                            {canConfirmResolvedNow && (
+                                <Button
+                                    size="sm"
+                                    onClick={() => router.post(`/tickets/${ticket.id}/confirm-resolved`, {}, { preserveScroll: true })}
+                                >
+                                    Confirm resolved
+                                </Button>
+                            )}
+                            {canReopen && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => router.post(`/tickets/${ticket.id}/reopen`, {}, { preserveScroll: true })}
+                                >
+                                    Reopen — needs more work
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {isManager && (
                     <div className="flex flex-wrap items-center gap-2">
@@ -288,7 +346,7 @@ export default function TicketShow({
                     </div>
                 )}
 
-                {canReopen && (
+                {canReopen && ticket.closed_reason !== 'inactivity' && (
                     <div>
                         <Button size="sm" variant="outline" onClick={() => router.post(`/tickets/${ticket.id}/reopen`, {}, { preserveScroll: true })}>
                             Reopen ticket
@@ -386,6 +444,9 @@ export default function TicketShow({
                                         </span>
                                     )}
                                     <span className="text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</span>
+                                    {comment.gap_minutes !== null && (
+                                        <span className="text-muted-foreground">· responded {formatGap(comment.gap_minutes)} later</span>
+                                    )}
                                 </div>
                                 <p className="text-sm whitespace-pre-wrap">{comment.body}</p>
                             </li>
