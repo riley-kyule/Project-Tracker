@@ -30,6 +30,7 @@ class ProjectController extends Controller
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'owners' => User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name']),
             'canManage' => $request->user()->can('projects.manage'),
+            'canDelete' => $request->user()->hasRole('Administrator'),
         ]);
     }
 
@@ -64,6 +65,7 @@ class ProjectController extends Controller
                 ->limit(200)
                 ->get(['id', 'title', 'task_number']),
             'canManage' => Gate::allows('update', $project),
+            'canDelete' => Gate::allows('delete', $project),
         ]);
     }
 
@@ -112,5 +114,15 @@ class ProjectController extends Controller
         });
 
         return back();
+    }
+
+    public function destroy(Project $project): RedirectResponse
+    {
+        Gate::authorize('delete', $project);
+
+        AuditLogger::log($project, 'deleted', ['name' => $project->name], []);
+        $project->delete();
+
+        return redirect()->route('projects.index')->with('success', 'Project deleted.');
     }
 }

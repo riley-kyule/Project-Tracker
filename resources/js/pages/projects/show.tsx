@@ -53,6 +53,7 @@ export default function ProjectShow({
     allDepartments,
     unlinkedTasks,
     canManage,
+    canDelete,
 }: {
     project: ProjectDetail;
     tasks: ProjectTask[];
@@ -62,6 +63,7 @@ export default function ProjectShow({
     allDepartments: Option[];
     unlinkedTasks: { id: number; title: string; task_number: number }[];
     canManage: boolean;
+    canDelete: boolean;
 }) {
     const [newMemberId, setNewMemberId] = useState(NO_SELECTION);
     const [newDepartmentId, setNewDepartmentId] = useState(NO_SELECTION);
@@ -135,6 +137,19 @@ export default function ProjectShow({
                     <Badge variant="secondary" className="capitalize">
                         {project.status.replace('_', ' ')}
                     </Badge>
+                    {canDelete && (
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            className="ml-auto"
+                            onClick={() => {
+                                if (!confirm(`Delete "${project.name}"? This cannot be undone from the UI.`)) return;
+                                router.delete(`/projects/${project.id}`);
+                            }}
+                        >
+                            Delete project
+                        </Button>
+                    )}
                 </div>
 
                 {canManage && (

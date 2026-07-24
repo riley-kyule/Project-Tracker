@@ -31,4 +31,9 @@ class ProjectPolicy
         return $user->can('projects.manage')
             && ($project->owner_id === $user->id || $project->department_id === $user->department_id);
     }
+
+    public function delete(User $user, Project $project): bool
+    {
+        return $user->hasRole('Administrator');
+    }
 }
