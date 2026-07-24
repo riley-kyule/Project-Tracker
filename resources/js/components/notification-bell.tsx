@@ -11,7 +11,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { router } from '@inertiajs/react';
 import { Bell } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 type AppNotification = {
     id: string;
@@ -22,28 +23,58 @@ type AppNotification = {
         message: string;
         board_id?: number;
         task_id?: number;
+        ticket_id?: number;
     };
 };
 
+/** Polled every 20s rather than on a real-time transport (Reverb, Pusher) — see the
+ * live-updates plan: no WebSocket infrastructure exists yet, and polling keeps this
+ * simple against the current Docker stack. Toasts fire only for notifications that
+ * showed up after the very first load, so opening the app never dumps a backlog of toasts. */
 export function NotificationBell() {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [unread, setUnread] = useState(0);
     const [hasLoaded, setHasLoaded] = useState(false);
+    const seenIds = useRef<Set<string> | null>(null);
+
+    const openNotification = useCallback((notification: AppNotification) => {
+        fetch(`/notifications/${notification.id}/read`, {
+            method: 'POST',
+            headers: { Accept: 'application/json', 'X-XSRF-TOKEN': decodeURIComponent(csrf()) },
+        }).finally(() => {
+            if (notification.data.board_id) {
+                router.visit(`/boards/${notification.data.board_id}`);
+            } else if (notification.data.ticket_id) {
+                router.visit(`/tickets/${notification.data.ticket_id}`);
+            } else {
+                load();
+            }
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const load = useCallback(() => {
         fetch('/notifications', { headers: { Accept: 'application/json' } })
             .then((response) => (response.ok ? response.json() : { notifications: [], unread_count: 0 }))
-            .then((payload) => {
+            .then((payload: { notifications: AppNotification[]; unread_count: number }) => {
+                if (seenIds.current) {
+                    payload.notifications
+                        .filter((notification) => notification.read_at === null && !seenIds.current!.has(notification.id))
+                        .forEach((notification) => {
+                            toast(notification.data.message, { action: { label: 'View', onClick: () => openNotification(notification) } });
+                        });
+                }
+                seenIds.current = new Set(payload.notifications.map((notification) => notification.id));
                 setNotifications(payload.notifications);
                 setUnread(payload.unread_count);
                 setHasLoaded(true);
             })
             .catch(() => undefined);
-    }, []);
+    }, [openNotification]);
 
     useEffect(() => {
         load();
-        const interval = setInterval(load, 60_000);
+        const interval = setInterval(load, 20_000);
         return () => clearInterval(interval);
     }, [load]);
 
@@ -54,19 +85,6 @@ export function NotificationBell() {
             method: 'POST',
             headers: { Accept: 'application/json', 'X-XSRF-TOKEN': decodeURIComponent(csrf()) },
         }).then(load);
-    };
-
-    const openNotification = (notification: AppNotification) => {
-        fetch(`/notifications/${notification.id}/read`, {
-            method: 'POST',
-            headers: { Accept: 'application/json', 'X-XSRF-TOKEN': decodeURIComponent(csrf()) },
-        }).finally(() => {
-            if (notification.data.board_id) {
-                router.visit(`/boards/${notification.data.board_id}`);
-            } else {
-                load();
-            }
-        });
     };
 
     return (

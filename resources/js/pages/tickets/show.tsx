@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AppLayout from '@/layouts/app-layout';
 import { statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage, usePoll } from '@inertiajs/react';
 import { Lock, Paperclip } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -237,6 +237,10 @@ export default function TicketShow({
     const { auth } = usePage<SharedData>().props;
     const fileInput = useRef<HTMLInputElement>(null);
     const commentForm = useForm<{ body: string; is_internal: boolean }>({ body: '', is_internal: false });
+
+    // No WebSocket transport exists yet, so new responses/status changes surface via polling
+    // rather than a push — see the live-updates plan. Reload-style requests preserve scroll/state by default.
+    usePoll(6000, { only: ['ticket', 'comments'] }, { keepAlive: false });
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Service Desk', href: '/tickets' },
