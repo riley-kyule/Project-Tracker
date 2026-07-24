@@ -17,7 +17,7 @@ FROM php:8.4-fpm-alpine AS app
 RUN apk add --no-cache \
         postgresql-dev icu-dev libzip-dev oniguruma-dev libxml2-dev \
         libpng-dev libjpeg-turbo-dev freetype-dev \
-        git nodejs npm su-exec \
+        git nodejs npm su-exec docker-cli docker-cli-compose \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" pdo_pgsql mbstring xml zip bcmath intl gd pcntl opcache
 
@@ -36,6 +36,18 @@ RUN deluser www-data 2>/dev/null; \
     addgroup -g "${WWW_GID}" www-data && \
     adduser -D -u "${WWW_UID}" -G www-data -h /var/www -s /sbin/nologin www-data && \
     chown -R www-data:www-data /var/www
+
+# Only the `queue` service actually bind-mounts /var/run/docker.sock (see
+# docker-compose.yml) so DeployLatestRelease can restart the app/scheduler
+# containers after a self-deploy — but the group has to exist here since all
+# three services share this image. The docker-cli package may already create
+# a `docker` group with its own GID; re-key it to match the host socket's
+# actual group (`stat -c '%g' /var/run/docker.sock`) if that isn't 999, via
+# --build-arg DOCKER_GID=..., the same way WWW_UID/WWW_GID work above.
+ARG DOCKER_GID=999
+RUN delgroup docker 2>/dev/null; \
+    addgroup -g "${DOCKER_GID}" docker && \
+    adduser www-data docker
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

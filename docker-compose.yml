@@ -42,6 +42,11 @@ services:
       - .:/var/www/html
       - storage:/var/www/html/storage
       - ./.env:/var/www/html/.env:ro
+      # Lets DeployLatestRelease restart the app/scheduler containers after a
+      # self-deploy (see docs/DEPLOYMENT.md) — this is the only container that
+      # gets it, and it means this container can control any container on the
+      # host, not just this stack. Only mount this if you've accepted that trade-off.
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - internal
     depends_on:
