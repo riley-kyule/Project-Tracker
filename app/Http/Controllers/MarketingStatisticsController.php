@@ -34,7 +34,7 @@ class MarketingStatisticsController extends Controller
         Request $request, TrafficDashboardQuery $ga4, GscReportQuery $gsc, AhrefsReportQuery $ahrefs,
         WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
     ): Response {
-        abort_unless($request->user()->can('view marketing statistics'), 403);
+        abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $this->websiteRegistry($registryQuery, $reportBuilder);
@@ -69,7 +69,7 @@ class MarketingStatisticsController extends Controller
 
     public function ga4(Request $request, TrafficDashboardQuery $ga4, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder): Response
     {
-        abort_unless($request->user()->can('view marketing statistics'), 403);
+        abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $this->websiteRegistry($registryQuery, $reportBuilder);
@@ -110,7 +110,7 @@ class MarketingStatisticsController extends Controller
 
     public function gsc(Request $request, GscReportQuery $gsc, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder): Response
     {
-        abort_unless($request->user()->can('view marketing statistics'), 403);
+        abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $this->websiteRegistry($registryQuery, $reportBuilder);
@@ -146,7 +146,7 @@ class MarketingStatisticsController extends Controller
 
     public function ahrefs(Request $request, AhrefsReportQuery $ahrefs, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder): Response
     {
-        abort_unless($request->user()->can('view marketing statistics'), 403);
+        abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $this->websiteRegistry($registryQuery, $reportBuilder);
@@ -172,7 +172,7 @@ class MarketingStatisticsController extends Controller
     public function comparison(
         Request $request, TrafficDashboardQuery $ga4, GscReportQuery $gsc, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
     ): Response {
-        abort_unless($request->user()->can('view marketing statistics'), 403);
+        abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $this->websiteRegistry($registryQuery, $reportBuilder);
@@ -204,7 +204,7 @@ class MarketingStatisticsController extends Controller
         Request $request, AnalyticsFreshnessChecker $freshnessChecker,
         WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
     ): Response {
-        abort_unless($request->user()->can('view marketing statistics'), 403);
+        abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $this->websiteRegistry($registryQuery, $reportBuilder);

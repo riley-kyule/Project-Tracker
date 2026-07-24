@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -14,7 +15,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     public const STATUS_ACTIVE = 'active';
 
@@ -102,6 +103,22 @@ class User extends Authenticatable
     public function wantsNotification(string $type): bool
     {
         return ($this->notification_preferences[$type] ?? true) !== false;
+    }
+
+    /** Role/permission holders (CEO, Administrator, Marketing) see it regardless of department; everyone else needs to belong to Marketing or one of its sub-departments. */
+    public function canViewMarketingStatistics(): bool
+    {
+        if ($this->can('view marketing statistics')) {
+            return true;
+        }
+
+        if ($this->department_id === null) {
+            return false;
+        }
+
+        $marketing = Department::query()->where('slug', 'marketing')->first();
+
+        return $marketing !== null && in_array($this->department_id, $marketing->descendantIds(), true);
     }
 
     public function websiteAssignments(): HasMany
