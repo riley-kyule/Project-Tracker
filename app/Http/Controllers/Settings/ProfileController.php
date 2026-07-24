@@ -63,7 +63,10 @@ class ProfileController extends Controller
 
         Auth::logout();
 
-        $user->delete();
+        // Self-service closure means actually gone, not just hidden — unlike
+        // Admin\UserController::destroy()'s soft delete (added once User became
+        // soft-deletable), which stays reversible for admin-initiated removals.
+        $user->forceDelete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
