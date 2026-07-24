@@ -20,6 +20,9 @@ class CompanySetting extends Model
         'mail_from_name',
         'epe_api_url',
         'epe_site_key',
+        'business_hours_start',
+        'business_hours_end',
+        'business_hours_days',
     ];
 
     protected $hidden = [
@@ -33,6 +36,7 @@ class CompanySetting extends Model
             // Laravel's built-in encrypt-on-write/decrypt-on-read cast — this is
             // an SMTP credential at rest in the database, not a plaintext column.
             'mail_password' => 'encrypted',
+            'business_hours_days' => 'array',
         ];
     }
 
