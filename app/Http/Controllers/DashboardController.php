@@ -113,7 +113,7 @@ class DashboardController extends Controller
         );
 
         $children = $department->children()->orderBy('name')->get(['id', 'name']);
-        $departmentIds = $children->isNotEmpty() ? [$department->id, ...$children->pluck('id')] : [$department->id];
+        $departmentIds = $department->descendantIds();
 
         $deptTasks = fn (): Builder => Task::query()
             ->whereIn('department_id', $departmentIds)

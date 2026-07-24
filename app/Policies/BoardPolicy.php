@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Board;
+use App\Models\Department;
 use App\Models\User;
 
 class BoardPolicy
@@ -24,7 +25,7 @@ class BoardPolicy
 
         return match ($board->visibility) {
             Board::VISIBILITY_COMPANY => true,
-            Board::VISIBILITY_DEPARTMENT => $user->department_id === $board->department_id,
+            Board::VISIBILITY_DEPARTMENT => $this->hasDepartmentAccess($user, $board->department_id),
             Board::VISIBILITY_RESTRICTED => $board->members()->whereKey($user->id)->exists(),
             default => false,
         };
@@ -41,8 +42,9 @@ class BoardPolicy
     }
 
     /**
-     * Admins and the CEO manage any board; department managers manage
-     * boards belonging to their own department.
+     * Admins and the CEO manage any board; department managers/assistants
+     * manage boards belonging to their own department or any of its
+     * sub-departments (e.g. Marketing's head sees/manages SEO's boards too).
      */
     public function manage(User $user, Board $board): bool
     {
@@ -50,9 +52,28 @@ class BoardPolicy
             return true;
         }
 
-        return $user->can('boards.manage')
-            && $board->department_id !== null
-            && ($user->department_id === $board->department_id
-                || $board->department?->manager_id === $user->id);
+        return $user->can('boards.manage') && $this->hasDepartmentAccess($user, $board->department_id);
+    }
+
+    public function delete(User $user, Board $board): bool
+    {
+        return $user->hasRole('Administrator');
+    }
+
+    private function hasDepartmentAccess(User $user, ?int $departmentId): bool
+    {
+        if ($departmentId === null) {
+            return false;
+        }
+
+        if ($user->department_id === $departmentId) {
+            return true;
+        }
+
+        return Department::query()
+            ->where('manager_id', $user->id)
+            ->orWhere('assistant_manager_id', $user->id)
+            ->get()
+            ->contains(fn (Department $led) => in_array($departmentId, $led->descendantIds(), true));
     }
 }
