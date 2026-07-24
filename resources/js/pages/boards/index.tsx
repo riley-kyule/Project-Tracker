@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { KanbanSquare, Plus } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { KanbanSquare, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 type BoardRow = {
@@ -112,7 +112,23 @@ function CreateBoardDialog({ departments }: { departments: DepartmentOption[] })
     );
 }
 
-export default function BoardsIndex({ boards, departments, canCreate }: { boards: BoardRow[]; departments: DepartmentOption[]; canCreate: boolean }) {
+export default function BoardsIndex({
+    boards,
+    departments,
+    canCreate,
+    canDelete,
+}: {
+    boards: BoardRow[];
+    departments: DepartmentOption[];
+    canCreate: boolean;
+    canDelete: boolean;
+}) {
+    const destroy = (board: BoardRow, e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!confirm(`Delete "${board.name}"? This cannot be undone from the UI.`)) return;
+        router.delete(`/boards/${board.id}`);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Boards" />
@@ -123,26 +139,38 @@ export default function BoardsIndex({ boards, departments, canCreate }: { boards
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {boards.map((board) => (
-                        <Link
+                        <div
                             key={board.id}
-                            href={`/boards/${board.id}`}
-                            className="border-sidebar-border/70 dark:border-sidebar-border hover:border-brand-500 rounded-xl border p-4 transition-colors"
+                            className="border-sidebar-border/70 dark:border-sidebar-border hover:border-brand-500 relative rounded-xl border p-4 transition-colors"
                         >
-                            <div className="flex items-center gap-2">
-                                <KanbanSquare className="text-brand-600 dark:text-brand-400 size-5" />
-                                <span className="font-medium">{board.name}</span>
-                            </div>
-                            <div className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
-                                <span>{board.department?.name ?? 'Company-wide'}</span>
-                                <span>·</span>
-                                <span>
-                                    {board.tasks_count} {board.tasks_count === 1 ? 'task' : 'tasks'}
-                                </span>
-                                <Badge variant="secondary" className="ml-auto">
-                                    {board.visibility}
-                                </Badge>
-                            </div>
-                        </Link>
+                            {canDelete && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive absolute top-2 right-2 size-7"
+                                    aria-label={`Delete ${board.name}`}
+                                    onClick={(e) => destroy(board, e)}
+                                >
+                                    <Trash2 className="size-3.5" />
+                                </Button>
+                            )}
+                            <Link href={`/boards/${board.id}`} className="block">
+                                <div className="flex items-center gap-2">
+                                    <KanbanSquare className="text-brand-600 dark:text-brand-400 size-5" />
+                                    <span className="font-medium">{board.name}</span>
+                                </div>
+                                <div className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
+                                    <span>{board.department?.name ?? 'Company-wide'}</span>
+                                    <span>·</span>
+                                    <span>
+                                        {board.tasks_count} {board.tasks_count === 1 ? 'task' : 'tasks'}
+                                    </span>
+                                    <Badge variant="secondary" className="ml-auto">
+                                        {board.visibility}
+                                    </Badge>
+                                </div>
+                            </Link>
+                        </div>
                     ))}
                 </div>
                 {boards.length === 0 && (

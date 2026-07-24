@@ -22,6 +22,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('boards', [BoardController::class, 'store'])->name('boards.store');
     Route::get('boards/{board}', [BoardController::class, 'show'])->name('boards.show');
     Route::patch('boards/{board}', [BoardController::class, 'update'])->name('boards.update');
+    Route::delete('boards/{board}', [BoardController::class, 'destroy'])->name('boards.destroy');
 
     Route::post('boards/{board}/columns', [BoardColumnController::class, 'store'])->name('board-columns.store');
     Route::patch('board-columns/{column}', [BoardColumnController::class, 'update'])->name('board-columns.update');

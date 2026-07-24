@@ -46,6 +46,7 @@ class BoardController extends Controller
             'boards' => $boards,
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'canCreate' => $request->user()->can('create', Board::class),
+            'canDelete' => $request->user()->hasRole('Administrator'),
         ]);
     }
 
@@ -114,6 +115,7 @@ class BoardController extends Controller
                 'manage' => $request->user()->can('manage', $board),
                 'createTask' => $request->user()->can('create', [Task::class, $board]),
                 'flagCeoPriority' => $request->user()->hasAnyRole(['CEO', 'Administrator']),
+                'delete' => $request->user()->can('delete', $board),
             ],
         ]);
     }
@@ -153,5 +155,15 @@ class BoardController extends Controller
         AuditLogger::log($board, 'updated', $old, $request->validated());
 
         return back();
+    }
+
+    public function destroy(Board $board): RedirectResponse
+    {
+        Gate::authorize('delete', $board);
+
+        AuditLogger::log($board, 'deleted', ['name' => $board->name], []);
+        $board->delete();
+
+        return redirect()->route('boards.index')->with('success', 'Board deleted.');
     }
 }
