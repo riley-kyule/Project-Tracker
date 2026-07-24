@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 
 class SendDailySummaries extends Command
@@ -44,6 +45,7 @@ class SendDailySummaries extends Command
             'name' => $department->name,
             'completed_today' => $this->completedTodayCount($department->id),
             'pending' => $this->pendingCount($department->id),
+            'breakdown' => $this->completedBreakdown($department->id),
         ]);
 
         $ceos = User::role('CEO')->get();
@@ -83,6 +85,7 @@ class SendDailySummaries extends Command
                     $department,
                     $this->completedTodayCount($department->id),
                     $this->pendingCount($department->id),
+                    $this->completedBreakdown($department->id),
                 );
                 $recipients->each(fn (User $head) => Mail::to($head)->queue($mail));
 
@@ -101,6 +104,19 @@ class SendDailySummaries extends Command
     private function pendingCount(int $departmentId): int
     {
         return Task::query()->where('department_id', $departmentId)->whereNull('completed_at')->whereNull('archived_at')->count();
+    }
+
+    /** @return Collection<string, Collection<int, string>> assignee name => titles of tasks they completed today */
+    private function completedBreakdown(int $departmentId): Collection
+    {
+        return Task::query()
+            ->where('department_id', $departmentId)
+            ->whereDate('completed_at', today())
+            ->with('assignee:id,name')
+            ->orderBy('completed_at')
+            ->get()
+            ->groupBy(fn (Task $task) => $task->assignee->name ?? 'Unassigned')
+            ->map(fn (Collection $tasks) => $tasks->pluck('title'));
     }
 
     /** True once per day, the first time `now()` falls in the same 15-minute bucket as $time. */

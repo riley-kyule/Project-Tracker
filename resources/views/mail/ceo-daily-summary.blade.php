@@ -11,6 +11,20 @@
 @endforeach
 </x-mail::table>
 
+@foreach ($departments as $department)
+@if ($department['breakdown']->isNotEmpty())
+## {{ $department['name'] }}
+
+<x-mail::table>
+| Member | Tasks completed |
+| :--- | :--- |
+@foreach ($department['breakdown'] as $name => $titles)
+| {{ $name }} | {{ $titles->implode('; ') }} |
+@endforeach
+</x-mail::table>
+@endif
+@endforeach
+
 Thanks,<br>
 {{ config('app.name') }}
 </x-mail::message>

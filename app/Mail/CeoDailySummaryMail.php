@@ -11,7 +11,7 @@ class CeoDailySummaryMail extends Mailable implements ShouldQueue
 {
     use Queueable;
 
-    /** @param Collection<int, array{name: string, completed_today: int, pending: int}> $departments */
+    /** @param Collection<int, array{name: string, completed_today: int, pending: int, breakdown: Collection<string, Collection<int, string>>}> $departments */
     public function __construct(
         public Collection $departments,
         public int $totalCompletedToday,
