@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompanySetting;
+use App\Models\Department;
 use App\Models\SlaPolicy;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,6 +27,8 @@ class SlaPolicyController extends Controller
 
         return Inertia::render('admin/sla-policies/index', [
             'policies' => $policies,
+            'businessHours' => CompanySetting::current()->only(['business_hours_start', 'business_hours_end', 'business_hours_days']),
+            'canEditBusinessHours' => Gate::allows('create', Department::class),
         ]);
     }
 
