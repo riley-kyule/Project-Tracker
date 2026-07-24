@@ -62,6 +62,26 @@ class Department extends Model
         return $this->manager_id === $userId || $this->assistant_manager_id === $userId;
     }
 
+    /**
+     * Self + every descendant id, walked level-by-level rather than assuming
+     * one level of nesting — keeps working if the hierarchy ever grows past
+     * today's Marketing -> SEO/Social Media/Content depth.
+     *
+     * @return array<int, int>
+     */
+    public function descendantIds(): array
+    {
+        $ids = [$this->id];
+        $frontier = [$this->id];
+
+        while ($frontier !== []) {
+            $frontier = static::query()->whereIn('parent_department_id', $frontier)->pluck('id')->all();
+            $ids = [...$ids, ...$frontier];
+        }
+
+        return $ids;
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
