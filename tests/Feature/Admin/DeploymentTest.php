@@ -117,6 +117,37 @@ class DeploymentTest extends TestCase
         Process::assertRan(fn ($process) => str_contains(implode(' ', $process->command), 'migrate --force'));
     }
 
+    public function test_deploy_job_restarts_app_and_scheduler_when_compose_project_is_configured()
+    {
+        config(['deploy.compose_project' => 'ewms']);
+        Process::fake();
+
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $deployment = Deployment::create(['actor_id' => $admin->id, 'status' => Deployment::STATUS_PENDING]);
+
+        (new DeployLatestRelease($deployment))->handle();
+
+        Process::assertRan(fn ($process) => str_contains(implode(' ', $process->command), 'docker compose')
+            && str_contains(implode(' ', $process->command), '--project-name ewms')
+            && str_contains(implode(' ', $process->command), 'restart app scheduler'));
+    }
+
+    public function test_deploy_job_skips_restart_when_compose_project_is_not_configured()
+    {
+        config(['deploy.compose_project' => null]);
+        Process::fake();
+
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $deployment = Deployment::create(['actor_id' => $admin->id, 'status' => Deployment::STATUS_PENDING]);
+
+        (new DeployLatestRelease($deployment))->handle();
+
+        $deployment->refresh();
+
+        $this->assertStringContainsString('Skipping app/scheduler restart', $deployment->output);
+        Process::assertNotRan(fn ($process) => str_contains(implode(' ', $process->command), 'docker compose'));
+    }
+
     public function test_deploy_job_marks_failure_when_a_step_fails()
     {
         Process::fake([

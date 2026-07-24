@@ -52,8 +52,23 @@ class DeployLatestRelease implements ShouldQueue
                 ['npm', 'run', 'build'],
                 [PHP_BINARY, 'artisan', 'migrate', '--force'],
                 [PHP_BINARY, 'artisan', 'optimize'],
-                [PHP_BINARY, 'artisan', 'queue:restart'],
             ];
+
+            // app (opcache) and scheduler (long-lived process, already-loaded
+            // classes) don't notice new code without an actual restart — unlike
+            // queue, which self-heals via queue:restart below. Requires the
+            // docker.sock bind-mount + DEPLOY_COMPOSE_PROJECT (docs/DEPLOYMENT.md);
+            // skipped rather than risk targeting the wrong Compose project.
+            if ($project = config('deploy.compose_project')) {
+                $steps[] = ['docker', 'compose', '-f', $base.'/docker-compose.yml', '--project-name', $project, 'restart', 'app', 'scheduler'];
+            } else {
+                $this->deployment->appendOutput('Skipping app/scheduler restart — DEPLOY_COMPOSE_PROJECT is not configured.');
+            }
+
+            // Must run last: this signals the current queue worker (this very
+            // process) to exit after finishing, relying on Docker's
+            // restart: unless-stopped policy to respawn it with fresh code.
+            $steps[] = [PHP_BINARY, 'artisan', 'queue:restart'];
 
             foreach ($steps as $command) {
                 $this->deployment->appendOutput('$ '.implode(' ', $command));
