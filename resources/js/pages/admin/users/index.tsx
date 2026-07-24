@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
-import { Pencil, Plus } from 'lucide-react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 type UserRow = {
@@ -265,12 +265,21 @@ export default function UsersIndex({
     departments,
     roles,
     canManage,
+    canDelete,
 }: {
     users: UserRow[];
     departments: DepartmentOption[];
     roles: string[];
     canManage: boolean;
+    canDelete: boolean;
 }) {
+    const { auth } = usePage<SharedData>().props;
+
+    const destroy = (user: UserRow) => {
+        if (!confirm(`Delete ${user.name}? This cannot be undone from the UI.`)) return;
+        router.delete(`/admin/users/${user.id}`);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Users" />
@@ -288,7 +297,7 @@ export default function UsersIndex({
                                 <th className="p-3 font-medium">Department</th>
                                 <th className="p-3 font-medium">Job title</th>
                                 <th className="p-3 font-medium">Status</th>
-                                {canManage && <th className="p-3" />}
+                                {(canManage || canDelete) && <th className="p-3" />}
                             </tr>
                         </thead>
                         <tbody>
@@ -304,9 +313,24 @@ export default function UsersIndex({
                                     <td className="p-3">
                                         <Badge variant={statusVariant[user.status]}>{user.status}</Badge>
                                     </td>
-                                    {canManage && (
+                                    {(canManage || canDelete) && (
                                         <td className="p-3 text-right">
-                                            <EditUserDialog user={user} users={users} departments={departments} roles={roles} />
+                                            <div className="flex items-center justify-end gap-1">
+                                                {canManage && (
+                                                    <EditUserDialog user={user} users={users} departments={departments} roles={roles} />
+                                                )}
+                                                {canDelete && user.id !== auth.user.id && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:text-destructive"
+                                                        aria-label={`Delete ${user.name}`}
+                                                        onClick={() => destroy(user)}
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </td>
                                     )}
                                 </tr>

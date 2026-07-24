@@ -25,4 +25,9 @@ class UserPolicy
     {
         return $user->can('users.manage');
     }
+
+    public function delete(User $user, User $model): bool
+    {
+        return $user->hasRole('Administrator');
+    }
 }

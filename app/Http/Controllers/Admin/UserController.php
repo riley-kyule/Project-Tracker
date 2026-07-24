@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -40,6 +41,7 @@ class UserController extends Controller
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'roles' => Role::query()->orderBy('name')->pluck('name'),
             'canManage' => request()->user()->can('users.manage'),
+            'canDelete' => request()->user()->hasRole('Administrator'),
         ]);
     }
 
@@ -84,5 +86,16 @@ class UserController extends Controller
         });
 
         return back()->with('success', 'User updated.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        Gate::authorize('delete', $user);
+        abort_if($user->is($request->user()), 422, "You can't delete your own account.");
+
+        AuditLogger::log($user, 'deleted', ['name' => $user->name, 'email' => $user->email], []);
+        $user->delete();
+
+        return back()->with('success', 'User deleted.');
     }
 }
