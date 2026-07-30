@@ -15,9 +15,14 @@ class DepartmentRequest extends FormRequest
         /** @var Department|null $department */
         $department = $this->route('department');
 
+        // Update is also used for single-field patches (e.g. just {member_ids: [...]}
+        // from the manage-members dialog), so 'name' can't be unconditionally
+        // required there or every partial save 422s on the other, absent fields.
+        $required = $this->isMethod('post') ? 'required' : 'sometimes';
+
         return [
             'name' => [
-                'required',
+                $required,
                 'string',
                 'max:255',
                 Rule::unique('departments', 'name')->ignore($department),
@@ -33,6 +38,8 @@ class DepartmentRequest extends FormRequest
             'assistant_manager_id' => ['nullable', 'integer', 'exists:users,id'],
             'is_active' => ['boolean'],
             'daily_summary_time' => ['nullable', 'date_format:H:i'],
+            'member_ids' => ['sometimes', 'array'],
+            'member_ids.*' => ['integer', 'exists:users,id'],
         ];
     }
 
@@ -65,8 +72,9 @@ class DepartmentRequest extends FormRequest
         });
     }
 
-    public function slug(): string
+    /** Null when this request doesn't touch 'name' (e.g. a member_ids-only patch) — nothing to re-slug. */
+    public function slug(): ?string
     {
-        return Str::slug($this->validated('name'));
+        return $this->has('name') ? Str::slug($this->validated('name')) : null;
     }
 }

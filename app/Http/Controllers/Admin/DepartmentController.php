@@ -21,11 +21,15 @@ class DepartmentController extends Controller
 
         return Inertia::render('admin/departments/index', [
             'departments' => Department::query()
-                ->with(['manager:id,name', 'assistantManager:id,name', 'parent:id,name'])
+                ->with(['manager:id,name', 'assistantManager:id,name', 'parent:id,name', 'members:id,name'])
                 ->withCount('users')
                 ->orderBy('name')
                 ->get(),
             'managers' => User::query()
+                ->where('status', User::STATUS_ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'allUsers' => User::query()
                 ->where('status', User::STATUS_ACTIVE)
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -43,9 +47,14 @@ class DepartmentController extends Controller
         Gate::authorize('create', Department::class);
 
         $department = Department::create([
-            ...$request->validated(),
+            ...$request->safe()->except('member_ids'),
             'slug' => $request->slug(),
         ]);
+
+        if ($request->has('member_ids')) {
+            $department->members()->sync($request->validated('member_ids'));
+        }
+
         AuditLogger::log($department, 'created', [], $department->only(
             ['name', 'slug', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active'],
         ));
@@ -59,10 +68,18 @@ class DepartmentController extends Controller
 
         $old = $department->only(['name', 'slug', 'description', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active', 'daily_summary_time']);
         $department->update([
-            ...$request->validated(),
-            'slug' => $request->slug(),
+            ...$request->safe()->except('member_ids'),
+            ...($request->slug() !== null ? ['slug' => $request->slug()] : []),
         ]);
-        AuditLogger::log($department, 'updated', $old, $department->only(array_keys($old)));
+        $new = $department->only(array_keys($old));
+
+        if ($request->has('member_ids')) {
+            $old['member_ids'] = $department->members()->pluck('users.id')->all();
+            $department->members()->sync($request->validated('member_ids'));
+            $new['member_ids'] = $request->validated('member_ids');
+        }
+
+        AuditLogger::log($department, 'updated', $old, $new);
 
         return back()->with('success', 'Department updated.');
     }
