@@ -60,14 +60,27 @@ class BoardPolicy
         return $user->hasRole('Administrator');
     }
 
+    /**
+     * True if $user should see/manage a board under $departmentId, via either
+     * of two independent routes: (1) membership — their own department is
+     * $departmentId or an ancestor of it, so belonging to "Marketing" gives
+     * visibility into every sub-department's boards too, not just Marketing's
+     * own; or (2) leadership — they're the manager/assistant manager of a
+     * department whose tree includes $departmentId, kept separate from (1)
+     * since a lead's own department record doesn't have to match what they lead.
+     */
     private function hasDepartmentAccess(User $user, ?int $departmentId): bool
     {
         if ($departmentId === null) {
             return false;
         }
 
-        if ($user->department_id === $departmentId) {
-            return true;
+        if ($user->department_id !== null) {
+            $usersDepartment = Department::find($user->department_id);
+
+            if ($usersDepartment && in_array($departmentId, $usersDepartment->descendantIds(), true)) {
+                return true;
+            }
         }
 
         return Department::query()
