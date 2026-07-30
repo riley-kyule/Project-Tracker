@@ -5,6 +5,8 @@ services:
     build:
       context: .
       target: app
+      args:
+        DOCKER_GID: "988"
     restart: unless-stopped
     volumes:
       - .:/var/www/html
@@ -36,6 +38,8 @@ services:
     build:
       context: .
       target: app
+      args:
+        DOCKER_GID: "988"
     restart: unless-stopped
     command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
     volumes:
@@ -59,6 +63,8 @@ services:
     build:
       context: .
       target: app
+      args:
+        DOCKER_GID: "988"
     restart: unless-stopped
     command: php artisan schedule:work
     volumes:
