@@ -61,13 +61,15 @@ class BoardPolicy
     }
 
     /**
-     * True if $user should see/manage a board under $departmentId, via either
-     * of two independent routes: (1) membership — their own department is
+     * True if $user should see/manage a board under $departmentId, via any of
+     * three independent routes: (1) membership — their primary department is
      * $departmentId or an ancestor of it, so belonging to "Marketing" gives
      * visibility into every sub-department's boards too, not just Marketing's
-     * own; or (2) leadership — they're the manager/assistant manager of a
-     * department whose tree includes $departmentId, kept separate from (1)
-     * since a lead's own department record doesn't have to match what they lead.
+     * own; (2) granted membership — the same reach, but via an additional,
+     * non-primary department_members grant (Admin > Departments); or (3)
+     * leadership — they're the manager/assistant manager of a department
+     * whose tree includes $departmentId, kept separate from (1)/(2) since a
+     * lead's own department record doesn't have to match what they lead.
      */
     private function hasDepartmentAccess(User $user, ?int $departmentId): bool
     {
@@ -75,12 +77,17 @@ class BoardPolicy
             return false;
         }
 
-        if ($user->department_id !== null) {
-            $usersDepartment = Department::find($user->department_id);
+        $memberDepartmentIds = [
+            ...($user->department_id !== null ? [$user->department_id] : []),
+            ...$user->departmentMemberships()->pluck('departments.id'),
+        ];
 
-            if ($usersDepartment && in_array($departmentId, $usersDepartment->descendantIds(), true)) {
-                return true;
-            }
+        if (Department::query()
+            ->whereIn('id', $memberDepartmentIds)
+            ->get()
+            ->contains(fn (Department $d) => in_array($departmentId, $d->descendantIds(), true))
+        ) {
+            return true;
         }
 
         return Department::query()
