@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
-import { Pencil, Plus } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { Pencil, Plus, UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
 
 type Department = {
@@ -26,6 +26,7 @@ type Department = {
     is_active: boolean;
     daily_summary_time: string | null;
     users_count: number;
+    members: { id: number; name: string }[];
 };
 
 type Manager = { id: number; name: string };
@@ -190,6 +191,82 @@ function DepartmentDialog({
     );
 }
 
+function DepartmentMembersDialog({ department, allUsers }: { department: Department; allUsers: Manager[] }) {
+    const [open, setOpen] = useState(false);
+    const [newMemberId, setNewMemberId] = useState(NONE);
+
+    const addMember = () => {
+        if (newMemberId === NONE) return;
+        router.patch(
+            `/admin/departments/${department.id}`,
+            { member_ids: [...department.members.map((m) => m.id), Number(newMemberId)] },
+            { preserveScroll: true, onSuccess: () => setNewMemberId(NONE) },
+        );
+    };
+
+    const removeMember = (userId: number) => {
+        router.patch(
+            `/admin/departments/${department.id}`,
+            { member_ids: department.members.filter((m) => m.id !== userId).map((m) => m.id) },
+            { preserveScroll: true },
+        );
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" aria-label={`Manage members of ${department.name}`}>
+                    <UserPlus className="size-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{department.name} — additional members</DialogTitle>
+                </DialogHeader>
+                <p className="text-muted-foreground text-sm">
+                    Grants visibility into this department's boards (and any sub-departments') without moving anyone's
+                    primary department — for people who need access alongside their home team.
+                </p>
+                <ul className="space-y-1.5">
+                    {department.members.map((member) => (
+                        <li key={member.id} className="flex items-center gap-2 text-sm">
+                            {member.name}
+                            <button
+                                type="button"
+                                aria-label={`Remove ${member.name}`}
+                                onClick={() => removeMember(member.id)}
+                                className="text-muted-foreground hover:text-destructive ml-auto"
+                            >
+                                <X className="size-3.5" />
+                            </button>
+                        </li>
+                    ))}
+                    {department.members.length === 0 && <li className="text-muted-foreground text-sm">No additional members yet.</li>}
+                </ul>
+                <div className="flex gap-2">
+                    <Select value={newMemberId} onValueChange={setNewMemberId}>
+                        <SelectTrigger className="h-8 flex-1 text-sm">
+                            <SelectValue placeholder="Add a person…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {allUsers
+                                .filter((user) => !department.members.some((m) => m.id === user.id))
+                                .map((user) => (
+                                    <SelectItem key={user.id} value={user.id.toString()}>
+                                        {user.name}
+                                    </SelectItem>
+                                ))}
+                        </SelectContent>
+                    </Select>
+                    <Button type="button" size="sm" variant="secondary" disabled={newMemberId === NONE} onClick={addMember}>
+                        Add
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function CompanySummarySettings({ ceoSummaryTime }: { ceoSummaryTime: string | null }) {
     const { data, setData, patch, processing, errors, recentlySuccessful } = useForm({
         ceo_summary_time: ceoSummaryTime?.slice(0, 5) ?? '',
@@ -224,12 +301,14 @@ function CompanySummarySettings({ ceoSummaryTime }: { ceoSummaryTime: string | n
 export default function DepartmentsIndex({
     departments,
     managers,
+    allUsers,
     parentOptions,
     canManage,
     companySettings,
 }: {
     departments: Department[];
     managers: Manager[];
+    allUsers: Manager[];
     parentOptions: ParentOption[];
     canManage: boolean;
     companySettings: { ceo_summary_time: string | null };
@@ -281,14 +360,20 @@ export default function DepartmentsIndex({
                                     </td>
                                     <td className="p-3">{department.manager?.name ?? '—'}</td>
                                     <td className="p-3">{department.assistant_manager?.name ?? '—'}</td>
-                                    <td className="p-3">{department.users_count}</td>
+                                    <td className="p-3">
+                                        {department.users_count}
+                                        {department.members.length > 0 && (
+                                            <span className="text-muted-foreground"> (+{department.members.length})</span>
+                                        )}
+                                    </td>
                                     <td className="p-3">
                                         <Badge variant={department.is_active ? 'default' : 'secondary'}>
                                             {department.is_active ? 'Active' : 'Inactive'}
                                         </Badge>
                                     </td>
                                     {canManage && (
-                                        <td className="p-3 text-right">
+                                        <td className="p-3 text-right whitespace-nowrap">
+                                            <DepartmentMembersDialog department={department} allUsers={allUsers} />
                                             <DepartmentDialog
                                                 department={department}
                                                 managers={managers}
