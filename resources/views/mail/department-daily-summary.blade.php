@@ -15,6 +15,18 @@ No tasks completed today.
 </x-mail::table>
 @endif
 
+@if ($comments->isNotEmpty())
+## Today's comments
+
+<x-mail::table>
+| Task | Comments |
+| :--- | :--- |
+@foreach ($comments as $title => $lines)
+| {{ $title }} | {{ $lines->implode('; ') }} |
+@endforeach
+</x-mail::table>
+@endif
+
 <x-mail::button :url="route('dashboards.department', ['department_id' => $department->id])">
 View department dashboard
 </x-mail::button>

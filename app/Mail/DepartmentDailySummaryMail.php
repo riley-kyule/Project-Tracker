@@ -12,12 +12,16 @@ class DepartmentDailySummaryMail extends Mailable implements ShouldQueue
 {
     use Queueable;
 
-    /** @param Collection<string, Collection<int, string>> $breakdown assignee name => titles of tasks they completed today */
+    /**
+     * @param  Collection<string, Collection<int, string>>  $breakdown  assignee name => titles of tasks they completed today
+     * @param  Collection<string, Collection<int, string>>  $comments  task title => "Author: comment" lines posted today
+     */
     public function __construct(
         public Department $department,
         public int $completedToday,
         public int $pending,
         public Collection $breakdown,
+        public Collection $comments,
     ) {}
 
     public function build(): self
@@ -29,6 +33,7 @@ class DepartmentDailySummaryMail extends Mailable implements ShouldQueue
                 'completedToday' => $this->completedToday,
                 'pending' => $this->pending,
                 'breakdown' => $this->breakdown,
+                'comments' => $this->comments,
             ]);
     }
 }

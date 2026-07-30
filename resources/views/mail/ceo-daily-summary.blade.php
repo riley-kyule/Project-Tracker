@@ -12,9 +12,10 @@
 </x-mail::table>
 
 @foreach ($departments as $department)
-@if ($department['breakdown']->isNotEmpty())
+@if ($department['breakdown']->isNotEmpty() || $department['comments']->isNotEmpty())
 ## {{ $department['name'] }}
 
+@if ($department['breakdown']->isNotEmpty())
 <x-mail::table>
 | Member | Tasks completed |
 | :--- | :--- |
@@ -22,6 +23,19 @@
 | {{ $name }} | {{ $titles->implode('; ') }} |
 @endforeach
 </x-mail::table>
+@endif
+
+@if ($department['comments']->isNotEmpty())
+**Today's comments**
+
+<x-mail::table>
+| Task | Comments |
+| :--- | :--- |
+@foreach ($department['comments'] as $title => $lines)
+| {{ $title }} | {{ $lines->implode('; ') }} |
+@endforeach
+</x-mail::table>
+@endif
 @endif
 @endforeach
 

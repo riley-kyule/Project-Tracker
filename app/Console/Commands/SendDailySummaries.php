@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\CeoDailySummaryMail;
 use App\Mail\DepartmentDailySummaryMail;
+use App\Models\Comment;
 use App\Models\CompanySetting;
 use App\Models\Department;
 use App\Models\Task;
@@ -11,6 +12,7 @@ use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class SendDailySummaries extends Command
 {
@@ -46,6 +48,7 @@ class SendDailySummaries extends Command
             'completed_today' => $this->completedTodayCount($department->id),
             'pending' => $this->pendingCount($department->id),
             'breakdown' => $this->completedBreakdown($department->id),
+            'comments' => $this->commentsToday($department->id),
         ]);
 
         $ceos = User::role('CEO')->get();
@@ -86,6 +89,7 @@ class SendDailySummaries extends Command
                     $this->completedTodayCount($department->id),
                     $this->pendingCount($department->id),
                     $this->completedBreakdown($department->id),
+                    $this->commentsToday($department->id),
                 );
                 $recipients->each(fn (User $head) => Mail::to($head)->queue($mail));
 
@@ -117,6 +121,22 @@ class SendDailySummaries extends Command
             ->get()
             ->groupBy(fn (Task $task) => $task->assignee->name ?? 'Unassigned')
             ->map(fn (Collection $tasks) => $tasks->pluck('title'));
+    }
+
+    /** @return Collection<string, Collection<int, string>> task title => "Author: comment" lines posted today */
+    private function commentsToday(int $departmentId): Collection
+    {
+        return Comment::query()
+            ->where('commentable_type', Task::class)
+            ->whereDate('created_at', today())
+            ->whereHas('commentable', fn ($query) => $query->where('department_id', $departmentId))
+            ->with(['user:id,name', 'commentable:id,title'])
+            ->orderBy('created_at')
+            ->get()
+            ->groupBy(fn (Comment $comment) => $comment->commentable->title ?? 'Unknown task')
+            ->map(fn (Collection $comments) => $comments->map(
+                fn (Comment $comment) => ($comment->user->name ?? 'Unknown').': '.Str::limit($comment->body, 140)
+            ));
     }
 
     /** True once per day, the first time `now()` falls in the same 15-minute bucket as $time. */
