@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Department extends Model
@@ -52,9 +53,16 @@ class Department extends Model
         return $this->hasMany(Department::class, 'parent_department_id');
     }
 
+    /** Users whose primary department_id points here. */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    /** Additional, granted-not-primary members — see the department_members migration. */
+    public function members(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'department_members')->withTimestamps();
     }
 
     public function leads(int $userId): bool

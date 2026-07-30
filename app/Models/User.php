@@ -72,6 +72,12 @@ class User extends Authenticatable
         return $this->belongsTo(Department::class);
     }
 
+    /** Additional departments this user has been granted visibility into, beyond their primary department(). */
+    public function departmentMemberships(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'department_members')->withTimestamps();
+    }
+
     public function manager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'manager_id');
@@ -105,20 +111,29 @@ class User extends Authenticatable
         return ($this->notification_preferences[$type] ?? true) !== false;
     }
 
-    /** Role/permission holders (CEO, Administrator, Marketing) see it regardless of department; everyone else needs to belong to Marketing or one of its sub-departments. */
+    /**
+     * Role/permission holders (CEO, Administrator, Marketing) see it regardless
+     * of department; everyone else needs to belong (primary or granted, via
+     * departmentMemberships()) to Marketing or one of its sub-departments.
+     */
     public function canViewMarketingStatistics(): bool
     {
         if ($this->can('view marketing statistics')) {
             return true;
         }
 
-        if ($this->department_id === null) {
+        $marketing = Department::query()->where('slug', 'marketing')->first();
+
+        if ($marketing === null) {
             return false;
         }
 
-        $marketing = Department::query()->where('slug', 'marketing')->first();
+        $memberDepartmentIds = [
+            ...($this->department_id !== null ? [$this->department_id] : []),
+            ...$this->departmentMemberships()->pluck('departments.id'),
+        ];
 
-        return $marketing !== null && in_array($this->department_id, $marketing->descendantIds(), true);
+        return collect($memberDepartmentIds)->contains(fn ($id) => in_array($id, $marketing->descendantIds(), true));
     }
 
     public function websiteAssignments(): HasMany
