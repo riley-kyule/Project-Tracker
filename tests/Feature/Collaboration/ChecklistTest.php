@@ -64,4 +64,31 @@ class ChecklistTest extends TestCase
             ->post("/tasks/{$task->id}/checklists", ['name' => 'Nope'])
             ->assertForbidden();
     }
+
+    public function test_task_owner_can_rename_a_checklist()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask($user);
+        $checklist = Checklist::factory()->create(['task_id' => $task->id, 'name' => 'Launch steps']);
+
+        $this->actingAs($user)->patch("/checklists/{$checklist->id}", ['name' => 'Renamed steps'])->assertRedirect();
+
+        $this->assertSame('Renamed steps', $checklist->refresh()->name);
+    }
+
+    public function test_task_owner_can_duplicate_a_checklist_with_its_items()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask($user);
+        $checklist = Checklist::factory()->create(['task_id' => $task->id, 'name' => 'Launch steps']);
+        ChecklistItem::factory()->create(['checklist_id' => $checklist->id, 'title' => 'Write copy', 'is_completed' => true]);
+
+        $this->actingAs($user)->post("/checklists/{$checklist->id}/duplicate")->assertRedirect();
+
+        $this->assertSame(2, Checklist::query()->count());
+        $copy = Checklist::query()->where('id', '!=', $checklist->id)->firstOrFail();
+        $this->assertSame('Launch steps (copy)', $copy->name);
+        $this->assertSame('Write copy', $copy->items->first()->title);
+        $this->assertFalse($copy->items->first()->is_completed);
+    }
 }

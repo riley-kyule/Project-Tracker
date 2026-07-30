@@ -9,6 +9,7 @@ use App\Services\AuditLogger;
 use App\Services\TaskChecklistProgress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class ChecklistController extends Controller
@@ -28,6 +29,19 @@ class ChecklistController extends Controller
         return back();
     }
 
+    public function update(Request $request, Checklist $checklist): RedirectResponse
+    {
+        Gate::authorize('update', $checklist->task);
+
+        $validated = $request->validate(['name' => ['required', 'string', 'max:255']]);
+
+        $old = $checklist->only(['name']);
+        $checklist->update($validated);
+        AuditLogger::log($checklist->task, 'checklist_renamed', $old, $checklist->only(['name']));
+
+        return back();
+    }
+
     public function destroy(Request $request, Checklist $checklist): RedirectResponse
     {
         Gate::authorize('update', $checklist->task);
@@ -36,6 +50,34 @@ class ChecklistController extends Controller
         $old = $checklist->only(['id', 'name']);
         $checklist->delete();
         AuditLogger::log($task, 'checklist_removed', $old, []);
+        TaskChecklistProgress::sync($task);
+
+        return back();
+    }
+
+    public function duplicate(Request $request, Checklist $checklist): RedirectResponse
+    {
+        Gate::authorize('update', $checklist->task);
+
+        $task = $checklist->task;
+
+        $copy = DB::transaction(function () use ($checklist, $task) {
+            $copy = $task->checklists()->create([
+                'name' => $checklist->name.' (copy)',
+                'position' => (int) $task->checklists()->max('position') + 1,
+            ]);
+
+            foreach ($checklist->items as $item) {
+                $copy->items()->create([
+                    'title' => $item->title,
+                    'position' => $item->position,
+                ]);
+            }
+
+            return $copy;
+        });
+
+        AuditLogger::log($task, 'checklist_created', [], ['checklist_id' => $copy->id, 'name' => $copy->name]);
         TaskChecklistProgress::sync($task);
 
         return back();

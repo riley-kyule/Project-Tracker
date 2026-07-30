@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
+import { Copy, Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -220,6 +220,8 @@ export function TaskCollaboration({
     const [itemTitles, setItemTitles] = useState<Record<number, string>>({});
     const [editingItemId, setEditingItemId] = useState<number | null>(null);
     const [editingItemTitle, setEditingItemTitle] = useState('');
+    const [editingChecklistId, setEditingChecklistId] = useState<number | null>(null);
+    const [editingChecklistName, setEditingChecklistName] = useState('');
     const [newDependencyId, setNewDependencyId] = useState(NO_DEPENDENCY);
     const [newRelationId, setNewRelationId] = useState(NO_DEPENDENCY);
     const [newFrequency, setNewFrequency] = useState('weekly');
@@ -331,9 +333,59 @@ export function TaskCollaboration({
                     return (
                         <div key={checklist.id} className="border-sidebar-border/70 dark:border-sidebar-border mb-3 rounded-lg border p-3">
                             <div className="mb-2 flex items-center justify-between">
-                                <span className="text-sm font-medium">{checklist.name}</span>
-                                <span className="text-muted-foreground text-xs">
+                                {editingChecklistId === checklist.id ? (
+                                    <form
+                                        className="flex-1"
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            const name = editingChecklistName.trim();
+                                            if (!name) return;
+                                            router.patch(
+                                                `/checklists/${checklist.id}`,
+                                                { name },
+                                                {
+                                                    preserveScroll: true,
+                                                    preserveState: true,
+                                                    onSuccess: () => {
+                                                        setEditingChecklistId(null);
+                                                        reload();
+                                                    },
+                                                    onError: showError,
+                                                },
+                                            );
+                                        }}
+                                    >
+                                        <Input
+                                            autoFocus
+                                            value={editingChecklistName}
+                                            onChange={(e) => setEditingChecklistName(e.target.value)}
+                                            onBlur={(e) => e.currentTarget.form?.requestSubmit()}
+                                            className="h-7 text-sm font-medium"
+                                        />
+                                    </form>
+                                ) : (
+                                    <span
+                                        className={`text-sm font-medium ${detail.canEditChecklist ? 'cursor-text' : ''}`}
+                                        onClick={() => {
+                                            if (!detail.canEditChecklist) return;
+                                            setEditingChecklistId(checklist.id);
+                                            setEditingChecklistName(checklist.name);
+                                        }}
+                                    >
+                                        {checklist.name}
+                                    </span>
+                                )}
+                                <span className="text-muted-foreground flex items-center text-xs">
                                     {done}/{checklist.items.length}
+                                    <button
+                                        type="button"
+                                        aria-label={`Duplicate ${checklist.name}`}
+                                        disabled={!detail.canEditChecklist}
+                                        onClick={() => post(`/checklists/${checklist.id}/duplicate`, {})}
+                                        className="text-muted-foreground hover:text-foreground ml-2 disabled:pointer-events-none disabled:opacity-40"
+                                    >
+                                        <Copy className="inline size-3.5" />
+                                    </button>
                                     <button
                                         type="button"
                                         aria-label={`Delete ${checklist.name}`}
@@ -462,8 +514,8 @@ export function TaskCollaboration({
                     <Users className="size-4" /> People
                 </h3>
                 <p className="text-muted-foreground mb-2 text-xs">
-                    Anyone can be added, including people outside this board's department — adding them here is what gives them access to this
-                    task specifically.
+                    Anyone can be added, including people outside this board's department — adding them here is what gives them access to this task
+                    specifically.
                 </p>
                 <ul className="mb-2 space-y-1.5">
                     {detail.assignees
