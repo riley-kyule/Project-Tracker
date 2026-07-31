@@ -60,6 +60,26 @@ class RemoteSupportReportTest extends TestCase
         $this->assertSame(1, substr_count($content, ',onsite,'));
     }
 
+    public function test_csv_export_escapes_formula_like_ticket_titles()
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        $category = TicketCategory::query()->firstOrFail();
+
+        Ticket::factory()->create([
+            'category_id' => $category->id,
+            'status' => Ticket::STATUS_RESOLVED,
+            'resolution_method' => 'remote',
+            'resolved_at' => now()->subDay(),
+            'title' => '=cmd|\'/c calc\'!A1',
+        ]);
+
+        $csv = $this->actingAs($ceo)->get('/reports/remote-support?format=csv')->assertOk();
+        $content = $csv->streamedContent();
+
+        $this->assertStringNotContainsString(',=cmd', $content);
+        $this->assertStringContainsString(",\"'=cmd", $content);
+    }
+
     public function test_department_managers_only_see_their_departments_remote_support_data()
     {
         $ownDepartment = Department::query()->where('slug', 'seo')->firstOrFail();

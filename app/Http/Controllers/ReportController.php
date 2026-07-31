@@ -151,6 +151,22 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * A cell that Excel/Sheets opens and reads as starting with =, +, - or @
+     * is interpreted as a formula, not text — a ticket title like
+     * "=cmd|'/c calc'!A1" would execute when the export is opened. Prefixing
+     * with a single quote forces spreadsheet software to treat it as a
+     * literal string instead.
+     */
+    private function csvSafe(?string $value): ?string
+    {
+        if ($value !== null && Str::startsWith($value, ['=', '+', '-', '@'])) {
+            return "'".$value;
+        }
+
+        return $value;
+    }
+
     /** Export matches the on-screen filters exactly (US-060). */
     private function remoteSupportCsv($resolved): StreamedResponse
     {
@@ -161,11 +177,11 @@ class ReportController extends Controller
             foreach ($resolved as $ticket) {
                 fputcsv($out, [
                     'TK-'.$ticket->ticket_number,
-                    $ticket->title,
-                    $ticket->department?->name,
-                    $ticket->category?->name,
+                    $this->csvSafe($ticket->title),
+                    $this->csvSafe($ticket->department?->name),
+                    $this->csvSafe($ticket->category?->name),
                     $ticket->priority,
-                    $ticket->resolution_method,
+                    $this->csvSafe($ticket->resolution_method),
                     $ticket->created_at->toDateTimeString(),
                     $ticket->first_responded_at ? $ticket->created_at->diffInMinutes($ticket->first_responded_at) : null,
                     $ticket->resolved_at ? $ticket->created_at->diffInMinutes($ticket->resolved_at) : null,
