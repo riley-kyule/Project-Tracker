@@ -2,158 +2,34 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\CeoDailySummaryMail;
-use App\Mail\DepartmentDailySummaryMail;
-use App\Models\Comment;
-use App\Models\CompanySetting;
-use App\Models\Department;
-use App\Models\Task;
-use App\Models\User;
+use App\Jobs\GenerateDailyReport;
+use App\Models\ReportSnapshot;
+use App\Services\Reports\DailySummarySchedule;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class SendDailySummaries extends Command
 {
     protected $signature = 'ewms:send-daily-summaries';
 
-    protected $description = 'Email the CEO a company-wide daily summary and each department head their department\'s summary, at their configured times';
+    protected $description = 'Dispatch a report-generation job for the CEO summary and each department summary that is currently due';
 
-    /** Matches the 15-minute schedule this command runs on. */
-    private const BUCKET_MINUTES = 15;
-
-    public function handle(): int
+    public function handle(DailySummarySchedule $schedule): int
     {
-        $sentCeo = $this->sendCeoSummary();
-        $sentDepartments = $this->sendDepartmentSummaries();
+        $dispatched = 0;
+        $businessDay = $schedule->businessDay()->toDateString();
 
-        $this->info("Sent {$sentCeo} CEO summary and {$sentDepartments} department summary email(s).");
+        if ($schedule->isCeoSummaryDue()) {
+            GenerateDailyReport::dispatch(ReportSnapshot::TYPE_CEO_DAILY, null, $businessDay);
+            $dispatched++;
+        }
+
+        foreach ($schedule->dueDepartments() as $department) {
+            GenerateDailyReport::dispatch(ReportSnapshot::TYPE_DEPARTMENT_DAILY, $department->id, $businessDay);
+            $dispatched++;
+        }
+
+        $this->info("Dispatched {$dispatched} daily report job(s).");
 
         return self::SUCCESS;
-    }
-
-    private function sendCeoSummary(): int
-    {
-        $setting = CompanySetting::current();
-
-        if (! $this->isDue($setting->ceo_summary_time, $setting->ceo_summary_last_sent_on)) {
-            return 0;
-        }
-
-        $departments = Department::query()->active()->orderBy('name')->get();
-
-        $rows = $departments->map(fn (Department $department) => [
-            'name' => $department->name,
-            'completed_today' => $this->completedTodayCount($department->id),
-            'pending' => $this->pendingCount($department->id),
-            'breakdown' => $this->completedBreakdown($department->id),
-            'comments' => $this->commentsToday($department->id),
-        ]);
-
-        $ceos = User::role('CEO')->get();
-
-        if ($ceos->isEmpty()) {
-            return 0;
-        }
-
-        $mail = new CeoDailySummaryMail($rows, (int) $rows->sum('completed_today'), (int) $rows->sum('pending'));
-        $ceos->each(fn (User $ceo) => Mail::to($ceo)->queue($mail));
-
-        $setting->update(['ceo_summary_last_sent_on' => now()->toDateString()]);
-
-        return 1;
-    }
-
-    private function sendDepartmentSummaries(): int
-    {
-        $sent = 0;
-
-        Department::query()
-            ->active()
-            ->whereNotNull('daily_summary_time')
-            ->with(['manager', 'assistantManager'])
-            ->each(function (Department $department) use (&$sent) {
-                if (! $this->isDue($department->daily_summary_time, $department->daily_summary_last_sent_on)) {
-                    return;
-                }
-
-                $recipients = collect([$department->manager, $department->assistantManager])->filter()->unique('id');
-
-                if ($recipients->isEmpty()) {
-                    return;
-                }
-
-                $mail = new DepartmentDailySummaryMail(
-                    $department,
-                    $this->completedTodayCount($department->id),
-                    $this->pendingCount($department->id),
-                    $this->completedBreakdown($department->id),
-                    $this->commentsToday($department->id),
-                );
-                $recipients->each(fn (User $head) => Mail::to($head)->queue($mail));
-
-                $department->update(['daily_summary_last_sent_on' => now()->toDateString()]);
-                $sent++;
-            });
-
-        return $sent;
-    }
-
-    private function completedTodayCount(int $departmentId): int
-    {
-        return Task::query()->where('department_id', $departmentId)->whereDate('completed_at', today())->count();
-    }
-
-    private function pendingCount(int $departmentId): int
-    {
-        return Task::query()->where('department_id', $departmentId)->whereNull('completed_at')->whereNull('archived_at')->count();
-    }
-
-    /** @return Collection<string, Collection<int, string>> assignee name => titles of tasks they completed today */
-    private function completedBreakdown(int $departmentId): Collection
-    {
-        return Task::query()
-            ->where('department_id', $departmentId)
-            ->whereDate('completed_at', today())
-            ->with('assignee:id,name')
-            ->orderBy('completed_at')
-            ->get()
-            ->groupBy(fn (Task $task) => $task->assignee->name ?? 'Unassigned')
-            ->map(fn (Collection $tasks) => $tasks->pluck('title'));
-    }
-
-    /** @return Collection<string, Collection<int, string>> task title => "Author: comment" lines posted today */
-    private function commentsToday(int $departmentId): Collection
-    {
-        return Comment::query()
-            ->where('commentable_type', Task::class)
-            ->whereDate('created_at', today())
-            ->whereHas('commentable', fn ($query) => $query->where('department_id', $departmentId))
-            ->with(['user:id,name', 'commentable:id,title'])
-            ->orderBy('created_at')
-            ->get()
-            ->groupBy(fn (Comment $comment) => $comment->commentable->title ?? 'Unknown task')
-            ->map(fn (Collection $comments) => $comments->map(
-                fn (Comment $comment) => ($comment->user->name ?? 'Unknown').': '.Str::limit($comment->body, 140)
-            ));
-    }
-
-    /** True once per day, the first time `now()` falls in the same 15-minute bucket as $time. */
-    private function isDue(?string $time, mixed $lastSentOn): bool
-    {
-        if ($time === null) {
-            return false;
-        }
-
-        if ($lastSentOn && now()->isSameDay($lastSentOn)) {
-            return false;
-        }
-
-        $configured = now()->createFromTimeString($time);
-        $bucketStart = $configured->copy()->subMinutes($configured->minute % self::BUCKET_MINUTES);
-        $bucketEnd = $bucketStart->copy()->addMinutes(self::BUCKET_MINUTES);
-
-        return now()->between($bucketStart, $bucketEnd);
     }
 }

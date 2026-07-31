@@ -47,6 +47,38 @@ class CommentTest extends TestCase
         $this->assertSame(1, $comment->replies()->count());
     }
 
+    public function test_a_structured_progress_note_is_stored_distinctly_from_ordinary_comments()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask();
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/comments", [
+                'body' => 'Blocked on the vendor API key.',
+                'note_type' => Comment::NOTE_BLOCKER,
+                'structured_fields' => ['support_needed' => 'IT to provision an API key'],
+            ])
+            ->assertRedirect();
+
+        $comment = Comment::query()->where('body', 'Blocked on the vendor API key.')->firstOrFail();
+
+        $this->assertTrue($comment->isProgressNote());
+        $this->assertSame(Comment::NOTE_BLOCKER, $comment->note_type);
+        $this->assertSame('IT to provision an API key', $comment->structured_fields['support_needed']);
+        $this->assertSame(0, Comment::query()->ordinary()->count());
+        $this->assertSame(1, Comment::query()->progressNotes()->count());
+    }
+
+    public function test_an_invalid_note_type_is_rejected()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask();
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/comments", ['body' => 'x', 'note_type' => 'not_a_real_type'])
+            ->assertSessionHasErrors('note_type');
+    }
+
     public function test_mentions_notify_eligible_users_only()
     {
         Notification::fake();

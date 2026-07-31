@@ -23,6 +23,7 @@ class CompanySetting extends Model
         'business_hours_start',
         'business_hours_end',
         'business_hours_days',
+        'timezone',
     ];
 
     protected $hidden = [

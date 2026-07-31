@@ -3,11 +3,11 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Collection;
 
-class CeoDailySummaryMail extends Mailable implements ShouldQueue
+/** Sent synchronously from within GenerateDailyReport, which is itself the queued unit of work — see app/Jobs/GenerateDailyReport.php. */
+class CeoDailySummaryMail extends Mailable
 {
     use Queueable;
 

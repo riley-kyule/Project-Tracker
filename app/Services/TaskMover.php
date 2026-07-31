@@ -12,19 +12,24 @@ class TaskMover
     /**
      * Move a task to a column/position atomically, closing the gap it left
      * and opening one at the destination. Completion and archive timestamps
-     * follow the semantic flags of the destination column.
+     * follow the semantic flags of the destination column. $completionNote is
+     * only ever applied when the move newly completes the task (or
+     * re-completes it after a reopen) — it's ignored on every other move.
      */
-    public static function move(Task $task, BoardColumn $target, int $position): Task
+    public static function move(Task $task, BoardColumn $target, int $position, ?string $completionNote = null): Task
     {
         $newlyCompleted = false;
         $enteringBlocked = false;
 
-        $task = DB::transaction(function () use ($task, $target, $position, &$newlyCompleted, &$enteringBlocked) {
+        $task = DB::transaction(function () use ($task, $target, $position, $completionNote, &$newlyCompleted, &$enteringBlocked) {
             $task = Task::query()->lockForUpdate()->findOrFail($task->id);
 
             $fromColumnId = $task->board_column_id;
             $fromPosition = $task->position;
-            $newlyCompleted = $target->is_completion_column && $task->completed_at === null;
+            $wasCompleted = $task->completed_at !== null;
+            $enteringCompletion = $target->is_completion_column;
+            $newlyCompleted = $enteringCompletion && ! $wasCompleted;
+            $leavingAfterCompletion = ! $enteringCompletion && $wasCompleted;
             $fromSemanticStatus = BoardColumn::query()->whereKey($fromColumnId)->value('semantic_status');
             $enteringBlocked = $target->semantic_status === 'blocked' && $fromSemanticStatus !== 'blocked';
 
@@ -51,13 +56,22 @@ class TaskMover
             $task->forceFill([
                 'board_column_id' => $target->id,
                 'position' => $position,
-                'completed_at' => $target->is_completion_column ? ($task->completed_at ?? now()) : null,
+                'completed_at' => $enteringCompletion ? ($task->completed_at ?? now()) : null,
                 'archived_at' => $target->is_archive_column ? ($task->archived_at ?? now()) : null,
                 // Keep the two "is this done" signals in sync — a task landing in the
                 // completion column must read as 100% everywhere that checks progress
                 // instead of only via completed_at (dashboards vs. board card disagreed
                 // otherwise: see DashboardController's overdue queries).
-                'progress_percentage' => $target->is_completion_column ? 100 : $task->progress_percentage,
+                'progress_percentage' => $enteringCompletion ? 100 : $task->progress_percentage,
+                // Set once, never overwritten — distinguishes a task's very first
+                // completion from a later re-completion after being reopened.
+                'first_completed_at' => $enteringCompletion ? ($task->first_completed_at ?? now()) : $task->first_completed_at,
+                // Sticky, not cleared on re-completion: once a task has been
+                // reopened, its completion history keeps showing that (see
+                // DepartmentSummaryBuilder::completionLine()) rather than reading
+                // as a clean one-shot completion again.
+                'reopened_at' => $leavingAfterCompletion ? now() : $task->reopened_at,
+                'completion_note' => $enteringCompletion ? ($completionNote ?? $task->completion_note) : $task->completion_note,
             ])->save();
 
             if ($fromColumnId !== $target->id) {
@@ -85,7 +99,7 @@ class TaskMover
      * it into the board's completion column so it completes the same way a
      * drag-to-Completed would, instead of just sitting at 100% uncompleted.
      */
-    public static function moveToCompletionColumnIfReady(Task $task): Task
+    public static function moveToCompletionColumnIfReady(Task $task, ?string $completionNote = null): Task
     {
         if ($task->completed_at !== null) {
             return $task;
@@ -99,6 +113,6 @@ class TaskMover
 
         $position = (int) $completionColumn->tasks()->max('position') + 1;
 
-        return self::move($task, $completionColumn, $position);
+        return self::move($task, $completionColumn, $position, $completionNote);
     }
 }

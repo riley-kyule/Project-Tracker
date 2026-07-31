@@ -28,6 +28,8 @@ class CommentController extends Controller
             ],
             'mention_ids' => ['sometimes', 'array', 'max:20'],
             'mention_ids.*' => ['integer', 'exists:users,id'],
+            'note_type' => ['nullable', 'string', Rule::in(Comment::NOTE_TYPES)],
+            'structured_fields' => ['nullable', 'array'],
         ]);
 
         CommentService::createForTask(
@@ -36,6 +38,8 @@ class CommentController extends Controller
             $validated['body'],
             $validated['parent_id'] ?? null,
             $validated['mention_ids'] ?? [],
+            $validated['note_type'] ?? null,
+            $validated['structured_fields'] ?? null,
         );
 
         return back();

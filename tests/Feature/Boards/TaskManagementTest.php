@@ -125,11 +125,62 @@ class TaskManagementTest extends TestCase
             'event' => 'moved',
         ]);
 
-        // Moving back out of the completion column clears completion.
+        $firstCompletedAt = $first->refresh()->first_completed_at;
+        $this->assertNotNull($firstCompletedAt);
+
+        // Moving back out of the completion column clears completion but
+        // keeps a permanent record that it was reopened.
         $this->actingAs($user)
             ->post("/tasks/{$first->id}/move", ['board_column_id' => $backlog->id, 'position' => 1]);
 
-        $this->assertNull($first->refresh()->completed_at);
+        $first->refresh();
+        $this->assertNull($first->completed_at);
+        $this->assertNotNull($first->reopened_at);
+        $this->assertSame($firstCompletedAt->toDateTimeString(), $first->first_completed_at->toDateTimeString());
+    }
+
+    public function test_completion_note_is_captured_when_a_task_completes()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $board = $this->boardWithColumns();
+        [$backlog, , $done] = $board->columns()->get()->all();
+
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $backlog->id,
+            'created_by' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/move", [
+                'board_column_id' => $done->id,
+                'position' => 1,
+                'completion_note' => 'Shipped the redesign, QA signed off.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('Shipped the redesign, QA signed off.', $task->refresh()->completion_note);
+    }
+
+    public function test_reopening_and_recompleting_a_task_preserves_the_reopened_marker()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $board = $this->boardWithColumns();
+        [$backlog, , $done] = $board->columns()->get()->all();
+
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $backlog->id,
+            'created_by' => $user->id,
+        ]);
+
+        $this->actingAs($user)->post("/tasks/{$task->id}/move", ['board_column_id' => $done->id, 'position' => 1]);
+        $this->actingAs($user)->post("/tasks/{$task->id}/move", ['board_column_id' => $backlog->id, 'position' => 1]);
+        $this->actingAs($user)->post("/tasks/{$task->id}/move", ['board_column_id' => $done->id, 'position' => 1]);
+
+        $task->refresh();
+        $this->assertNotNull($task->completed_at);
+        $this->assertNotNull($task->reopened_at, 'reopened_at should stay set once a task has ever been reopened, even after re-completing.');
     }
 
     public function test_only_ceo_or_admin_can_flag_ceo_priority()

@@ -131,6 +131,7 @@ class TaskController extends Controller
             'board_column_id' => ['required', 'integer', 'exists:board_columns,id'],
             'position' => ['required', 'integer', 'min:1'],
             'override_reason' => ['nullable', 'string', 'max:500'],
+            'completion_note' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $column = BoardColumn::query()
@@ -148,7 +149,7 @@ class TaskController extends Controller
             ]);
         }
 
-        TaskMover::move($task, $column, $validated['position']);
+        TaskMover::move($task, $column, $validated['position'], $validated['completion_note'] ?? null);
 
         return back();
     }

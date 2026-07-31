@@ -16,14 +16,27 @@ class CommentService
      * Create a task comment, recording mentions and notifying mentioned
      * users plus the task's assignee and creator. Mentions are silently
      * limited to users who can actually view the task (US-030).
+     *
+     * $noteType/$structuredFields mark this as a structured progress note
+     * (see Comment::NOTE_TYPES) instead of an ordinary comment — the daily
+     * summary builders surface these separately.
      */
-    public static function createForTask(Task $task, User $author, string $body, ?int $parentId, array $mentionIds): Comment
-    {
-        $comment = DB::transaction(function () use ($task, $author, $body, $parentId, $mentionIds) {
+    public static function createForTask(
+        Task $task,
+        User $author,
+        string $body,
+        ?int $parentId,
+        array $mentionIds,
+        ?string $noteType = null,
+        ?array $structuredFields = null,
+    ): Comment {
+        $comment = DB::transaction(function () use ($task, $author, $body, $parentId, $mentionIds, $noteType, $structuredFields) {
             $comment = $task->comments()->create([
                 'user_id' => $author->id,
                 'body' => $body,
                 'parent_id' => $parentId,
+                'note_type' => $noteType,
+                'structured_fields' => $structuredFields,
             ]);
 
             $mentioned = User::query()

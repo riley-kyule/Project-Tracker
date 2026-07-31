@@ -58,6 +58,9 @@ class Task extends Model
         'approver_id',
         'approved_at',
         'approval_note',
+        'completion_note',
+        'first_completed_at',
+        'reopened_at',
     ];
 
     public const APPROVAL_PENDING = 'pending';
@@ -76,6 +79,8 @@ class Task extends Model
             'archived_at' => 'datetime',
             'metadata' => 'array',
             'approved_at' => 'datetime',
+            'first_completed_at' => 'datetime',
+            'reopened_at' => 'datetime',
         ];
     }
 
