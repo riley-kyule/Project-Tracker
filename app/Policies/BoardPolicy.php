@@ -61,15 +61,8 @@ class BoardPolicy
     }
 
     /**
-     * True if $user should see/manage a board under $departmentId, via any of
-     * three independent routes: (1) membership — their primary department is
-     * $departmentId or an ancestor of it, so belonging to "Marketing" gives
-     * visibility into every sub-department's boards too, not just Marketing's
-     * own; (2) granted membership — the same reach, but via an additional,
-     * non-primary department_members grant (Admin > Departments); or (3)
-     * leadership — they're the manager/assistant manager of a department
-     * whose tree includes $departmentId, kept separate from (1)/(2) since a
-     * lead's own department record doesn't have to match what they lead.
+     * True if $user should see/manage a board under $departmentId — see
+     * accessibleDepartmentIds() for the three routes this checks.
      */
     private function hasDepartmentAccess(User $user, ?int $departmentId): bool
     {
@@ -77,23 +70,48 @@ class BoardPolicy
             return false;
         }
 
+        return in_array($departmentId, $this->accessibleDepartmentIds($user), true);
+    }
+
+    /**
+     * Every department id $user has access to, via any of three independent
+     * routes: (1) membership — their primary department, plus every
+     * descendant of it, so belonging to "Marketing" gives access to every
+     * sub-department's boards too, not just Marketing's own; (2) granted
+     * membership — the same reach, but via an additional, non-primary
+     * department_members grant (Admin > Departments); or (3) leadership —
+     * they're the manager/assistant manager of a department, plus its
+     * descendants, kept separate from (1)/(2) since a lead's own department
+     * record doesn't have to match what they lead.
+     *
+     * Public (not just used internally by hasDepartmentAccess) so SQL-level
+     * visibility scopes elsewhere — e.g. Task::scopeVisibleTo() — can reuse
+     * this exact computation instead of re-deriving it or falling back to a
+     * cruder "same department_id" filter that would miss the restricted-board
+     * leak this method exists to close.
+     *
+     * @return array<int, int>
+     */
+    public function accessibleDepartmentIds(User $user): array
+    {
         $memberDepartmentIds = [
             ...($user->department_id !== null ? [$user->department_id] : []),
             ...$user->departmentMemberships()->pluck('departments.id'),
         ];
 
-        if (Department::query()
-            ->whereIn('id', $memberDepartmentIds)
-            ->get()
-            ->contains(fn (Department $d) => in_array($departmentId, $d->descendantIds(), true))
-        ) {
-            return true;
-        }
-
-        return Department::query()
+        $ledDepartmentIds = Department::query()
             ->where('manager_id', $user->id)
             ->orWhere('assistant_manager_id', $user->id)
-            ->get()
-            ->contains(fn (Department $led) => in_array($departmentId, $led->descendantIds(), true));
+            ->pluck('id');
+
+        $roots = Department::query()->whereIn('id', [...$memberDepartmentIds, ...$ledDepartmentIds])->get();
+
+        $ids = [];
+
+        foreach ($roots as $root) {
+            $ids = [...$ids, ...$root->descendantIds()];
+        }
+
+        return array_values(array_unique($ids));
     }
 }

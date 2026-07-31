@@ -38,7 +38,7 @@ class DashboardController extends Controller
                 'critical_tickets' => (clone $openTickets)->where('priority', 'critical')->count(),
                 'overdue_tickets' => (clone $openTickets)->whereNotNull('due_at')->where('due_at', '<', now())->count(),
             ],
-            'departmentPerformance' => $this->departmentPerformance(),
+            'departmentPerformance' => $this->departmentPerformance(null, $request->user()),
             'workload' => User::query()
                 ->where('status', User::STATUS_ACTIVE)
                 ->withCount(['assignedOpenTasks as open_tasks'])
@@ -69,11 +69,16 @@ class DashboardController extends Controller
 
     /**
      * Three grouped queries instead of three-per-department: avoids an
-     * N+1 that would otherwise scale with department count.
+     * N+1 that would otherwise scale with department count. $user scopes
+     * out tasks the viewer can't actually see (e.g. a restricted board they
+     * aren't a member of) — see Task::scopeVisibleTo(). It's a no-op for
+     * CEO/Administrator, so passing it from ceo() changes nothing there;
+     * it matters for department(), whose caller isn't always an executive.
      */
-    private function departmentPerformance(?Collection $departments = null): Collection
+    private function departmentPerformance(?Collection $departments = null, ?User $user = null): Collection
     {
         $counts = fn (Builder $query) => $query
+            ->when($user, fn ($q) => $q->visibleTo($user))
             ->whereNotNull('department_id')
             ->selectRaw('department_id, count(*) as total')
             ->groupBy('department_id')
@@ -115,14 +120,19 @@ class DashboardController extends Controller
         $children = $department->children()->orderBy('name')->get(['id', 'name']);
         $departmentIds = $department->descendantIds();
 
+        // visibleTo($user) keeps this dashboard from leaking tasks on boards the
+        // viewer can't actually open (a restricted board they aren't a member of,
+        // or a confidential task without a grant) — whereIn('department_id', ...)
+        // alone doesn't know about board/task-level visibility.
         $deptTasks = fn (): Builder => Task::query()
             ->whereIn('department_id', $departmentIds)
+            ->visibleTo($user)
             ->whereNull('completed_at')
             ->whereNull('archived_at');
 
         return Inertia::render('dashboard/department', [
             'department' => $department->only(['id', 'name']),
-            'subDepartments' => $children->isNotEmpty() ? $this->departmentPerformance($children) : null,
+            'subDepartments' => $children->isNotEmpty() ? $this->departmentPerformance($children, $user) : null,
             'counts' => [
                 'open' => $deptTasks()->count(),
                 'unassigned' => $deptTasks()->whereNull('primary_assignee_id')->count(),
@@ -134,7 +144,10 @@ class DashboardController extends Controller
             'workload' => User::query()
                 ->whereIn('department_id', $departmentIds)
                 ->where('status', User::STATUS_ACTIVE)
-                ->withCount(['assignedOpenTasks as open_tasks', 'assignedOverdueTasks as overdue_tasks'])
+                ->withCount([
+                    'assignedOpenTasks as open_tasks' => fn ($q) => $q->visibleTo($user),
+                    'assignedOverdueTasks as overdue_tasks' => fn ($q) => $q->visibleTo($user),
+                ])
                 ->orderByDesc('open_tasks')
                 ->get(['id', 'name', 'job_title']),
             'unassigned' => $deptTasks()
@@ -151,6 +164,7 @@ class DashboardController extends Controller
                 ->get(),
             'recentlyCompleted' => Task::query()
                 ->whereIn('department_id', $departmentIds)
+                ->visibleTo($user)
                 ->whereNotNull('completed_at')
                 ->with(['board:id,name', 'assignee:id,name'])
                 ->latest('completed_at')

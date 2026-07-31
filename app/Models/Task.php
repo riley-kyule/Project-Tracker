@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Policies\BoardPolicy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -240,5 +242,60 @@ class Task extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approver_id');
+    }
+
+    /**
+     * Mirrors TaskPolicy::view() as a query constraint, for list/count endpoints
+     * (dashboards, reports) that can't afford to load every row and filter with
+     * Gate::allows() in PHP. Keep in sync with TaskPolicy::view() by hand — there
+     * is no single source of truth shared between the two forms.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->hasAnyRole(['CEO', 'Administrator'])) {
+            return $query;
+        }
+
+        return $query
+            ->where(function (Builder $q) use ($user) {
+                $q->whereHas('board', fn (Builder $b) => $this->applyBoardVisibility($b, $user))
+                    ->orWhereHas('assignees', fn (Builder $a) => $a->whereKey($user->id));
+            })
+            ->where(function (Builder $q) use ($user) {
+                $q->where('confidentiality', self::CONFIDENTIALITY_NORMAL)
+                    ->when(
+                        $user->hasRole('Department Manager'),
+                        fn (Builder $q2) => $q2->orWhereHas('confidentialGrants', fn (Builder $g) => $g->whereKey($user->id)),
+                    );
+            });
+    }
+
+    /** Same three-way rule as BoardPolicy::view() (company/department/restricted + the manage() bypass). */
+    private function applyBoardVisibility(Builder $query, User $user): Builder
+    {
+        $canManage = $user->can('boards.manage');
+        $accessibleDepartmentIds = app(BoardPolicy::class)->accessibleDepartmentIds($user);
+
+        return $query->where(function (Builder $q) use ($canManage, $accessibleDepartmentIds, $user) {
+            if ($canManage && $accessibleDepartmentIds !== []) {
+                $q->orWhereIn('department_id', $accessibleDepartmentIds);
+            }
+
+            $q->orWhere(function (Builder $q2) use ($accessibleDepartmentIds, $user) {
+                $q2->where('is_active', true)->where(function (Builder $q3) use ($accessibleDepartmentIds, $user) {
+                    $q3->where('visibility', Board::VISIBILITY_COMPANY);
+
+                    if ($accessibleDepartmentIds !== []) {
+                        $q3->orWhere(fn (Builder $q4) => $q4
+                            ->where('visibility', Board::VISIBILITY_DEPARTMENT)
+                            ->whereIn('department_id', $accessibleDepartmentIds));
+                    }
+
+                    $q3->orWhere(fn (Builder $q4) => $q4
+                        ->where('visibility', Board::VISIBILITY_RESTRICTED)
+                        ->whereHas('members', fn (Builder $m) => $m->whereKey($user->id)));
+                });
+            });
+        });
     }
 }

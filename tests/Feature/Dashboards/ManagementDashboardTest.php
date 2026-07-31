@@ -122,6 +122,49 @@ class ManagementDashboardTest extends TestCase
         $this->actingAs($assistant)->get('/dashboards/department')->assertOk();
     }
 
+    /**
+     * The department dashboard is reachable by anyone department->leads() them
+     * (manager or assistant manager by id), regardless of role/permissions —
+     * unlike BoardPolicy::manage(), which requires the 'boards.manage'
+     * permission before it lets a department lead see a restricted board.
+     * whereIn('department_id', ...) alone doesn't know about that distinction,
+     * so before Task::scopeVisibleTo() this assistant (no role, no
+     * boards.manage) would have seen the restricted board's task too.
+     */
+    public function test_department_dashboard_hides_restricted_board_tasks_from_a_non_manager_lead()
+    {
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+        $assistant = User::factory()->create(['department_id' => $marketing->id]);
+        $marketing->update(['assistant_manager_id' => $assistant->id]);
+
+        $visibleBoard = Board::factory()->create(['department_id' => $marketing->id, 'visibility' => Board::VISIBILITY_DEPARTMENT]);
+        $visibleColumn = BoardColumn::factory()->create(['board_id' => $visibleBoard->id]);
+        Task::factory()->create([
+            'board_id' => $visibleBoard->id,
+            'board_column_id' => $visibleColumn->id,
+            'department_id' => $marketing->id,
+            'title' => 'Visible task',
+        ]);
+
+        $restrictedBoard = Board::factory()->create(['department_id' => $marketing->id, 'visibility' => Board::VISIBILITY_RESTRICTED]);
+        $restrictedColumn = BoardColumn::factory()->create(['board_id' => $restrictedBoard->id]);
+        Task::factory()->create([
+            'board_id' => $restrictedBoard->id,
+            'board_column_id' => $restrictedColumn->id,
+            'department_id' => $marketing->id,
+            'title' => 'Secret task',
+        ]);
+
+        $response = $this->actingAs($assistant)->get('/dashboards/department')->assertOk();
+        $props = $response->viewData('page')['props'];
+
+        $this->assertSame(1, $props['counts']['open']);
+
+        $titles = collect($props['unassigned'])->pluck('title');
+        $this->assertTrue($titles->contains('Visible task'));
+        $this->assertFalse($titles->contains('Secret task'));
+    }
+
     public function test_task_report_requires_permission_and_filters()
     {
         $employee = User::factory()->create()->assignRole('Employee');

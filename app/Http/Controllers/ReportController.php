@@ -36,9 +36,11 @@ class ReportController extends Controller
             ->when($request->filled('department_id'), fn ($q) => $q->where('department_id', $request->integer('department_id')))
             ->when($request->filled('assignee_id'), fn ($q) => $q->where('primary_assignee_id', $request->integer('assignee_id')));
 
-        // Department managers see their department only.
+        // Department managers see their department only — and, within it, only
+        // tasks they're actually authorized to view (visibleTo excludes e.g. a
+        // restricted board they aren't a member of; it's a no-op for CEO/Admin).
         if (! $request->user()->hasAnyRole(['CEO', 'Administrator'])) {
-            $query->where('department_id', $request->user()->department_id);
+            $query->where('department_id', $request->user()->department_id)->visibleTo($request->user());
         }
 
         return Inertia::render('reports/tasks', [
@@ -63,15 +65,19 @@ class ReportController extends Controller
         $isExec = $request->user()->hasAnyRole(['CEO', 'Administrator']);
         $departmentId = $isExec ? $request->integer('department_id') ?: null : $request->user()->department_id;
 
+        // visibleTo($request->user()) scopes every count to what the viewing
+        // manager is actually authorized to see (a no-op for CEO/Admin) — without
+        // it, a department manager's workload counts would include tasks on a
+        // restricted board they can't open themselves.
         $people = User::query()
             ->where('status', User::STATUS_ACTIVE)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
             ->with('department:id,name')
             ->withCount([
-                'assignedOpenTasks as open_tasks',
-                'assignedOverdueTasks as overdue_tasks',
-                'assignedOpenTasks as blocked_tasks' => fn ($q) => $q->whereHas('column', fn ($c) => $c->where('semantic_status', 'blocked')),
-                'assignedOpenTasks as awaiting_review_tasks' => fn ($q) => $q->whereHas('column', fn ($c) => $c->where('semantic_status', 'review')),
+                'assignedOpenTasks as open_tasks' => fn ($q) => $q->visibleTo($request->user()),
+                'assignedOverdueTasks as overdue_tasks' => fn ($q) => $q->visibleTo($request->user()),
+                'assignedOpenTasks as blocked_tasks' => fn ($q) => $q->visibleTo($request->user())->whereHas('column', fn ($c) => $c->where('semantic_status', 'blocked')),
+                'assignedOpenTasks as awaiting_review_tasks' => fn ($q) => $q->visibleTo($request->user())->whereHas('column', fn ($c) => $c->where('semantic_status', 'review')),
             ])
             ->orderByDesc('open_tasks')
             ->get(['id', 'name', 'department_id', 'job_title']);
