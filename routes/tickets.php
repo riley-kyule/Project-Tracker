@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\SlaPolicyController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SavedFilterController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TrafficDataController;
@@ -18,6 +19,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('reports/tasks', [ReportController::class, 'tasks'])->name('reports.tasks');
     Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');
     Route::get('reports/remote-support', [ReportController::class, 'remoteSupport'])->name('reports.remote-support');
+    Route::post('saved-filters', [SavedFilterController::class, 'store'])->name('saved-filters.store');
+    Route::delete('saved-filters/{savedFilter}', [SavedFilterController::class, 'destroy'])->name('saved-filters.destroy');
     Route::get('search', [SearchController::class, 'index'])->name('search');
 
     Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');

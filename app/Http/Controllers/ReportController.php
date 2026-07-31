@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Models\SavedFilter;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\TicketStatusHistory;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -50,6 +52,11 @@ class ReportController extends Controller
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'people' => User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name']),
             'selected' => $request->only(['department_id', 'assignee_id']),
+            'savedFilters' => SavedFilter::query()
+                ->where('user_id', $request->user()->id)
+                ->where('scope', SavedFilter::SCOPE_REPORTS_TASKS)
+                ->orderBy('name')
+                ->get(['id', 'name', 'filters']),
         ]);
     }
 

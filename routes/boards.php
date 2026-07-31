@@ -9,6 +9,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RecurrenceRuleController;
 use App\Http\Controllers\TaskApprovalController;
 use App\Http\Controllers\TaskAssigneeController;
+use App\Http\Controllers\TaskBulkActionController;
 use App\Http\Controllers\TaskConfidentialGrantController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskDependencyController;
@@ -30,6 +31,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('boards/{board}/reorder-columns', [BoardColumnController::class, 'reorder'])->name('board-columns.reorder');
 
     Route::post('boards/{board}/tasks', [TaskController::class, 'store'])->name('tasks.store');
+    Route::post('tasks/bulk-reassign', [TaskBulkActionController::class, 'reassign'])->name('tasks.bulk-reassign');
+    Route::post('tasks/bulk-move', [TaskBulkActionController::class, 'move'])->name('tasks.bulk-move');
     Route::patch('tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
