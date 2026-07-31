@@ -69,6 +69,39 @@ class AttachmentTest extends TestCase
         $this->assertSame(0, Attachment::query()->count());
     }
 
+    public function test_svg_uploads_are_rejected()
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask();
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/attachments", [
+                'file' => UploadedFile::fake()->createWithContent('image.svg', '<svg onload="alert(1)"></svg>'),
+            ])
+            ->assertSessionHasErrors('file');
+
+        $this->assertSame(0, Attachment::query()->count());
+    }
+
+    public function test_the_stored_filename_is_stripped_of_path_segments()
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask();
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/attachments", [
+                'file' => $this->pdf('../../etc/passwd.pdf'),
+            ])
+            ->assertRedirect();
+
+        $attachment = Attachment::query()->firstOrFail();
+        $this->assertSame('passwd.pdf', $attachment->original_name);
+    }
+
     public function test_renamed_executable_content_is_rejected()
     {
         Storage::fake('local');

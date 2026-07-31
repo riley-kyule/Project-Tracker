@@ -21,9 +21,13 @@ class AttachmentController extends Controller
         'exe', 'dll', 'bat', 'cmd', 'com', 'msi', 'sh', 'app', 'scr', 'pif', 'jar', 'php', 'phar',
     ];
 
+    // svg is deliberately excluded despite being a common image format: an SVG
+    // can carry embedded <script>/event-handler content, which would run as
+    // stored XSS the moment anything renders it inline instead of as a plain
+    // download.
     private const ALLOWED_EXTENSIONS = [
         'csv', 'doc', 'docx', 'gif', 'jpeg', 'jpg', 'json', 'md', 'ods', 'odt',
-        'pdf', 'png', 'ppt', 'pptx', 'svg', 'txt', 'webp', 'xls', 'xlsx', 'xml', 'zip',
+        'pdf', 'png', 'ppt', 'pptx', 'txt', 'webp', 'xls', 'xlsx', 'xml', 'zip',
     ];
 
     private const MIME_TYPES_BY_EXTENSION = [
@@ -41,7 +45,6 @@ class AttachmentController extends Controller
         'png' => ['image/png'],
         'ppt' => ['application/vnd.ms-powerpoint', 'application/x-ole-storage', 'application/octet-stream'],
         'pptx' => ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/zip'],
-        'svg' => ['image/svg+xml', 'text/xml'],
         'txt' => ['text/plain'],
         'webp' => ['image/webp'],
         'xls' => ['application/vnd.ms-excel', 'application/x-ole-storage', 'application/octet-stream'],
@@ -123,7 +126,7 @@ class AttachmentController extends Controller
             'uploaded_by' => $request->user()->id,
             'disk' => 'local',
             'path' => $path,
-            'original_name' => $file->getClientOriginalName(),
+            'original_name' => $this->sanitizeOriginalName($file->getClientOriginalName()),
             'mime_type' => $detectedMime,
             'size_bytes' => $file->getSize(),
             'checksum' => hash_file('sha256', $file->getRealPath()),
@@ -132,6 +135,21 @@ class AttachmentController extends Controller
         AuditLogger::log($parent, 'attachment_added', [], ['attachment_id' => $attachment->id, 'name' => $attachment->original_name]);
 
         return back();
+    }
+
+    /**
+     * The stored filename ends up as the Content-Disposition header value on
+     * download (Storage::download() below) — Symfony's disposition encoder
+     * already neutralizes header injection, but stripping path separators
+     * and control characters here too is cheap defense-in-depth against a
+     * browser or intermediary that mishandles it.
+     */
+    private function sanitizeOriginalName(string $name): string
+    {
+        $name = basename(str_replace('\\', '/', $name));
+        $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name);
+
+        return $name !== '' ? $name : 'file';
     }
 
     private function parentOf(Attachment $attachment): Task|Ticket
