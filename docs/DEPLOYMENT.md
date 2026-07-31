@@ -87,7 +87,13 @@ A process inside one container can't restart a *different* container without acc
 
 - Run `php artisan queue:work --sleep=3 --tries=3 --max-time=3600` under Supervisor, systemd, or an equivalent orchestrator.
 - Run `php artisan schedule:run` every minute. The scheduler generates recurring tasks and due notifications.
-- Monitor failed jobs and queue latency. Establish a documented retry or discard procedure.
+- Monitor failed jobs and queue latency via `/admin/queue-health` (Administrator-only). Establish a documented retry or discard procedure.
+
+## Query and index monitoring
+
+- Set `log_min_duration_statement` on the production Postgres instance (e.g. `500` ms) so slow queries land in the database log without needing an APM product.
+- `AppServiceProvider::boot()` also registers a production-only `DB::listen()` that logs any query over `SLOW_QUERY_THRESHOLD_MS` (default 500ms, see `.env.example`) through Laravel's own logger — a lower-friction first signal than parsing the Postgres log, at the cost of missing anything issued outside the framework's query builder (raw connections, extensions).
+- Periodically review `pg_stat_user_indexes`/`pg_stat_statements` (if enabled) for unused indexes and slow, frequently-run queries as the dataset grows past what synthetic testing covers.
 
 ## Data and files
 

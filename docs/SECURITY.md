@@ -4,7 +4,9 @@
 
 EWMS is an internal, single-company system. Public registration and self-service account deletion are disabled by default; administrators provision and deactivate workforce accounts. Record access is enforced with Laravel policies, and client-provided actor or department identity is not trusted.
 
-Restricted board membership controls task visibility. Assignees must be active and able to view the destination board. Ticket-to-task conversion applies the same task creation policy as direct task creation.
+Restricted board membership controls task visibility. Assignees must be active and able to view the destination board. Ticket-to-task conversion applies the same task creation policy as direct task creation. `Task::scopeVisibleTo()` mirrors `TaskPolicy::view()` for list/count endpoints (dashboards, reports) that can't authorize row-by-row without a prohibitive N+1 cost — keep the two in sync by hand when either changes.
+
+A role or status change stamps `users.sessions_invalidated_at`; `InvalidateStaleSessions` middleware forces re-authentication on that user's next request if their session predates the change, so an already-open session can't keep acting on revoked access until it naturally expires.
 
 ## Audit and integrity
 
@@ -23,7 +25,11 @@ Account deactivation is preferred to deletion so authorship, ticket history, and
 
 ## Attachments
 
-Attachments are stored privately and inherit authorization from their parent task or ticket. Uploads are limited to 25 MB, use an allowlist, compare detected content MIME to the extension, reject executable formats, and record a SHA-256 checksum. This is defense in depth, not a substitute for malware scanning.
+Attachments are stored privately and inherit authorization from their parent task or ticket. Uploads are limited to 25 MB, use an allowlist (SVG is deliberately excluded — it can carry embedded scripts, a stored-XSS risk if ever rendered inline), compare detected content MIME to the extension, reject executable formats, and record a SHA-256 checksum. The stored filename is stripped of path segments and control characters before being used as the download's `Content-Disposition` name. This is defense in depth, not a substitute for malware scanning.
+
+## Report and CSV exports
+
+Spreadsheet cells built from user-controlled text (ticket titles, category/department names, resolution methods) are escaped before CSV export (`ReportController::csvSafe()`) — a cell beginning with `=`, `+`, `-`, or `@` is prefixed with a single quote so Excel/Sheets treats it as a literal string instead of evaluating it as a formula when the export is opened.
 
 ## Operational responsibilities
 
