@@ -72,6 +72,34 @@ class DepartmentManagementTest extends TestCase
         ]);
     }
 
+    public function test_administrators_can_set_a_workflow_template()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $department = Department::query()->where('slug', 'seo')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->patch("/admin/departments/{$department->id}", [
+                'name' => $department->name,
+                'workflow_template' => Department::TEMPLATE_SEO,
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(Department::TEMPLATE_SEO, $department->refresh()->workflow_template);
+    }
+
+    public function test_an_invalid_workflow_template_is_rejected()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $department = Department::query()->where('slug', 'seo')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->patch("/admin/departments/{$department->id}", [
+                'name' => $department->name,
+                'workflow_template' => 'not_a_real_template',
+            ])
+            ->assertSessionHasErrors('workflow_template');
+    }
+
     public function test_duplicate_department_names_are_rejected()
     {
         $admin = User::factory()->create()->assignRole('Administrator');

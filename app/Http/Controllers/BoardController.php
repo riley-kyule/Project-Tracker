@@ -32,6 +32,49 @@ class BoardController extends Controller
         ['name' => 'Archived', 'semantic_status' => 'archived', 'is_archive_column' => true],
     ];
 
+    /**
+     * Department-specific starting workflows so teams don't begin with an
+     * empty generic board — picked automatically from the new board's
+     * department (Department::workflow_template), not chosen per board.
+     * Every preset still ends with the same Completed/Archived pair as
+     * DEFAULT_COLUMNS so completion and archiving behave identically.
+     */
+    public const DEPARTMENT_COLUMN_PRESETS = [
+        Department::TEMPLATE_CUSTOMER_SERVICE => [
+            ['name' => 'New', 'semantic_status' => 'idea'],
+            ['name' => 'In Progress', 'semantic_status' => 'active'],
+            ['name' => 'Waiting for Customer', 'semantic_status' => 'blocked'],
+            ['name' => 'Escalated', 'semantic_status' => 'review'],
+            ['name' => 'Resolved', 'semantic_status' => 'completed', 'is_completion_column' => true],
+            ['name' => 'Archived', 'semantic_status' => 'archived', 'is_archive_column' => true],
+        ],
+        Department::TEMPLATE_SEO => [
+            ['name' => 'Planned', 'semantic_status' => 'backlog'],
+            ['name' => 'Research', 'semantic_status' => 'ready'],
+            ['name' => 'Implementation', 'semantic_status' => 'active'],
+            ['name' => 'Monitoring', 'semantic_status' => 'review'],
+            ['name' => 'Completed', 'semantic_status' => 'completed', 'is_completion_column' => true],
+            ['name' => 'Archived', 'semantic_status' => 'archived', 'is_archive_column' => true],
+        ],
+        Department::TEMPLATE_IT => [
+            ['name' => 'Reported', 'semantic_status' => 'idea'],
+            ['name' => 'Triaged', 'semantic_status' => 'backlog'],
+            ['name' => 'In Progress', 'semantic_status' => 'active'],
+            ['name' => 'Waiting', 'semantic_status' => 'blocked'],
+            ['name' => 'Testing', 'semantic_status' => 'review'],
+            ['name' => 'Resolved', 'semantic_status' => 'completed', 'is_completion_column' => true],
+            ['name' => 'Archived', 'semantic_status' => 'archived', 'is_archive_column' => true],
+        ],
+        Department::TEMPLATE_CONTENT => [
+            ['name' => 'Brief', 'semantic_status' => 'idea'],
+            ['name' => 'Draft', 'semantic_status' => 'active'],
+            ['name' => 'Review', 'semantic_status' => 'review'],
+            ['name' => 'Revision', 'semantic_status' => 'active'],
+            ['name' => 'Published', 'semantic_status' => 'completed', 'is_completion_column' => true],
+            ['name' => 'Archived', 'semantic_status' => 'archived', 'is_archive_column' => true],
+        ],
+    ];
+
     public function index(Request $request): Response
     {
         $boards = Board::query()
@@ -130,7 +173,10 @@ class BoardController extends Controller
                 'created_by' => $request->user()->id,
             ]);
 
-            foreach (self::DEFAULT_COLUMNS as $index => $column) {
+            $department = $board->department_id ? Department::find($board->department_id) : null;
+            $columns = self::DEPARTMENT_COLUMN_PRESETS[$department?->workflow_template] ?? self::DEFAULT_COLUMNS;
+
+            foreach ($columns as $index => $column) {
                 $board->columns()->create([
                     ...$column,
                     'slug' => str($column['name'])->slug(),

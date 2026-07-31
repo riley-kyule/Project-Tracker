@@ -13,6 +13,21 @@ class Department extends Model
 {
     use HasFactory;
 
+    public const TEMPLATE_CUSTOMER_SERVICE = 'customer_service';
+
+    public const TEMPLATE_SEO = 'seo';
+
+    public const TEMPLATE_IT = 'it';
+
+    public const TEMPLATE_CONTENT = 'content';
+
+    public const WORKFLOW_TEMPLATES = [
+        self::TEMPLATE_CUSTOMER_SERVICE,
+        self::TEMPLATE_SEO,
+        self::TEMPLATE_IT,
+        self::TEMPLATE_CONTENT,
+    ];
+
     protected $fillable = [
         'name',
         'slug',
@@ -21,6 +36,7 @@ class Department extends Model
         'manager_id',
         'assistant_manager_id',
         'is_active',
+        'workflow_template',
         'daily_summary_time',
         'daily_summary_last_sent_on',
     ];

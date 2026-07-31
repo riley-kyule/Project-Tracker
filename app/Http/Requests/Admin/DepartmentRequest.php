@@ -37,6 +37,7 @@ class DepartmentRequest extends FormRequest
             'manager_id' => ['nullable', 'integer', 'exists:users,id'],
             'assistant_manager_id' => ['nullable', 'integer', 'exists:users,id'],
             'is_active' => ['boolean'],
+            'workflow_template' => ['nullable', Rule::in(Department::WORKFLOW_TEMPLATES)],
             'daily_summary_time' => ['nullable', 'date_format:H:i'],
             'member_ids' => ['sometimes', 'array'],
             'member_ids.*' => ['integer', 'exists:users,id'],

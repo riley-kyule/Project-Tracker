@@ -24,6 +24,7 @@ type Department = {
     assistant_manager_id: number | null;
     assistant_manager: { id: number; name: string } | null;
     is_active: boolean;
+    workflow_template: string | null;
     daily_summary_time: string | null;
     users_count: number;
     members: { id: number; name: string }[];
@@ -39,12 +40,20 @@ type DepartmentForm = {
     manager_id: string;
     assistant_manager_id: string;
     is_active: boolean;
+    workflow_template: string;
     daily_summary_time: string;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Departments', href: '/admin/departments' }];
 
 const NONE = 'none';
+
+const WORKFLOW_TEMPLATES = [
+    { value: 'customer_service', label: 'Customer Service' },
+    { value: 'seo', label: 'SEO' },
+    { value: 'it', label: 'IT' },
+    { value: 'content', label: 'Content' },
+];
 
 function DepartmentDialog({
     department,
@@ -65,6 +74,7 @@ function DepartmentDialog({
         manager_id: department?.manager_id?.toString() ?? NONE,
         assistant_manager_id: department?.assistant_manager_id?.toString() ?? NONE,
         is_active: department?.is_active ?? true,
+        workflow_template: department?.workflow_template ?? NONE,
         daily_summary_time: department?.daily_summary_time?.slice(0, 5) ?? '',
     });
 
@@ -78,6 +88,7 @@ function DepartmentDialog({
             parent_department_id: form.parent_department_id === NONE ? null : Number(form.parent_department_id),
             manager_id: form.manager_id === NONE ? null : Number(form.manager_id),
             assistant_manager_id: form.assistant_manager_id === NONE ? null : Number(form.assistant_manager_id),
+            workflow_template: form.workflow_template === NONE ? null : form.workflow_template,
             daily_summary_time: form.daily_summary_time === '' ? null : form.daily_summary_time,
         }));
         const options = {
@@ -165,6 +176,26 @@ function DepartmentDialog({
                         <InputError message={errors.assistant_manager_id} />
                     </div>
                     <div className="grid gap-2">
+                        <Label>Board workflow template</Label>
+                        <Select value={data.workflow_template} onValueChange={(value) => setData('workflow_template', value)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Generic default columns" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>Generic default columns</SelectItem>
+                                {WORKFLOW_TEMPLATES.map((template) => (
+                                    <SelectItem key={template.value} value={template.value}>
+                                        {template.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-muted-foreground text-xs">
+                            New boards created for this department start with this workflow's columns instead of the generic default.
+                        </p>
+                        <InputError message={errors.workflow_template} />
+                    </div>
+                    <div className="grid gap-2">
                         <Label htmlFor="daily_summary_time">Daily summary email time</Label>
                         <Input
                             id="daily_summary_time"
@@ -173,9 +204,7 @@ function DepartmentDialog({
                             onChange={(e) => setData('daily_summary_time', e.target.value)}
                             className="w-40"
                         />
-                        <p className="text-muted-foreground text-xs">
-                            Sent to the head of department and assistant manager. Leave blank to disable.
-                        </p>
+                        <p className="text-muted-foreground text-xs">Sent to the head of department and assistant manager. Leave blank to disable.</p>
                         <InputError message={errors.daily_summary_time} />
                     </div>
                     <div className="flex items-center gap-2">
@@ -224,8 +253,8 @@ function DepartmentMembersDialog({ department, allUsers }: { department: Departm
                     <DialogTitle>{department.name} — additional members</DialogTitle>
                 </DialogHeader>
                 <p className="text-muted-foreground text-sm">
-                    Grants visibility into this department's boards (and any sub-departments') without moving anyone's
-                    primary department — for people who need access alongside their home team.
+                    Grants visibility into this department's boards (and any sub-departments') without moving anyone's primary department — for people
+                    who need access alongside their home team.
                 </p>
                 <ul className="space-y-1.5">
                     {department.members.map((member) => (
