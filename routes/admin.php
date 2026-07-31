@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\CompanySettingController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\DeploymentController;
 use App\Http\Controllers\Admin\LabelController;
+use App\Http\Controllers\Admin\QueueHealthController;
+use App\Http\Controllers\Admin\ReportDeliveryController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,4 +30,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('deployments/latest', [DeploymentController::class, 'latest'])->name('deployments.latest');
     Route::post('deployments', [DeploymentController::class, 'store'])->name('deployments.store');
     Route::get('deployments/{deployment}', [DeploymentController::class, 'show'])->name('deployments.show');
+
+    Route::get('queue-health', [QueueHealthController::class, 'index'])->name('queue-health.index');
+    Route::get('report-deliveries', [ReportDeliveryController::class, 'index'])->name('report-deliveries.index');
 });

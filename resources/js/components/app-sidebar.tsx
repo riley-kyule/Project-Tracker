@@ -5,6 +5,7 @@ import { UpdateChecker } from '@/components/update-checker';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Activity,
     BarChart3,
     Building2,
     Crown,
@@ -16,6 +17,7 @@ import {
     LifeBuoy,
     LineChart,
     ListTodo,
+    Mail,
     Sliders,
     Tag,
     Users,
@@ -65,6 +67,8 @@ export function AppSidebar() {
         ...(auth.permissions.includes('labels.manage') ? [{ title: 'Labels', url: '/admin/labels', icon: Tag }] : []),
         ...(auth.permissions.includes('users.view') ? [{ title: 'Users', url: '/admin/users', icon: Users }] : []),
         ...(auth.hasWebsiteAssignments ? [{ title: 'My Reports', url: '/my-reports', icon: FileText }] : []),
+        ...(auth.roles.includes('Administrator') ? [{ title: 'Queue Health', url: '/admin/queue-health', icon: Activity }] : []),
+        ...(auth.roles.includes('Administrator') ? [{ title: 'Report Deliveries', url: '/admin/report-deliveries', icon: Mail }] : []),
     ];
 
     return (
