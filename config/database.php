@@ -133,6 +133,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Slow Query Threshold
+    |--------------------------------------------------------------------------
+    |
+    | Queries at or above this duration (in milliseconds) are logged as a
+    | warning by the production-only DB::listen() in AppServiceProvider.
+    | See docs/DEPLOYMENT.md's "Query and index monitoring" section.
+    |
+    */
+
+    'slow_query_threshold_ms' => env('SLOW_QUERY_THRESHOLD_MS', 500),
+
+    /*
+    |--------------------------------------------------------------------------
     | Redis Databases
     |--------------------------------------------------------------------------
     |
