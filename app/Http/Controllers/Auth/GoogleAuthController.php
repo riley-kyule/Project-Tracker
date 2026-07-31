@@ -66,6 +66,7 @@ class GoogleAuthController extends Controller
 
         Auth::login($user, remember: true);
         request()->session()->regenerate();
+        request()->session()->put('authenticated_at', now()->timestamp);
 
         $user->forceFill(['last_login_at' => now()])->save();
         AuditLogger::log($user, 'login_succeeded', [], ['method' => 'google']);

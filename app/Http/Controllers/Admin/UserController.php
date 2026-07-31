@@ -82,6 +82,14 @@ class UserController extends Controller
             $user->update($request->safe()->except('role'));
             $user->syncRoles([$request->validated('role')]);
 
+            // An already-open session otherwise keeps whatever access it started
+            // with until it naturally expires — force re-authentication the next
+            // time this user is seen so a role/status change takes effect
+            // immediately. See InvalidateStaleSessions.
+            if ($old['role'] !== $new['role'] || $old['status'] !== $new['status']) {
+                $user->forceFill(['sessions_invalidated_at' => now()])->save();
+            }
+
             AuditLogger::log($user, 'administrative_update', $old, $new);
         });
 
@@ -94,6 +102,7 @@ class UserController extends Controller
         abort_if($user->is($request->user()), 422, "You can't delete your own account.");
 
         AuditLogger::log($user, 'deleted', ['name' => $user->name, 'email' => $user->email], []);
+        $user->forceFill(['sessions_invalidated_at' => now()])->save();
         $user->delete();
 
         return back()->with('success', 'User deleted.');

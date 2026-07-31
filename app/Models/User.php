@@ -64,6 +64,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'notification_preferences' => 'array',
             'last_login_at' => 'datetime',
+            'sessions_invalidated_at' => 'datetime',
         ];
     }
 
@@ -105,10 +106,14 @@ class User extends Authenticatable
         return $this->status === self::STATUS_ACTIVE;
     }
 
-    /** Absent key means enabled — the column has no seeded default, so "never configured" must not silence anything. */
+    /**
+     * Absent key means enabled — the column has no seeded default, so "never
+     * configured" must not silence anything. A deactivated/suspended account
+     * never wants notifications, regardless of its stored preferences.
+     */
     public function wantsNotification(string $type): bool
     {
-        return ($this->notification_preferences[$type] ?? true) !== false;
+        return $this->isActive() && ($this->notification_preferences[$type] ?? true) !== false;
     }
 
     /**

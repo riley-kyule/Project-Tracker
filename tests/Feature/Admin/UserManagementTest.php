@@ -105,6 +105,57 @@ class UserManagementTest extends TestCase
             ->assertSessionHasErrors('email');
     }
 
+    public function test_role_change_forces_the_targets_existing_session_to_reauthenticate()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $target = User::factory()->create()->assignRole('Employee');
+
+        $this->actingAs($admin)->patch("/admin/users/{$target->id}", [
+            'status' => 'active',
+            'role' => 'Department Manager',
+        ])->assertRedirect();
+
+        $target->refresh();
+        $this->assertNotNull($target->sessions_invalidated_at);
+
+        // The target's own, already-open browser session — established before
+        // the change — must be forced to re-authenticate on its next request.
+        $response = $this->actingAs($target)
+            ->withSession(['authenticated_at' => now()->subMinute()->timestamp])
+            ->get('/dashboard');
+
+        $response->assertRedirect('/login');
+        $this->assertGuest();
+    }
+
+    public function test_a_session_established_after_the_change_is_not_invalidated()
+    {
+        $target = User::factory()->create()->assignRole('Employee');
+        $target->forceFill(['sessions_invalidated_at' => now()->subMinute()])->save();
+
+        $response = $this->actingAs($target)
+            ->withSession(['authenticated_at' => now()->timestamp])
+            ->get('/dashboard');
+
+        $response->assertOk();
+    }
+
+    public function test_deactivating_a_user_stops_their_notifications()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $target = User::factory()->create(['status' => User::STATUS_ACTIVE])->assignRole('Employee');
+
+        $this->assertTrue($target->wantsNotification('task_assigned'));
+
+        $this->actingAs($admin)->patch("/admin/users/{$target->id}", [
+            'status' => 'inactive',
+            'role' => 'Employee',
+        ])->assertRedirect();
+
+        $target->refresh();
+        $this->assertFalse($target->wantsNotification('task_assigned'));
+    }
+
     public function test_a_user_cannot_be_their_own_manager()
     {
         $admin = User::factory()->create()->assignRole('Administrator');
