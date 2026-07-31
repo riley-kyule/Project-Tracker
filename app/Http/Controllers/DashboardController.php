@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\Board;
 use App\Models\Department;
+use App\Models\Mention;
 use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\Ticket;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -215,6 +218,48 @@ class DashboardController extends Controller
                 ->latest()
                 ->limit(5)
                 ->get(['id', 'ticket_number', 'title', 'status', 'category_id', 'created_at']),
+            // Tasks someone else is waiting on this user to review/approve —
+            // distinct from "awaiting_review" above, which is this user's own
+            // work sitting in a review column regardless of who the reviewer is.
+            'waitingOnMe' => Task::query()
+                ->where('approver_id', $user->id)
+                ->where('approval_status', Task::APPROVAL_PENDING)
+                ->with('board:id,name')
+                ->latest('updated_at')
+                ->limit(10)
+                ->get(['id', 'task_number', 'title', 'board_id', 'approval_note']),
+            'mentions' => Mention::query()
+                ->where('mentioned_user_id', $user->id)
+                ->with(['comment' => fn ($query) => $query->with(['user:id,name', 'commentable'])])
+                ->latest('created_at')
+                ->limit(10)
+                ->get()
+                ->filter(fn (Mention $mention) => $mention->comment?->commentable instanceof Task
+                    && Gate::forUser($user)->allows('view', $mention->comment->commentable))
+                ->map(fn (Mention $mention) => [
+                    'id' => $mention->id,
+                    'author' => $mention->comment->user?->name ?? 'Unknown',
+                    'body' => str($mention->comment->body)->limit(140)->toString(),
+                    'task_id' => $mention->comment->commentable->id,
+                    'task_title' => $mention->comment->commentable->title,
+                    'board_id' => $mention->comment->commentable->board_id,
+                    'created_at' => $mention->created_at,
+                ])
+                ->values(),
+            'quickCaptureBoards' => Board::query()
+                ->where('is_active', true)
+                ->with(['columns' => fn ($query) => $query->orderBy('position')])
+                ->get()
+                ->filter(fn (Board $board) => Gate::forUser($user)->allows('create', [Task::class, $board]))
+                ->map(fn (Board $board) => [
+                    'id' => $board->id,
+                    'name' => $board->name,
+                    'default_column_id' => $board->columns
+                        ->first(fn ($column) => ! $column->is_completion_column && ! $column->is_archive_column)
+                        ?->id,
+                ])
+                ->filter(fn (array $board) => $board['default_column_id'] !== null)
+                ->values(),
         ]);
     }
 
