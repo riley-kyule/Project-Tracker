@@ -17,6 +17,7 @@ class NotificationPreferencesController extends Controller
         'ticket_submitted', 'ticket_assigned', 'ticket_updated', 'ticket_overdue', 'ticket_response_overdue',
         'ticket_response', 'ticket_closed_inactivity',
         'analytics_source_stale', 'task_completed_ceo', 'task_completed_department',
+        'weekly_summary',
     ];
 
     public function edit(Request $request): Response

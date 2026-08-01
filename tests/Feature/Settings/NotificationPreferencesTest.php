@@ -32,4 +32,16 @@ class NotificationPreferencesTest extends TestCase
         $this->assertFalse($user->wantsNotification('task_assigned'));
         $this->assertTrue($user->wantsNotification('task_commented'));
     }
+
+    public function test_a_user_can_opt_out_of_their_personal_weekly_summary()
+    {
+        $user = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($user)
+            ->patch('/settings/notifications', ['preferences' => ['weekly_summary' => false]])
+            ->assertRedirect();
+
+        $user->refresh();
+        $this->assertFalse($user->wantsNotification('weekly_summary'));
+    }
 }

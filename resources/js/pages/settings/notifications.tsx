@@ -45,6 +45,15 @@ const GROUPS: { title: string; types: [string, string][] }[] = [
         title: 'Analytics',
         types: [['analytics_source_stale', 'A marketing analytics source (GA4, GSC, Ahrefs) goes stale or fails']],
     },
+    {
+        title: 'Reports',
+        types: [
+            [
+                'weekly_summary',
+                'Your personal weekly summary of tasks you completed and have pending (separate from company-wide CEO/department reports)',
+            ],
+        ],
+    },
 ];
 
 export default function NotificationSettings({ preferences }: { preferences: Record<string, boolean> }) {
