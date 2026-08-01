@@ -33,6 +33,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('boards/{board}/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::post('tasks/bulk-reassign', [TaskBulkActionController::class, 'reassign'])->name('tasks.bulk-reassign');
     Route::post('tasks/bulk-move', [TaskBulkActionController::class, 'move'])->name('tasks.bulk-move');
+    // A stable permalink for a task — used anywhere a link to "this task" is
+    // needed outside the board page itself (report emails, etc.) without the
+    // caller needing to already know which board it's on.
+    Route::get('tasks/{task}', [TaskController::class, 'showOnBoard'])->name('tasks.show');
     Route::patch('tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');

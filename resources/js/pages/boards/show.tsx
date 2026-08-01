@@ -24,7 +24,7 @@ import {
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 type BoardTaskOption = { id: number; title: string; task_number: number };
@@ -353,6 +353,27 @@ export default function BoardShow({
     const [priorityFilter, setPriorityFilter] = useState(ALL);
 
     useEffect(() => setColumns(board.columns), [board.columns]);
+
+    // Opens the task named by ?task= (see TaskController::showOnBoard, the
+    // permalink report emails link to) once its card is available, then
+    // scrubs the param so a later refresh/back-navigation doesn't reopen it.
+    const openedFromUrl = useRef(false);
+    useEffect(() => {
+        if (openedFromUrl.current) return;
+
+        const taskId = new URLSearchParams(window.location.search).get('task');
+        if (!taskId) return;
+
+        for (const column of columns) {
+            const found = column.tasks.find((task) => task.id === Number(taskId));
+            if (found) {
+                setOpenTask(found);
+                openedFromUrl.current = true;
+                window.history.replaceState(null, '', window.location.pathname);
+                break;
+            }
+        }
+    }, [columns]);
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 

@@ -183,6 +183,31 @@ class TaskManagementTest extends TestCase
         $this->assertNotNull($task->reopened_at, 'reopened_at should stay set once a task has ever been reopened, even after re-completing.');
     }
 
+    public function test_task_permalink_redirects_to_its_board_with_the_task_selected()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $board = $this->boardWithColumns();
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $board->columns()->first()->id,
+            'created_by' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get("/tasks/{$task->id}")
+            ->assertRedirect("/boards/{$board->id}?task={$task->id}");
+    }
+
+    public function test_task_permalink_requires_view_access()
+    {
+        $outsider = User::factory()->create()->assignRole('Employee');
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_RESTRICTED]);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
+
+        $this->actingAs($outsider)->get("/tasks/{$task->id}")->assertForbidden();
+    }
+
     public function test_only_ceo_or_admin_can_flag_ceo_priority()
     {
         $employee = User::factory()->create()->assignRole('Employee');

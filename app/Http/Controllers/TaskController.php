@@ -26,6 +26,14 @@ use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
+    /** Stable permalink: resolves the task's board and hands off to it with ?task= set, so the board page can open its card. */
+    public function showOnBoard(Task $task): RedirectResponse
+    {
+        Gate::authorize('view', $task);
+
+        return redirect()->route('boards.show', ['board' => $task->board_id, 'task' => $task->id]);
+    }
+
     public function store(StoreTaskRequest $request, Board $board): RedirectResponse
     {
         Gate::authorize('create', [Task::class, $board]);
