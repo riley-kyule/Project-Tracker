@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\GoogleDriveController;
 use App\Http\Controllers\Settings\IntegrationSettingsController;
 use App\Http\Controllers\Settings\NotificationPreferencesController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -18,6 +19,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('settings/integrations', [IntegrationSettingsController::class, 'edit'])->name('integrations.edit');
     Route::patch('settings/integrations', [IntegrationSettingsController::class, 'update'])->name('integrations.update');
+
+    Route::get('settings/integrations/google-drive/connect', [GoogleDriveController::class, 'connect'])->name('integrations.google-drive.connect');
+    Route::get('settings/integrations/google-drive/callback', [GoogleDriveController::class, 'callback'])->name('integrations.google-drive.callback');
+    Route::delete('settings/integrations/google-drive', [GoogleDriveController::class, 'disconnect'])->name('integrations.google-drive.disconnect');
 
     Route::get('settings/appearance', function () {
         return Inertia::render('settings/appearance');

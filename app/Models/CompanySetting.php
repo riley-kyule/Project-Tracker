@@ -25,19 +25,32 @@ class CompanySetting extends Model
         'business_hours_end',
         'business_hours_days',
         'timezone',
+        'backup_frequency',
+        'backup_time',
+        'backup_retention_count',
+        'google_drive_connected_email',
+        'google_drive_access_token',
+        'google_drive_refresh_token',
+        'google_drive_token_expires_at',
+        'google_drive_folder_id',
     ];
 
     protected $hidden = [
         'mail_password',
+        'google_drive_access_token',
+        'google_drive_refresh_token',
     ];
 
     protected function casts(): array
     {
         return [
             'ceo_summary_last_sent_on' => 'date',
-            // Laravel's built-in encrypt-on-write/decrypt-on-read cast — this is
-            // an SMTP credential at rest in the database, not a plaintext column.
+            // Laravel's built-in encrypt-on-write/decrypt-on-read cast — these
+            // are credentials at rest in the database, not plaintext columns.
             'mail_password' => 'encrypted',
+            'google_drive_access_token' => 'encrypted',
+            'google_drive_refresh_token' => 'encrypted',
+            'google_drive_token_expires_at' => 'datetime',
             'business_hours_days' => 'array',
         ];
     }

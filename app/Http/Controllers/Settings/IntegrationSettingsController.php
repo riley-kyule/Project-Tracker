@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\BackupRun;
 use App\Models\CompanySetting;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,7 +33,12 @@ class IntegrationSettingsController extends Controller
                 'mail_from_name' => $settings->mail_from_name,
                 'epe_api_url' => $settings->epe_api_url,
                 'epe_site_key' => $settings->epe_site_key,
+                'backup_frequency' => $settings->backup_frequency,
+                'backup_time' => $settings->backup_time,
+                'backup_retention_count' => $settings->backup_retention_count,
+                'google_drive_connected_email' => $settings->google_drive_connected_email,
             ],
+            'lastBackupRun' => BackupRun::query()->latest('started_at')->first(['frequency', 'status', 'started_at', 'finished_at', 'error_message']),
         ]);
     }
 
@@ -50,6 +57,9 @@ class IntegrationSettingsController extends Controller
             'mail_from_name' => ['nullable', 'string', 'max:255'],
             'epe_api_url' => ['nullable', 'url', 'max:255'],
             'epe_site_key' => ['nullable', 'string', 'max:255'],
+            'backup_frequency' => ['nullable', Rule::in(BackupRun::FREQUENCIES)],
+            'backup_time' => ['nullable', 'date_format:H:i'],
+            'backup_retention_count' => ['nullable', 'integer', 'min:1', 'max:365'],
         ]);
 
         // A blank password field means "leave it as it is" — the current value

@@ -1,4 +1,6 @@
 import HeadingSmall from '@/components/heading-small';
+import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Integration settings', href: '/settings/integrations' }];
@@ -23,11 +25,46 @@ type IntegrationSettings = {
     mail_from_name: string | null;
     epe_api_url: string | null;
     epe_site_key: string | null;
+    backup_frequency: string | null;
+    backup_time: string | null;
+    backup_retention_count: number;
+    google_drive_connected_email: string | null;
+};
+
+type BackupRun = {
+    frequency: string;
+    status: 'running' | 'succeeded' | 'failed';
+    started_at: string;
+    finished_at: string | null;
+    error_message: string | null;
 };
 
 const NONE = 'none';
 
-export default function IntegrationSettingsPage({ settings }: { settings: IntegrationSettings }) {
+const backupStatusVariant: Record<BackupRun['status'], 'default' | 'secondary' | 'destructive'> = {
+    running: 'secondary',
+    succeeded: 'default',
+    failed: 'destructive',
+};
+
+function LastBackupRun({ run }: { run: BackupRun | null }) {
+    if (!run) {
+        return <p className="text-muted-foreground text-sm">No backup has run yet.</p>;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant={backupStatusVariant[run.status]} className="capitalize">
+                {run.status}
+            </Badge>
+            <span className="text-muted-foreground capitalize">{run.frequency}</span>
+            <span className="text-muted-foreground">{new Date(run.started_at).toLocaleString()}</span>
+            {run.status === 'failed' && run.error_message && <span className="text-destructive">{run.error_message}</span>}
+        </div>
+    );
+}
+
+export default function IntegrationSettingsPage({ settings, lastBackupRun }: { settings: IntegrationSettings; lastBackupRun: BackupRun | null }) {
     const { data, setData, patch, processing, errors, recentlySuccessful, transform } = useForm({
         mail_mailer: settings.mail_mailer ?? 'log',
         mail_host: settings.mail_host ?? '',
@@ -39,7 +76,12 @@ export default function IntegrationSettingsPage({ settings }: { settings: Integr
         mail_from_name: settings.mail_from_name ?? '',
         epe_api_url: settings.epe_api_url ?? '',
         epe_site_key: settings.epe_site_key ?? '',
+        backup_frequency: settings.backup_frequency ?? NONE,
+        backup_time: settings.backup_time?.slice(0, 5) ?? '',
+        backup_retention_count: settings.backup_retention_count.toString(),
     });
+
+    const driveError = usePage<{ errors: Record<string, string> }>().props.errors.drive;
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -47,11 +89,18 @@ export default function IntegrationSettingsPage({ settings }: { settings: Integr
             ...form,
             mail_port: form.mail_port === '' ? null : Number(form.mail_port),
             mail_encryption: form.mail_encryption === NONE ? null : form.mail_encryption,
+            backup_frequency: form.backup_frequency === NONE ? null : form.backup_frequency,
+            backup_time: form.backup_time === '' ? null : form.backup_time,
+            backup_retention_count: Number(form.backup_retention_count),
         }));
         patch('/settings/integrations', {
             preserveScroll: true,
             onSuccess: () => setData('mail_password', ''),
         });
+    };
+
+    const disconnectDrive = () => {
+        router.delete('/settings/integrations/google-drive', { preserveScroll: true });
     };
 
     return (
@@ -62,8 +111,81 @@ export default function IntegrationSettingsPage({ settings }: { settings: Integr
                 <div className="space-y-6">
                     <HeadingSmall
                         title="Integrations"
-                        description="Configure email delivery and browser push without touching the server"
+                        description="Configure email delivery, browser push, and backups without touching the server"
                     />
+
+                    <div className="space-y-4 border-b pb-6">
+                        <h3 className="text-sm font-semibold">Backups</h3>
+                        {settings.google_drive_connected_email ? (
+                            <div className="flex flex-wrap items-center gap-3">
+                                <p className="text-sm">
+                                    Connected to <span className="font-medium">{settings.google_drive_connected_email}</span>
+                                </p>
+                                <Button type="button" variant="outline" size="sm" onClick={disconnectDrive}>
+                                    Disconnect
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <p className="text-muted-foreground text-sm">
+                                    Connect a Google account to store automatic backups in its Drive. Use a company account dedicated to backups, not
+                                    a personal one.
+                                </p>
+                                <Button asChild size="sm">
+                                    <a href="/settings/integrations/google-drive/connect">Connect Google Drive</a>
+                                </Button>
+                                {driveError && <p className="text-destructive text-sm">{driveError}</p>}
+                            </div>
+                        )}
+
+                        {settings.google_drive_connected_email && (
+                            <>
+                                <div className="grid gap-4 sm:grid-cols-3">
+                                    <div className="grid gap-2">
+                                        <Label>Frequency</Label>
+                                        <Select value={data.backup_frequency} onValueChange={(value) => setData('backup_frequency', value)}>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NONE}>Off</SelectItem>
+                                                <SelectItem value="daily">Daily</SelectItem>
+                                                <SelectItem value="weekly">Weekly</SelectItem>
+                                                <SelectItem value="monthly">Monthly</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="backup-time">Time</Label>
+                                        <Input
+                                            id="backup-time"
+                                            type="time"
+                                            value={data.backup_time}
+                                            onChange={(e) => setData('backup_time', e.target.value)}
+                                        />
+                                        <InputError message={errors.backup_time} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="backup-retention">Keep last</Label>
+                                        <Input
+                                            id="backup-retention"
+                                            type="number"
+                                            min={1}
+                                            max={365}
+                                            value={data.backup_retention_count}
+                                            onChange={(e) => setData('backup_retention_count', e.target.value)}
+                                        />
+                                        <InputError message={errors.backup_retention_count} />
+                                    </div>
+                                </div>
+                                <p className="text-muted-foreground text-xs">
+                                    Backs up the database and file attachments together. Older backups beyond the count above are deleted from Drive
+                                    automatically.
+                                </p>
+                                <LastBackupRun run={lastBackupRun} />
+                            </>
+                        )}
+                    </div>
 
                     <form onSubmit={submit} className="space-y-8">
                         <div className="space-y-4">
@@ -119,9 +241,7 @@ export default function IntegrationSettingsPage({ settings }: { settings: Integr
                                             onChange={(e) => setData('mail_password', e.target.value)}
                                         />
                                         <p className="text-muted-foreground text-xs">
-                                            {settings.mail_password_set
-                                                ? 'Leave blank to keep the current password.'
-                                                : 'No password stored yet.'}
+                                            {settings.mail_password_set ? 'Leave blank to keep the current password.' : 'No password stored yet.'}
                                         </p>
                                     </div>
                                     <div className="grid gap-2">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\GoogleWorkspaceDomain;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -45,7 +46,7 @@ class GoogleAuthController extends Controller
             ]);
         }
 
-        if (! $this->domainIsAllowed($googleUser)) {
+        if (! GoogleWorkspaceDomain::isAllowed($googleUser->getEmail())) {
             $attempted = User::query()->where('email', Str::lower($googleUser->getEmail()))->first();
             AuditLogger::log($attempted, 'login_failed', [], $attempted ? ['method' => 'google'] : ['method' => 'google', 'email' => $googleUser->getEmail()]);
 
@@ -72,19 +73,6 @@ class GoogleAuthController extends Controller
         AuditLogger::log($user, 'login_succeeded', [], ['method' => 'google']);
 
         return redirect()->intended(route('dashboard', absolute: false));
-    }
-
-    private function domainIsAllowed(SocialiteUser $googleUser): bool
-    {
-        $allowedDomains = config('services.google.allowed_domains', []);
-
-        if (empty($allowedDomains)) {
-            return false;
-        }
-
-        $domain = Str::lower(Str::after($googleUser->getEmail(), '@'));
-
-        return in_array($domain, array_map(Str::lower(...), $allowedDomains), true);
     }
 
     private function findOrProvisionUser(SocialiteUser $googleUser): User
