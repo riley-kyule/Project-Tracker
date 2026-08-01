@@ -10,6 +10,7 @@ class CompanySetting extends Model
     protected $fillable = [
         'ceo_summary_time',
         'ceo_summary_last_sent_on',
+        'ceo_weekly_summary_time',
         'mail_mailer',
         'mail_host',
         'mail_port',

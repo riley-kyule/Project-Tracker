@@ -87,6 +87,21 @@ class DepartmentManagementTest extends TestCase
         $this->assertSame(Department::TEMPLATE_SEO, $department->refresh()->workflow_template);
     }
 
+    public function test_administrators_can_set_a_weekly_summary_time()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $department = Department::query()->where('slug', 'seo')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->patch("/admin/departments/{$department->id}", [
+                'name' => $department->name,
+                'weekly_summary_time' => '16:00',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('16:00', $department->refresh()->weekly_summary_time);
+    }
+
     public function test_an_invalid_workflow_template_is_rejected()
     {
         $admin = User::factory()->create()->assignRole('Administrator');

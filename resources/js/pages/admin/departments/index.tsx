@@ -26,6 +26,7 @@ type Department = {
     is_active: boolean;
     workflow_template: string | null;
     daily_summary_time: string | null;
+    weekly_summary_time: string | null;
     users_count: number;
     members: { id: number; name: string }[];
 };
@@ -42,6 +43,7 @@ type DepartmentForm = {
     is_active: boolean;
     workflow_template: string;
     daily_summary_time: string;
+    weekly_summary_time: string;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Departments', href: '/admin/departments' }];
@@ -76,6 +78,7 @@ function DepartmentDialog({
         is_active: department?.is_active ?? true,
         workflow_template: department?.workflow_template ?? NONE,
         daily_summary_time: department?.daily_summary_time?.slice(0, 5) ?? '',
+        weekly_summary_time: department?.weekly_summary_time?.slice(0, 5) ?? '',
     });
 
     // A department that already has sub-departments can't become one itself.
@@ -90,6 +93,7 @@ function DepartmentDialog({
             assistant_manager_id: form.assistant_manager_id === NONE ? null : Number(form.assistant_manager_id),
             workflow_template: form.workflow_template === NONE ? null : form.workflow_template,
             daily_summary_time: form.daily_summary_time === '' ? null : form.daily_summary_time,
+            weekly_summary_time: form.weekly_summary_time === '' ? null : form.weekly_summary_time,
         }));
         const options = {
             preserveScroll: true,
@@ -207,6 +211,18 @@ function DepartmentDialog({
                         <p className="text-muted-foreground text-xs">Sent to the head of department and assistant manager. Leave blank to disable.</p>
                         <InputError message={errors.daily_summary_time} />
                     </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="weekly_summary_time">Weekly summary email time (Fridays)</Label>
+                        <Input
+                            id="weekly_summary_time"
+                            type="time"
+                            value={data.weekly_summary_time}
+                            onChange={(e) => setData('weekly_summary_time', e.target.value)}
+                            className="w-40"
+                        />
+                        <p className="text-muted-foreground text-xs">Sent to each employee in this department, personally. Leave blank to disable.</p>
+                        <InputError message={errors.weekly_summary_time} />
+                    </div>
                     <div className="flex items-center gap-2">
                         <Checkbox id="is_active" checked={data.is_active} onCheckedChange={(checked) => setData('is_active', checked === true)} />
                         <Label htmlFor="is_active">Active</Label>
@@ -296,9 +312,10 @@ function DepartmentMembersDialog({ department, allUsers }: { department: Departm
     );
 }
 
-function CompanySummarySettings({ ceoSummaryTime }: { ceoSummaryTime: string | null }) {
+function CompanySummarySettings({ ceoSummaryTime, ceoWeeklySummaryTime }: { ceoSummaryTime: string | null; ceoWeeklySummaryTime: string | null }) {
     const { data, setData, patch, processing, errors, recentlySuccessful } = useForm({
         ceo_summary_time: ceoSummaryTime?.slice(0, 5) ?? '',
+        ceo_weekly_summary_time: ceoWeeklySummaryTime?.slice(0, 5) ?? '',
     });
 
     const submit = (e: React.FormEvent) => {
@@ -307,7 +324,7 @@ function CompanySummarySettings({ ceoSummaryTime }: { ceoSummaryTime: string | n
     };
 
     return (
-        <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border flex items-end gap-3 rounded-xl border p-4">
+        <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-end gap-3 rounded-xl border p-4">
             <div className="grid gap-2">
                 <Label htmlFor="ceo_summary_time">CEO daily summary email time</Label>
                 <Input
@@ -318,6 +335,17 @@ function CompanySummarySettings({ ceoSummaryTime }: { ceoSummaryTime: string | n
                     className="w-40"
                 />
                 <InputError message={errors.ceo_summary_time} />
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="ceo_weekly_summary_time">CEO weekly summary email time (Fridays)</Label>
+                <Input
+                    id="ceo_weekly_summary_time"
+                    type="time"
+                    value={data.ceo_weekly_summary_time}
+                    onChange={(e) => setData('ceo_weekly_summary_time', e.target.value)}
+                    className="w-40"
+                />
+                <InputError message={errors.ceo_weekly_summary_time} />
             </div>
             <Button type="submit" size="sm" disabled={processing}>
                 Save
@@ -340,7 +368,7 @@ export default function DepartmentsIndex({
     allUsers: Manager[];
     parentOptions: ParentOption[];
     canManage: boolean;
-    companySettings: { ceo_summary_time: string | null };
+    companySettings: { ceo_summary_time: string | null; ceo_weekly_summary_time: string | null };
 }) {
     // Group children directly beneath their parent so a division and its teams read as one unit.
     const topLevel = departments.filter((department) => !department.parent_department_id);
@@ -367,7 +395,12 @@ export default function DepartmentsIndex({
                         />
                     )}
                 </div>
-                {canManage && <CompanySummarySettings ceoSummaryTime={companySettings.ceo_summary_time} />}
+                {canManage && (
+                    <CompanySummarySettings
+                        ceoSummaryTime={companySettings.ceo_summary_time}
+                        ceoWeeklySummaryTime={companySettings.ceo_weekly_summary_time}
+                    />
+                )}
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
                     <table className="w-full text-sm">
                         <thead>

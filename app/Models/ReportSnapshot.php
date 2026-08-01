@@ -15,6 +15,8 @@ class ReportSnapshot extends Model
 
     public const TYPE_WEEKLY_PERSONAL = 'weekly_personal';
 
+    public const TYPE_CEO_WEEKLY = 'ceo_weekly';
+
     public const STATUS_GENERATED = 'generated';
 
     protected $fillable = [

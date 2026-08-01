@@ -38,7 +38,7 @@ class DepartmentController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'canManage' => Gate::allows('create', Department::class),
-            'companySettings' => CompanySetting::current()->only(['ceo_summary_time']),
+            'companySettings' => CompanySetting::current()->only(['ceo_summary_time', 'ceo_weekly_summary_time']),
         ]);
     }
 
@@ -66,7 +66,7 @@ class DepartmentController extends Controller
     {
         Gate::authorize('update', $department);
 
-        $old = $department->only(['name', 'slug', 'description', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active', 'daily_summary_time']);
+        $old = $department->only(['name', 'slug', 'description', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active', 'daily_summary_time', 'weekly_summary_time']);
         $department->update([
             ...$request->safe()->except('member_ids'),
             ...($request->slug() !== null ? ['slug' => $request->slug()] : []),

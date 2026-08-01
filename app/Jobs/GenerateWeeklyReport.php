@@ -2,93 +2,97 @@
 
 namespace App\Jobs;
 
+use App\Mail\CeoWeeklySummaryMail;
 use App\Mail\WeeklyPersonalSummaryMail;
 use App\Models\CompanySetting;
 use App\Models\ReportDelivery;
 use App\Models\ReportSnapshot;
 use App\Models\User;
+use App\Services\Reports\CeoWeeklySummaryBuilder;
 use App\Services\Reports\WeeklyPersonalSummaryBuilder;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Mail\Mailable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Throwable;
 
-/** One job per employee's weekly summary — mirrors GenerateDailyReport's shape and idempotency guard. */
+/**
+ * One job per weekly report — either one employee's personal summary, or
+ * the CEO's company-wide rollup — mirroring GenerateDailyReport's shape and
+ * idempotency guard (a partial unique index on report_snapshots, not this
+ * job's own bookkeeping).
+ */
 class GenerateWeeklyReport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
-        public int $userId,
+        public string $reportType,
+        public ?int $userId,
         public string $weekEndDay,
     ) {}
 
-    public function handle(WeeklyPersonalSummaryBuilder $builder): void
+    public function handle(WeeklyPersonalSummaryBuilder $personalBuilder, CeoWeeklySummaryBuilder $ceoBuilder): void
     {
-        $user = User::find($this->userId);
-
-        if ($user === null) {
-            return;
-        }
-
         $timezone = CompanySetting::current()->timezone ?: 'Africa/Nairobi';
         $weekEndDay = Carbon::parse($this->weekEndDay, $timezone);
 
-        $payload = $builder->build($user, $weekEndDay, $timezone);
+        if ($this->reportType === ReportSnapshot::TYPE_CEO_WEEKLY) {
+            $recipients = User::role('CEO')->get();
+            $payload = $ceoBuilder->build($weekEndDay, $timezone);
+            $mail = new CeoWeeklySummaryMail($payload['rows'], $payload['totalCompleted']);
+        } else {
+            $user = User::find($this->userId);
 
-        $snapshot = $this->recordSnapshot($user, $payload);
+            if ($user === null) {
+                return;
+            }
 
-        if ($snapshot === null) {
-            // Unique constraint hit: another run already generated this user's report for this week.
+            $recipients = collect([$user]);
+            $payload = $personalBuilder->build($user, $weekEndDay, $timezone);
+            $mail = new WeeklyPersonalSummaryMail($user, $payload['completed_count'], $payload['completed'], $payload['pending_breakdown']);
+        }
+
+        if ($recipients->isEmpty()) {
             return;
         }
 
-        $mail = new WeeklyPersonalSummaryMail($user, $payload['completed_count'], $payload['completed'], $payload['pending_breakdown']);
+        $snapshot = $this->recordSnapshot($payload);
 
-        $delivery = ReportDelivery::query()->create([
-            'report_snapshot_id' => $snapshot->id,
-            'recipient_user_id' => $user->id,
-            'status' => ReportDelivery::STATUS_PENDING,
-        ]);
-
-        try {
-            Mail::to($user)->send($mail);
-
-            $delivery->update(['status' => ReportDelivery::STATUS_SENT, 'sent_at' => now()]);
-        } catch (Throwable $e) {
-            $delivery->update([
-                'status' => ReportDelivery::STATUS_FAILED,
-                'failed_at' => now(),
-                'failure_reason' => Str::limit($e->getMessage(), 500),
-                'retry_count' => $delivery->retry_count + 1,
-            ]);
+        if ($snapshot === null) {
+            // Unique constraint hit: another run already generated this report for this week.
+            return;
         }
+
+        $this->deliver($snapshot, $recipients, $mail);
     }
 
     public function failed(Throwable $exception): void
     {
         Log::error('GenerateWeeklyReport job failed.', [
+            'report_type' => $this->reportType,
             'user_id' => $this->userId,
             'week_end_day' => $this->weekEndDay,
             'error' => $exception->getMessage(),
         ]);
     }
 
-    private function recordSnapshot(User $user, array $payload): ?ReportSnapshot
+    private function recordSnapshot(array $payload): ?ReportSnapshot
     {
         try {
             return ReportSnapshot::query()->create([
                 'report_date' => $this->weekEndDay,
-                'report_type' => ReportSnapshot::TYPE_WEEKLY_PERSONAL,
+                'report_type' => $this->reportType,
                 'department_id' => null,
-                'user_id' => $user->id,
+                'user_id' => $this->reportType === ReportSnapshot::TYPE_CEO_WEEKLY ? null : $this->userId,
                 'generated_at' => now(),
                 'payload' => json_decode(json_encode($payload), true),
                 'status' => ReportSnapshot::STATUS_GENERATED,
@@ -101,12 +105,38 @@ class GenerateWeeklyReport implements ShouldQueue
                 throw $e;
             }
 
-            Log::info('Weekly report already generated for this user, skipping duplicate.', [
-                'user_id' => $user->id,
+            Log::info('Weekly report already generated, skipping duplicate.', [
+                'report_type' => $this->reportType,
+                'user_id' => $this->userId,
                 'week_end_day' => $this->weekEndDay,
             ]);
 
             return null;
+        }
+    }
+
+    /** @param  Collection<int, User>  $recipients */
+    private function deliver(ReportSnapshot $snapshot, Collection $recipients, Mailable $mail): void
+    {
+        foreach ($recipients as $recipient) {
+            $delivery = ReportDelivery::query()->create([
+                'report_snapshot_id' => $snapshot->id,
+                'recipient_user_id' => $recipient->id,
+                'status' => ReportDelivery::STATUS_PENDING,
+            ]);
+
+            try {
+                Mail::to($recipient)->send($mail);
+
+                $delivery->update(['status' => ReportDelivery::STATUS_SENT, 'sent_at' => now()]);
+            } catch (Throwable $e) {
+                $delivery->update([
+                    'status' => ReportDelivery::STATUS_FAILED,
+                    'failed_at' => now(),
+                    'failure_reason' => Str::limit($e->getMessage(), 500),
+                    'retry_count' => $delivery->retry_count + 1,
+                ]);
+            }
         }
     }
 }

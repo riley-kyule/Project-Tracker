@@ -39,6 +39,7 @@ class Department extends Model
         'workflow_template',
         'daily_summary_time',
         'daily_summary_last_sent_on',
+        'weekly_summary_time',
     ];
 
     protected function casts(): array

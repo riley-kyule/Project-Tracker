@@ -39,6 +39,7 @@ class DepartmentRequest extends FormRequest
             'is_active' => ['boolean'],
             'workflow_template' => ['nullable', Rule::in(Department::WORKFLOW_TEMPLATES)],
             'daily_summary_time' => ['nullable', 'date_format:H:i'],
+            'weekly_summary_time' => ['nullable', 'date_format:H:i'],
             'member_ids' => ['sometimes', 'array'],
             'member_ids.*' => ['integer', 'exists:users,id'],
         ];

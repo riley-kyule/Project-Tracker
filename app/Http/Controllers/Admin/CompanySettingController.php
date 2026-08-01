@@ -22,6 +22,7 @@ class CompanySettingController extends Controller
 
         $validated = $request->validate([
             'ceo_summary_time' => ['nullable', 'date_format:H:i'],
+            'ceo_weekly_summary_time' => ['nullable', 'date_format:H:i'],
             'business_hours_start' => ['nullable', 'date_format:H:i'],
             'business_hours_end' => ['nullable', 'date_format:H:i'],
             'business_hours_days' => ['nullable', 'array'],
