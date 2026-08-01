@@ -19,10 +19,10 @@ class WeeklyPersonalSummaryBuilder
 {
     public function __construct(private readonly TaskStatusClassifier $classifier = new TaskStatusClassifier) {}
 
-    /** @return array{completed_count: int, completed: Collection<int, string>, pending_breakdown: array<string, int>} */
+    /** @return array{completed_count: int, completed: Collection<int, array{label: string, url: string}>, pending_breakdown: array<string, int>} */
     public function build(User $user, Carbon $weekEndDay, string $timezone): array
     {
-        [$start, $end] = $this->weekBounds($weekEndDay, $timezone);
+        [$start, $end] = WeekBounds::forWeekEndingOn($weekEndDay, $timezone);
 
         $completed = Task::query()
             ->where('primary_assignee_id', $user->id)
@@ -33,23 +33,13 @@ class WeeklyPersonalSummaryBuilder
 
         return [
             'completed_count' => $completed->count(),
-            'completed' => $completed->map(fn (Task $task) => $task->completion_note ?: $task->title),
+            'completed' => $completed->map(fn (Task $task) => [
+                'label' => $task->completion_note ?: $task->title,
+                'url' => route('tasks.show', $task),
+            ]),
             'pending_breakdown' => $this->classifier->counts(
                 Task::query()->where('primary_assignee_id', $user->id)->whereNull('completed_at')->whereNull('archived_at')
             ),
         ];
-    }
-
-    /**
-     * @return array{0: Carbon, 1: Carbon} Monday 00:00 (inclusive) through the
-     *                                     Saturday immediately after $weekEndDay (exclusive), in UTC
-     */
-    private function weekBounds(Carbon $weekEndDay, string $timezone): array
-    {
-        $localWeekEndDay = Carbon::parse($weekEndDay->toDateString(), $timezone)->startOfDay();
-        $end = $localWeekEndDay->copy()->addDay()->utc();
-        $start = $localWeekEndDay->copy()->subDays(4)->utc();
-
-        return [$start, $end];
     }
 }

@@ -16,49 +16,47 @@
 ## {{ $department['name'] }}
 
 @if ($department['breakdown']->isNotEmpty())
-<x-mail::table>
-| Member | Tasks completed |
-| :--- | :--- |
-@foreach ($department['breakdown'] as $name => $titles)
-| {{ $name }} | {{ $titles->implode('; ') }} |
+**Completed today**
+@foreach ($department['breakdown'] as $name => $tasks)
+{{ $name }}:
+@foreach ($tasks as $task)
+- [{{ $task['label'] }}]({{ $task['url'] }})
 @endforeach
-</x-mail::table>
+
+@endforeach
 @endif
 
 @if ($department['reopened_today']->isNotEmpty())
 **Reopened today**
-
-<x-mail::table>
-| Member | Tasks reopened |
-| :--- | :--- |
-@foreach ($department['reopened_today'] as $name => $titles)
-| {{ $name }} | {{ $titles->implode('; ') }} |
+@foreach ($department['reopened_today'] as $name => $tasks)
+{{ $name }}:
+@foreach ($tasks as $task)
+- [{{ $task['label'] }}]({{ $task['url'] }})
 @endforeach
-</x-mail::table>
+
+@endforeach
 @endif
 
 @if ($department['progress_notes']->isNotEmpty())
 **Progress notes**
-
-<x-mail::table>
-| Task | Notes |
-| :--- | :--- |
-@foreach ($department['progress_notes'] as $title => $lines)
-| {{ $title }} | {{ $lines->implode('; ') }} |
+@foreach ($department['progress_notes'] as $entry)
+[{{ $entry['title'] }}]({{ $entry['url'] }}):
+@foreach ($entry['lines'] as $line)
+- {{ $line }}
 @endforeach
-</x-mail::table>
+
+@endforeach
 @endif
 
 @if ($department['comments']->isNotEmpty())
 **Today's comments**
-
-<x-mail::table>
-| Task | Comments |
-| :--- | :--- |
-@foreach ($department['comments'] as $title => $lines)
-| {{ $title }} | {{ $lines->implode('; ') }} |
+@foreach ($department['comments'] as $entry)
+[{{ $entry['title'] }}]({{ $entry['url'] }}):
+@foreach ($entry['lines'] as $line)
+- {{ $line }}
 @endforeach
-</x-mail::table>
+
+@endforeach
 @endif
 
 @if (! empty($department['completeness']))

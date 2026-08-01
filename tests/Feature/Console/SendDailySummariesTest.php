@@ -70,13 +70,14 @@ class SendDailySummariesTest extends TestCase
 
         $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
 
-        Mail::assertSent(DepartmentDailySummaryMail::class, function (DepartmentDailySummaryMail $mail) use ($department) {
-            $lines = $mail->comments->get('Ship the landing page');
+        Mail::assertSent(DepartmentDailySummaryMail::class, function (DepartmentDailySummaryMail $mail) use ($department, $task) {
+            $entry = $mail->comments->firstWhere('title', 'Ship the landing page');
 
             return $mail->department->is($department)
-                && $lines !== null
-                && $lines->count() === 1
-                && str_contains($lines->first(), 'Ada Lovelace: Copy is ready for review.');
+                && $entry !== null
+                && $entry['url'] === route('tasks.show', $task)
+                && $entry['lines']->count() === 1
+                && str_contains($entry['lines']->first(), 'Ada Lovelace: Copy is ready for review.');
         });
 
         $this->assertDatabaseCount('report_snapshots', 1);
@@ -230,13 +231,16 @@ class SendDailySummariesTest extends TestCase
 
         $this->assertSame(1, $sent->pendingBreakdown['overdue']);
 
-        $completedLine = $sent->breakdown->get('Grace Hopper')->first();
-        $this->assertStringContainsString('Ran the migration during the maintenance window.', $completedLine);
-        $this->assertStringContainsString('previously reopened', $completedLine);
+        $completedTask = $sent->breakdown->get('Grace Hopper')->first();
+        $this->assertStringContainsString('Ran the migration during the maintenance window.', $completedTask['label']);
+        $this->assertStringContainsString('previously reopened', $completedTask['label']);
+        $this->assertSame(route('tasks.show', $migration), $completedTask['url']);
 
-        $this->assertTrue($sent->reopenedToday->get('Grace Hopper')->contains('Fix flaky test'));
+        $this->assertTrue($sent->reopenedToday->get('Grace Hopper')->contains(fn ($task) => $task['label'] === 'Fix flaky test'));
 
-        $progressNote = $sent->progressNotes->get('Migrate database')->first();
+        $progressNoteEntry = $sent->progressNotes->firstWhere('title', 'Migrate database');
+        $this->assertSame(route('tasks.show', $migration), $progressNoteEntry['url']);
+        $progressNote = $progressNoteEntry['lines']->first();
         $this->assertStringContainsString('[blocker]', $progressNote);
         $this->assertStringContainsString('Waiting on DBA sign-off', $progressNote);
 

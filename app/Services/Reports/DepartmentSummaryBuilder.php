@@ -7,6 +7,8 @@ use App\Models\Department;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\TaskStatusClassifier;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -78,7 +80,7 @@ class DepartmentSummaryBuilder
         );
     }
 
-    /** @return Collection<string, Collection<int, string>> assignee name => lines describing tasks they completed today */
+    /** @return Collection<string, Collection<int, array{label: string, url: string}>> assignee name => tasks they completed today */
     private function completedBreakdown(int $departmentId, Carbon $start, Carbon $end): Collection
     {
         return Task::query()
@@ -89,7 +91,10 @@ class DepartmentSummaryBuilder
             ->orderBy('completed_at')
             ->get()
             ->groupBy(fn (Task $task) => $task->assignee->name ?? 'Unassigned')
-            ->map(fn (Collection $tasks) => $tasks->map(fn (Task $task) => $this->completionLine($task)));
+            ->map(fn (Collection $tasks) => $tasks->map(fn (Task $task) => [
+                'label' => $this->completionLine($task),
+                'url' => route('tasks.show', $task),
+            ]));
     }
 
     /**
@@ -115,7 +120,7 @@ class DepartmentSummaryBuilder
         return $line;
     }
 
-    /** @return Collection<string, Collection<int, string>> assignee name => titles of tasks reopened today (currently still open) */
+    /** @return Collection<string, Collection<int, array{label: string, url: string}>> assignee name => tasks reopened today (currently still open) */
     private function reopenedToday(int $departmentId, Carbon $start, Carbon $end): Collection
     {
         return Task::query()
@@ -127,43 +132,54 @@ class DepartmentSummaryBuilder
             ->orderBy('reopened_at')
             ->get()
             ->groupBy(fn (Task $task) => $task->assignee->name ?? 'Unassigned')
-            ->map(fn (Collection $tasks) => $tasks->pluck('title'));
+            ->map(fn (Collection $tasks) => $tasks->map(fn (Task $task) => [
+                'label' => $task->title,
+                'url' => route('tasks.show', $task),
+            ]));
     }
 
-    /** @return Collection<string, Collection<int, string>> task title => "Author: comment" lines posted today, ordinary comments only */
+    /** @return Collection<int, array{title: string, url: string, lines: Collection<int, string>}> one entry per commented-on task, ordinary comments only */
     private function commentsToday(int $departmentId, Carbon $start, Carbon $end): Collection
     {
-        return Comment::query()
-            ->ordinary()
-            ->where('commentable_type', Task::class)
-            ->where('created_at', '>=', $start)
-            ->where('created_at', '<', $end)
-            ->whereHas('commentable', fn ($query) => $query->where('department_id', $departmentId))
-            ->with(['user:id,name', 'commentable:id,title'])
-            ->orderBy('created_at')
-            ->get()
-            ->groupBy(fn (Comment $comment) => $comment->commentable->title ?? 'Unknown task')
-            ->map(fn (Collection $comments) => $comments->map(
-                fn (Comment $comment) => ($comment->user->name ?? 'Unknown').': '.Str::limit($comment->body, 140)
-            ));
+        return $this->groupCommentsByTask(
+            Comment::query()->ordinary(),
+            $departmentId,
+            $start,
+            $end,
+            fn (Comment $comment) => ($comment->user->name ?? 'Unknown').': '.Str::limit($comment->body, 140),
+        );
     }
 
-    /** @return Collection<string, Collection<int, string>> task title => "Author [type]: note" lines posted today */
+    /** @return Collection<int, array{title: string, url: string, lines: Collection<int, string>}> one entry per task with a progress note today */
     private function progressNotesToday(int $departmentId, Carbon $start, Carbon $end): Collection
     {
-        return Comment::query()
-            ->progressNotes()
+        return $this->groupCommentsByTask(
+            Comment::query()->progressNotes(),
+            $departmentId,
+            $start,
+            $end,
+            fn (Comment $comment) => ($comment->user->name ?? 'Unknown')." [{$comment->note_type}]: ".Str::limit($comment->body, 140),
+        );
+    }
+
+    /** @return Collection<int, array{title: string, url: string, lines: Collection<int, string>}> */
+    private function groupCommentsByTask(Builder $query, int $departmentId, Carbon $start, Carbon $end, Closure $formatLine): Collection
+    {
+        return $query
             ->where('commentable_type', Task::class)
             ->where('created_at', '>=', $start)
             ->where('created_at', '<', $end)
-            ->whereHas('commentable', fn ($query) => $query->where('department_id', $departmentId))
+            ->whereHas('commentable', fn ($q) => $q->where('department_id', $departmentId))
             ->with(['user:id,name', 'commentable:id,title'])
             ->orderBy('created_at')
             ->get()
-            ->groupBy(fn (Comment $comment) => $comment->commentable->title ?? 'Unknown task')
-            ->map(fn (Collection $comments) => $comments->map(
-                fn (Comment $comment) => ($comment->user->name ?? 'Unknown')." [{$comment->note_type}]: ".Str::limit($comment->body, 140)
-            ));
+            ->groupBy('commentable_id')
+            ->map(fn (Collection $comments) => [
+                'title' => $comments->first()->commentable->title ?? 'Unknown task',
+                'url' => route('tasks.show', $comments->first()->commentable_id),
+                'lines' => $comments->map($formatLine),
+            ])
+            ->values();
     }
 
     /**

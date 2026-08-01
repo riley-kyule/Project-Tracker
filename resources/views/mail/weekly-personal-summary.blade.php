@@ -6,13 +6,9 @@ Hi {{ $recipient->name }}, here's how your week looked.
 **{{ $completedCount }}** tasks completed this week.
 
 @if ($completed->isNotEmpty())
-<x-mail::table>
-| Completed |
-| :--- |
-@foreach ($completed as $line)
-| {{ $line }} |
+@foreach ($completed as $task)
+- [{{ $task['label'] }}]({{ $task['url'] }})
 @endforeach
-</x-mail::table>
 @endif
 
 ## Where things stand
