@@ -22,9 +22,9 @@ class BoardController extends Controller
 {
     /** Default workflow from the PRD; admins can reshape per board later. */
     public const DEFAULT_COLUMNS = [
-        ['name' => 'Ideas', 'semantic_status' => 'idea'],
-        ['name' => 'Backlog', 'semantic_status' => 'backlog'],
-        ['name' => 'Ready', 'semantic_status' => 'ready'],
+        ['name' => 'Ideas/Requests', 'semantic_status' => 'idea'],
+        ['name' => 'Pending', 'semantic_status' => 'backlog'],
+        ['name' => 'Recurring', 'semantic_status' => 'ready'],
         ['name' => 'In Progress', 'semantic_status' => 'active'],
         ['name' => 'Blocked', 'semantic_status' => 'blocked'],
         ['name' => 'Awaiting Review', 'semantic_status' => 'review'],

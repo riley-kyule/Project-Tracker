@@ -143,7 +143,7 @@ class BoardVisibilityTest extends TestCase
         $this->assertSame(6, $board->columns()->count());
         $this->assertTrue($board->columns()->where('name', 'Research')->exists());
         $this->assertTrue($board->columns()->where('name', 'Monitoring')->exists());
-        $this->assertFalse($board->columns()->where('name', 'Ideas')->exists());
+        $this->assertFalse($board->columns()->where('name', 'Ideas/Requests')->exists());
     }
 
     public function test_board_creation_falls_back_to_default_columns_without_a_template()
@@ -160,6 +160,6 @@ class BoardVisibilityTest extends TestCase
 
         $board = Board::query()->where('name', 'General IT Board')->firstOrFail();
         $this->assertSame(8, $board->columns()->count());
-        $this->assertTrue($board->columns()->where('name', 'Ideas')->exists());
+        $this->assertTrue($board->columns()->where('name', 'Ideas/Requests')->exists());
     }
 }
