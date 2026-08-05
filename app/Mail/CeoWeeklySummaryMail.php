@@ -11,7 +11,7 @@ class CeoWeeklySummaryMail extends Mailable
 {
     use Queueable;
 
-    /** @param  Collection<int, array{name: string, completed_count: int, completed: Collection<int, array{label: string, url: string}>, pending_breakdown: array<string, int>}>  $departments */
+    /** @param  Collection<int, array{name: string, completed_count: int, completed: Collection<int, array{label: string, url: string, description: ?string, checklist_progress: ?string}>, pending_breakdown: array<string, int>}>  $departments */
     public function __construct(
         public Collection $departments,
         public int $totalCompleted,

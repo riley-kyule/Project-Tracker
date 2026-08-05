@@ -4,11 +4,9 @@
 **{{ $completedToday }}** tasks completed today, **{{ $pending }}** still pending.
 
 @if (! empty($pendingBreakdown))
-<x-mail::table>
-| Overdue | Due today | Blocked | Awaiting approval | In progress | Planned later | Backlog |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| {{ $pendingBreakdown['overdue'] ?? 0 }} | {{ $pendingBreakdown['due_today'] ?? 0 }} | {{ $pendingBreakdown['blocked'] ?? 0 }} | {{ $pendingBreakdown['awaiting_approval'] ?? 0 }} | {{ $pendingBreakdown['in_progress'] ?? 0 }} | {{ $pendingBreakdown['planned_later'] ?? 0 }} | {{ $pendingBreakdown['unscheduled_backlog'] ?? 0 }} |
-</x-mail::table>
+## Pending breakdown
+
+@include('mail.partials.pending-breakdown', ['pendingBreakdown' => $pendingBreakdown])
 @endif
 
 @if ($breakdown->isEmpty())
@@ -18,7 +16,7 @@ No tasks completed today.
 @foreach ($breakdown as $name => $tasks)
 **{{ $name }}**
 @foreach ($tasks as $task)
-- [{{ $task['label'] }}]({{ $task['url'] }})
+@include('mail.partials.task-line', ['task' => $task])
 @endforeach
 
 @endforeach
@@ -29,7 +27,7 @@ No tasks completed today.
 @foreach ($reopenedToday as $name => $tasks)
 **{{ $name }}**
 @foreach ($tasks as $task)
-- [{{ $task['label'] }}]({{ $task['url'] }})
+@include('mail.partials.task-line', ['task' => $task])
 @endforeach
 
 @endforeach

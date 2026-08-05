@@ -6,6 +6,8 @@ use App\Mail\CeoWeeklySummaryMail;
 use App\Mail\WeeklyPersonalSummaryMail;
 use App\Models\Board;
 use App\Models\BoardColumn;
+use App\Models\Checklist;
+use App\Models\ChecklistItem;
 use App\Models\CompanySetting;
 use App\Models\Department;
 use App\Models\ReportDelivery;
@@ -96,6 +98,43 @@ class SendWeeklySummariesTest extends TestCase
             'recipient_user_id' => $employee->id,
             'status' => ReportDelivery::STATUS_SENT,
         ]);
+    }
+
+    public function test_completed_task_entries_include_description_and_checklist_progress()
+    {
+        Mail::fake();
+
+        $this->travelTo(Carbon::parse('2026-07-31 16:00:00', 'Africa/Nairobi'));
+
+        $department = Department::factory()->create(['weekly_summary_time' => '16:00:00']);
+        $employee = User::factory()
+            ->create(['status' => User::STATUS_ACTIVE, 'department_id' => $department->id])
+            ->assignRole('Employee');
+
+        $board = Board::factory()->create();
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+
+        $withExtras = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+            'primary_assignee_id' => $employee->id,
+            'title' => 'Finish the report redesign',
+            'description' => 'Covers the new charts and the export button.',
+            'completed_at' => Carbon::parse('2026-07-29 09:00:00', 'Africa/Nairobi'),
+        ]);
+        $checklist = Checklist::factory()->create(['task_id' => $withExtras->id]);
+        ChecklistItem::factory()->create(['checklist_id' => $checklist->id, 'is_completed' => true]);
+        ChecklistItem::factory()->create(['checklist_id' => $checklist->id, 'is_completed' => true]);
+        ChecklistItem::factory()->create(['checklist_id' => $checklist->id, 'is_completed' => false]);
+
+        $this->artisan('ewms:send-weekly-summaries')->assertSuccessful();
+
+        Mail::assertSent(WeeklyPersonalSummaryMail::class, function (WeeklyPersonalSummaryMail $mail) use ($withExtras) {
+            $entry = $mail->completed->firstWhere('url', route('tasks.show', $withExtras));
+
+            return $entry['description'] === 'Covers the new charts and the export button.'
+                && $entry['checklist_progress'] === '2/3';
+        });
     }
 
     public function test_a_department_without_a_configured_time_is_never_sent()

@@ -7,17 +7,13 @@ Hi {{ $recipient->name }}, here's how your week looked.
 
 @if ($completed->isNotEmpty())
 @foreach ($completed as $task)
-- [{{ $task['label'] }}]({{ $task['url'] }})
+@include('mail.partials.task-line', ['task' => $task])
 @endforeach
 @endif
 
 ## Where things stand
 
-<x-mail::table>
-| Overdue | Due today | Blocked | Awaiting approval | In progress | Planned later | Backlog |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| {{ $pendingBreakdown['overdue'] ?? 0 }} | {{ $pendingBreakdown['due_today'] ?? 0 }} | {{ $pendingBreakdown['blocked'] ?? 0 }} | {{ $pendingBreakdown['awaiting_approval'] ?? 0 }} | {{ $pendingBreakdown['in_progress'] ?? 0 }} | {{ $pendingBreakdown['planned_later'] ?? 0 }} | {{ $pendingBreakdown['unscheduled_backlog'] ?? 0 }} |
-</x-mail::table>
+@include('mail.partials.pending-breakdown', ['pendingBreakdown' => $pendingBreakdown])
 
 <x-mail::button :url="route('dashboard')">
 View my dashboard

@@ -19,7 +19,7 @@ class WeeklyPersonalSummaryBuilder
 {
     public function __construct(private readonly TaskStatusClassifier $classifier = new TaskStatusClassifier) {}
 
-    /** @return array{completed_count: int, completed: Collection<int, array{label: string, url: string}>, pending_breakdown: array<string, int>} */
+    /** @return array{completed_count: int, completed: Collection<int, array{label: string, url: string, description: ?string, checklist_progress: ?string}>, pending_breakdown: array<string, int>} */
     public function build(User $user, Carbon $weekEndDay, string $timezone): array
     {
         [$start, $end] = WeekBounds::forWeekEndingOn($weekEndDay, $timezone);
@@ -28,6 +28,7 @@ class WeeklyPersonalSummaryBuilder
             ->where('primary_assignee_id', $user->id)
             ->where('completed_at', '>=', $start)
             ->where('completed_at', '<', $end)
+            ->withCount(['checklistItems', 'checklistItems as completed_checklist_items_count' => fn ($q) => $q->where('is_completed', true)])
             ->orderBy('completed_at')
             ->get();
 
@@ -36,6 +37,7 @@ class WeeklyPersonalSummaryBuilder
             'completed' => $completed->map(fn (Task $task) => [
                 'label' => $task->completion_note ?: $task->title,
                 'url' => route('tasks.show', $task),
+                ...TaskReportDetails::forTask($task),
             ]),
             'pending_breakdown' => $this->classifier->counts(
                 Task::query()->where('primary_assignee_id', $user->id)->whereNull('completed_at')->whereNull('archived_at')

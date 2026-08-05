@@ -12,7 +12,7 @@ class WeeklyPersonalSummaryMail extends Mailable
 {
     use Queueable;
 
-    /** @param  Collection<int, array{label: string, url: string}>  $completed  tasks completed this week */
+    /** @param  Collection<int, array{label: string, url: string, description: ?string, checklist_progress: ?string}>  $completed  tasks completed this week */
     public function __construct(
         public User $recipient,
         public int $completedCount,

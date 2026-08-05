@@ -3,19 +3,15 @@
 
 **{{ $totalCompleted }}** tasks completed this week across the company.
 
-<x-mail::table>
-| Department | Completed this week | Overdue |
-| :--- | ---: | ---: |
 @foreach ($departments as $department)
-| {{ $department['name'] }} | {{ $department['completed_count'] }} | {{ $department['pending_breakdown']['overdue'] ?? 0 }} |
+- **{{ $department['name'] }}**: {{ $department['completed_count'] }} completed this week ({{ $department['pending_breakdown']['overdue'] ?? 0 }} overdue)
 @endforeach
-</x-mail::table>
 
 @foreach ($departments as $department)
 @if ($department['completed']->isNotEmpty())
 ## {{ $department['name'] }}
 @foreach ($department['completed'] as $task)
-- [{{ $task['label'] }}]({{ $task['url'] }})
+@include('mail.partials.task-line', ['task' => $task])
 @endforeach
 
 @endif

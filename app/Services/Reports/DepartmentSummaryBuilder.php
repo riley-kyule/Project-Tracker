@@ -80,7 +80,7 @@ class DepartmentSummaryBuilder
         );
     }
 
-    /** @return Collection<string, Collection<int, array{label: string, url: string}>> assignee name => tasks they completed today */
+    /** @return Collection<string, Collection<int, array{label: string, url: string, description: ?string, checklist_progress: ?string}>> assignee name => tasks they completed today */
     private function completedBreakdown(int $departmentId, Carbon $start, Carbon $end): Collection
     {
         return Task::query()
@@ -88,12 +88,14 @@ class DepartmentSummaryBuilder
             ->where('completed_at', '>=', $start)
             ->where('completed_at', '<', $end)
             ->with('assignee:id,name')
+            ->withCount(['checklistItems', 'checklistItems as completed_checklist_items_count' => fn ($q) => $q->where('is_completed', true)])
             ->orderBy('completed_at')
             ->get()
             ->groupBy(fn (Task $task) => $task->assignee->name ?? 'Unassigned')
             ->map(fn (Collection $tasks) => $tasks->map(fn (Task $task) => [
                 'label' => $this->completionLine($task),
                 'url' => route('tasks.show', $task),
+                ...TaskReportDetails::forTask($task),
             ]));
     }
 
@@ -120,7 +122,7 @@ class DepartmentSummaryBuilder
         return $line;
     }
 
-    /** @return Collection<string, Collection<int, array{label: string, url: string}>> assignee name => tasks reopened today (currently still open) */
+    /** @return Collection<string, Collection<int, array{label: string, url: string, description: ?string, checklist_progress: ?string}>> assignee name => tasks reopened today (currently still open) */
     private function reopenedToday(int $departmentId, Carbon $start, Carbon $end): Collection
     {
         return Task::query()
@@ -129,12 +131,14 @@ class DepartmentSummaryBuilder
             ->where('reopened_at', '>=', $start)
             ->where('reopened_at', '<', $end)
             ->with('assignee:id,name')
+            ->withCount(['checklistItems', 'checklistItems as completed_checklist_items_count' => fn ($q) => $q->where('is_completed', true)])
             ->orderBy('reopened_at')
             ->get()
             ->groupBy(fn (Task $task) => $task->assignee->name ?? 'Unassigned')
             ->map(fn (Collection $tasks) => $tasks->map(fn (Task $task) => [
                 'label' => $task->title,
                 'url' => route('tasks.show', $task),
+                ...TaskReportDetails::forTask($task),
             ]));
     }
 

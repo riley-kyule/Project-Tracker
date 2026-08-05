@@ -6,6 +6,8 @@ use App\Mail\CeoDailySummaryMail;
 use App\Mail\DepartmentDailySummaryMail;
 use App\Models\Board;
 use App\Models\BoardColumn;
+use App\Models\Checklist;
+use App\Models\ChecklistItem;
 use App\Models\Comment;
 use App\Models\CompanySetting;
 use App\Models\Department;
@@ -90,6 +92,53 @@ class SendDailySummariesTest extends TestCase
             'recipient_user_id' => $manager->id,
             'status' => ReportDelivery::STATUS_SENT,
         ]);
+    }
+
+    public function test_completed_task_entries_include_description_and_checklist_progress()
+    {
+        Mail::fake();
+
+        $manager = User::factory()->create()->assignRole('Employee');
+        $department = Department::factory()->create([
+            'manager_id' => $manager->id,
+            'daily_summary_time' => Carbon::now('Africa/Nairobi')->subMinute()->format('H:i:s'),
+        ]);
+
+        $board = Board::factory()->create();
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+
+        $withExtras = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+            'department_id' => $department->id,
+            'title' => 'Ship the landing page',
+            'description' => 'Make sure the hero section matches the new brand guidelines.',
+            'completed_at' => now(),
+        ]);
+        $checklist = Checklist::factory()->create(['task_id' => $withExtras->id]);
+        ChecklistItem::factory()->create(['checklist_id' => $checklist->id, 'is_completed' => true]);
+        ChecklistItem::factory()->create(['checklist_id' => $checklist->id, 'is_completed' => false]);
+
+        $bare = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+            'department_id' => $department->id,
+            'title' => 'Quick fix',
+            'completed_at' => now(),
+        ]);
+
+        $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
+
+        Mail::assertSent(DepartmentDailySummaryMail::class, function (DepartmentDailySummaryMail $mail) use ($withExtras, $bare) {
+            $entries = $mail->breakdown->flatten(1);
+            $withExtrasEntry = $entries->firstWhere('url', route('tasks.show', $withExtras));
+            $bareEntry = $entries->firstWhere('url', route('tasks.show', $bare));
+
+            return $withExtrasEntry['description'] === 'Make sure the hero section matches the new brand guidelines.'
+                && $withExtrasEntry['checklist_progress'] === '1/2'
+                && $bareEntry['description'] === null
+                && $bareEntry['checklist_progress'] === null;
+        });
     }
 
     public function test_summary_is_not_dispatched_before_configured_time()

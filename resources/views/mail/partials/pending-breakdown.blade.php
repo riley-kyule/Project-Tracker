@@ -1,0 +1,7 @@
+- Overdue: {{ $pendingBreakdown['overdue'] ?? 0 }}
+- Due today: {{ $pendingBreakdown['due_today'] ?? 0 }}
+- Blocked: {{ $pendingBreakdown['blocked'] ?? 0 }}
+- Awaiting approval: {{ $pendingBreakdown['awaiting_approval'] ?? 0 }}
+- In progress: {{ $pendingBreakdown['in_progress'] ?? 0 }}
+- Planned later: {{ $pendingBreakdown['planned_later'] ?? 0 }}
+- Backlog: {{ $pendingBreakdown['unscheduled_backlog'] ?? 0 }}

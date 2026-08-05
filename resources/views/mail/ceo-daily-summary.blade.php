@@ -3,13 +3,9 @@
 
 **{{ $totalCompletedToday }}** tasks completed today across the company, **{{ $totalPending }}** still pending.
 
-<x-mail::table>
-| Department | Completed today | Pending | Overdue |
-| :--- | ---: | ---: | ---: |
 @foreach ($departments as $department)
-| {{ $department['name'] }} | {{ $department['completed_today'] }} | {{ $department['pending'] }} | {{ $department['pending_breakdown']['overdue'] ?? 0 }} |
+- **{{ $department['name'] }}**: {{ $department['completed_today'] }} completed today, {{ $department['pending'] }} pending ({{ $department['pending_breakdown']['overdue'] ?? 0 }} overdue)
 @endforeach
-</x-mail::table>
 
 @foreach ($departments as $department)
 @if ($department['breakdown']->isNotEmpty() || $department['comments']->isNotEmpty() || $department['progress_notes']->isNotEmpty() || $department['reopened_today']->isNotEmpty())
@@ -20,7 +16,7 @@
 @foreach ($department['breakdown'] as $name => $tasks)
 {{ $name }}:
 @foreach ($tasks as $task)
-- [{{ $task['label'] }}]({{ $task['url'] }})
+@include('mail.partials.task-line', ['task' => $task])
 @endforeach
 
 @endforeach
@@ -31,7 +27,7 @@
 @foreach ($department['reopened_today'] as $name => $tasks)
 {{ $name }}:
 @foreach ($tasks as $task)
-- [{{ $task['label'] }}]({{ $task['url'] }})
+@include('mail.partials.task-line', ['task' => $task])
 @endforeach
 
 @endforeach
