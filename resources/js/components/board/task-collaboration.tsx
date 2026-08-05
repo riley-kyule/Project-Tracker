@@ -117,6 +117,8 @@ type Detail = {
     relations: RelationNode[];
     recurrenceRule: RecurrenceRuleNode | null;
     canManageRecurrence: boolean;
+    autoResetFrequency: 'daily' | 'weekly' | 'monthly' | null;
+    lastAutoResetAt: string | null;
     timeEntries: TimeEntryNode[];
     canApproveTime: boolean;
     estimatedMinutes: number | null;
@@ -145,6 +147,8 @@ const emptyDetail: Detail = {
     relations: [],
     recurrenceRule: null,
     canManageRecurrence: false,
+    autoResetFrequency: null,
+    lastAutoResetAt: null,
     timeEntries: [],
     canApproveTime: false,
     estimatedMinutes: null,
@@ -279,6 +283,10 @@ export function TaskCollaboration({
             },
             onError: showError,
         });
+    };
+
+    const patch = (url: string, data: Parameters<typeof router.patch>[1]) => {
+        router.patch(url, data, { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError });
     };
 
     const destroy = (url: string) => {
@@ -902,6 +910,46 @@ export function TaskCollaboration({
                                 Make recurring
                             </Button>
                         </div>
+                    )}
+                </section>
+            )}
+
+            {/* Auto-reset — distinct from the recurrence rule above: this resets
+                THIS task in place to its board's Ready column on a schedule,
+                instead of generating a new task from a template. */}
+            {(detail.autoResetFrequency !== null || detail.canManageRecurrence) && (
+                <section>
+                    <h3 className="mb-2 text-sm font-semibold">Auto-reset</h3>
+                    {detail.canManageRecurrence ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Select
+                                value={detail.autoResetFrequency ?? NO_DEPENDENCY}
+                                onValueChange={(value) => patch(`/tasks/${taskId}`, { auto_reset_frequency: value === NO_DEPENDENCY ? null : value })}
+                            >
+                                <SelectTrigger className="h-8 w-44 text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={NO_DEPENDENCY}>Off</SelectItem>
+                                    <SelectItem value="daily">Daily</SelectItem>
+                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {detail.autoResetFrequency && (
+                                <span className="text-muted-foreground text-xs">
+                                    Moves to Ready and notifies the assignee, every {detail.autoResetFrequency === 'daily' && 'morning'}
+                                    {detail.autoResetFrequency === 'weekly' && 'week'}
+                                    {detail.autoResetFrequency === 'monthly' && 'month'}
+                                    {detail.lastAutoResetAt && ` — last reset ${new Date(detail.lastAutoResetAt).toLocaleDateString()}`}
+                                </span>
+                            )}
+                        </div>
+                    ) : (
+                        <span className="text-muted-foreground text-sm">
+                            {detail.autoResetFrequency} — last reset{' '}
+                            {detail.lastAutoResetAt ? new Date(detail.lastAutoResetAt).toLocaleDateString() : 'never'}
+                        </span>
                     )}
                 </section>
             )}

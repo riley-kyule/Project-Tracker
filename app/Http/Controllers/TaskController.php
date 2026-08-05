@@ -74,7 +74,7 @@ class TaskController extends Controller
             $this->guardAssigneeIsActive($request->validated('primary_assignee_id'));
         }
 
-        $validated = $request->safe()->except(['label_ids', 'ceo_priority', 'confidentiality']);
+        $validated = $request->safe()->except(['label_ids', 'ceo_priority', 'confidentiality', 'auto_reset_frequency']);
 
         if ($request->has('ceo_priority') && $request->user()->hasAnyRole(['CEO', 'Administrator'])) {
             $validated['ceo_priority'] = $request->boolean('ceo_priority');
@@ -82,6 +82,10 @@ class TaskController extends Controller
 
         if ($request->has('confidentiality') && Gate::forUser($request->user())->allows('manageConfidentiality', $task)) {
             $validated['confidentiality'] = $request->validated('confidentiality');
+        }
+
+        if ($request->has('auto_reset_frequency') && Gate::forUser($request->user())->allows('manageRecurrence', $task)) {
+            $validated['auto_reset_frequency'] = $request->validated('auto_reset_frequency');
         }
 
         $previousAssignee = $task->primary_assignee_id;
@@ -237,6 +241,8 @@ class TaskController extends Controller
                 ->values(),
             'recurrenceRule' => $task->recurrenceRule()->first(['id', 'frequency', 'interval_value', 'next_run_at', 'is_active', 'template_task_id']),
             'canManageRecurrence' => $request->user()->can('manageRecurrence', $task),
+            'autoResetFrequency' => $task->auto_reset_frequency,
+            'lastAutoResetAt' => $task->last_auto_reset_at,
             'timeEntries' => $task->timeEntries()->with(['user:id,name', 'approvedBy:id,name'])->latest('started_at')->get(),
             'canApproveTime' => $request->user()->can('approveTimeEntry', $task),
             'estimatedMinutes' => $task->estimated_minutes,

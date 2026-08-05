@@ -226,6 +226,24 @@ class TaskManagementTest extends TestCase
         $this->assertTrue($task->refresh()->ceo_priority);
     }
 
+    public function test_only_a_manager_or_admin_can_set_auto_reset_frequency()
+    {
+        $employee = User::factory()->create()->assignRole('Employee');
+        $board = $this->boardWithColumns();
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $board->columns()->first()->id,
+            'created_by' => $employee->id,
+        ]);
+
+        $this->actingAs($employee)->patch("/tasks/{$task->id}", ['auto_reset_frequency' => 'daily']);
+        $this->assertNull($task->refresh()->auto_reset_frequency);
+
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $this->actingAs($admin)->patch("/tasks/{$task->id}", ['auto_reset_frequency' => 'daily']);
+        $this->assertSame('daily', $task->refresh()->auto_reset_frequency);
+    }
+
     /**
      * Assigning someone outside the board's membership is itself how they
      * get access to it (TaskPolicy::view() + BoardPolicy::view()'s assigned-

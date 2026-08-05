@@ -22,6 +22,7 @@ class UpdateTaskRequest extends FormRequest
             'project_id' => ['sometimes', 'nullable', 'integer', 'exists:projects,id'],
             'ceo_priority' => ['sometimes', 'boolean'],
             'confidentiality' => ['sometimes', Rule::in(Task::CONFIDENTIALITY_LEVELS)],
+            'auto_reset_frequency' => ['sometimes', 'nullable', Rule::in(Task::AUTO_RESET_FREQUENCIES)],
             'work_location' => ['sometimes', Rule::in(['unspecified', 'remote', 'office', 'onsite'])],
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => ['integer', 'exists:labels,id'],

@@ -33,6 +33,8 @@ class Task extends Model
 
     public const ASSIGNMENT_TYPES = ['assignee', 'collaborator', 'reviewer', 'watcher'];
 
+    public const AUTO_RESET_FREQUENCIES = ['daily', 'weekly', 'monthly'];
+
     protected $fillable = [
         'title',
         'description',
@@ -61,6 +63,8 @@ class Task extends Model
         'completion_note',
         'first_completed_at',
         'reopened_at',
+        'auto_reset_frequency',
+        'last_auto_reset_at',
     ];
 
     public const APPROVAL_PENDING = 'pending';
@@ -81,6 +85,7 @@ class Task extends Model
             'approved_at' => 'datetime',
             'first_completed_at' => 'datetime',
             'reopened_at' => 'datetime',
+            'last_auto_reset_at' => 'datetime',
         ];
     }
 
