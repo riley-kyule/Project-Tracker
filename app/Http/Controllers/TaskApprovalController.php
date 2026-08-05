@@ -23,7 +23,10 @@ class TaskApprovalController extends Controller
         $validated = $request->validate(['reviewer_id' => ['required', 'integer', 'exists:users,id']]);
 
         $reviewer = User::query()->findOrFail($validated['reviewer_id']);
-        abort_unless(Gate::forUser($reviewer)->allows('view', $task), 422, 'The reviewer cannot see this task.');
+        // Deliberately not gated on Gate::forUser($reviewer)->allows('view', $task) —
+        // same reasoning as TaskAssigneeController::store(): naming someone the
+        // reviewer is itself what grants them access (TaskPolicy::view() honors
+        // approver_id), not a precondition for it.
 
         $task->update([
             'approval_status' => Task::APPROVAL_PENDING,

@@ -266,10 +266,37 @@ class Task extends Model
             return $query;
         }
 
+        $isDepartmentManagerRole = $user->hasRole('Department Manager');
+
+        // Departments $user has manager-level authority over (own-department
+        // role match, plus structural leadership + its descendants) — the
+        // same pairing TaskPolicy::view() uses, see managedDepartmentIds().
+        $managedDepartmentIds = array_values(array_unique([
+            ...($isDepartmentManagerRole && $user->department_id !== null ? [$user->department_id] : []),
+            ...app(BoardPolicy::class)->managedDepartmentIds($user),
+        ]));
+
         return $query
-            ->where(function (Builder $q) use ($user) {
-                $q->whereHas('board', fn (Builder $b) => $this->applyBoardVisibility($b, $user))
-                    ->orWhereHas('assignees', fn (Builder $a) => $a->whereKey($user->id));
+            ->where(function (Builder $q) use ($user, $managedDepartmentIds, $isDepartmentManagerRole) {
+                if ($managedDepartmentIds !== [] || $isDepartmentManagerRole) {
+                    $q->where(function (Builder $q2) use ($managedDepartmentIds, $isDepartmentManagerRole) {
+                        // A task with no department has no narrower manager
+                        // to defer to, so any Department Manager counts.
+                        $q2->when($isDepartmentManagerRole, fn (Builder $q3) => $q3->orWhereNull('department_id'));
+                        $q2->when($managedDepartmentIds !== [], fn (Builder $q3) => $q3->orWhereIn('department_id', $managedDepartmentIds));
+                    })->whereHas('board', fn (Builder $b) => $this->applyBoardVisibility($b, $user));
+                }
+
+                $q->orWhereHas('assignees', fn (Builder $a) => $a->whereKey($user->id))
+                    ->orWhere('created_by', $user->id)
+                    ->orWhere('approver_id', $user->id)
+                    // A mention doesn't open a door nobody handed them a key
+                    // to — it only surfaces a task on a board they could
+                    // already reach, same as TaskPolicy::view().
+                    ->orWhere(function (Builder $q2) use ($user) {
+                        $q2->whereHas('comments.mentions', fn (Builder $m) => $m->where('mentioned_user_id', $user->id))
+                            ->whereHas('board', fn (Builder $b) => $this->applyBoardVisibility($b, $user));
+                    });
             })
             ->where(function (Builder $q) use ($user) {
                 $q->where('confidentiality', self::CONFIDENTIALITY_NORMAL)

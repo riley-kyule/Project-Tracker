@@ -15,18 +15,18 @@ class TimeTrackingTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeTask(): Task
+    private function makeTask(User $user): Task
     {
         $board = Board::factory()->create(['visibility' => Board::VISIBILITY_COMPANY]);
         $column = BoardColumn::factory()->create(['board_id' => $board->id]);
 
-        return Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
+        return Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'created_by' => $user->id]);
     }
 
     public function test_starting_and_stopping_a_timer_updates_actual_minutes()
     {
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
 
         $this->actingAs($user)->post("/tasks/{$task->id}/time-entries/start")->assertRedirect();
 
@@ -47,8 +47,8 @@ class TimeTrackingTest extends TestCase
     public function test_a_user_cannot_run_two_timers_at_once()
     {
         $user = User::factory()->create()->assignRole('Employee');
-        $taskA = $this->makeTask();
-        $taskB = $this->makeTask();
+        $taskA = $this->makeTask($user);
+        $taskB = $this->makeTask($user);
 
         $this->actingAs($user)->post("/tasks/{$taskA->id}/time-entries/start")->assertRedirect();
 
@@ -64,7 +64,7 @@ class TimeTrackingTest extends TestCase
     {
         $owner = User::factory()->create()->assignRole('Employee');
         $stranger = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($owner);
 
         $this->actingAs($owner)->post("/tasks/{$task->id}/time-entries/start");
         $entry = TimeEntry::query()->firstOrFail();
@@ -76,7 +76,7 @@ class TimeTrackingTest extends TestCase
     {
         $employee = User::factory()->create()->assignRole('Employee');
         $admin = User::factory()->create()->assignRole('Administrator');
-        $task = $this->makeTask();
+        $task = $this->makeTask($employee);
 
         $this->actingAs($employee)->post("/tasks/{$task->id}/time-entries", [
             'duration_minutes' => 90,
@@ -100,7 +100,7 @@ class TimeTrackingTest extends TestCase
     {
         $employee = User::factory()->create()->assignRole('Employee');
         $admin = User::factory()->create()->assignRole('Administrator');
-        $task = $this->makeTask();
+        $task = $this->makeTask($employee);
 
         $this->actingAs($employee)->post("/tasks/{$task->id}/time-entries", [
             'duration_minutes' => 60,
@@ -128,7 +128,7 @@ class TimeTrackingTest extends TestCase
 
         $board = Board::factory()->create(['department_id' => $seo->id, 'visibility' => Board::VISIBILITY_COMPANY]);
         $column = BoardColumn::factory()->create(['board_id' => $board->id]);
-        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'department_id' => $seo->id]);
+        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'department_id' => $seo->id, 'created_by' => $employee->id]);
 
         $this->actingAs($employee)->post("/tasks/{$task->id}/time-entries", [
             'duration_minutes' => 20,

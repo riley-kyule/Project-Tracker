@@ -27,9 +27,9 @@ class TaskConfidentialityTest extends TestCase
 
     public function test_normal_tasks_are_unaffected()
     {
-        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_COMPANY]);
-        $task = Task::factory()->create(['board_id' => $board->id]);
         $employee = User::factory()->create()->assignRole('Employee');
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_COMPANY]);
+        $task = Task::factory()->create(['board_id' => $board->id, 'created_by' => $employee->id]);
 
         $this->actingAs($employee)->get("/tasks/{$task->id}/detail")->assertOk();
     }

@@ -9,6 +9,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Notifications\CommentMention;
 use App\Notifications\TaskCommented;
+use App\Services\TaskAssigneeSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -17,7 +18,7 @@ class CommentTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeTask(array $attributes = []): Task
+    private function makeTask(User $user, array $attributes = []): Task
     {
         $board = Board::factory()->create(['visibility' => Board::VISIBILITY_COMPANY]);
         $column = BoardColumn::factory()->create(['board_id' => $board->id]);
@@ -25,6 +26,7 @@ class CommentTest extends TestCase
         return Task::factory()->create([
             'board_id' => $board->id,
             'board_column_id' => $column->id,
+            'created_by' => $user->id,
             ...$attributes,
         ]);
     }
@@ -32,7 +34,7 @@ class CommentTest extends TestCase
     public function test_users_can_comment_and_reply()
     {
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
 
         $this->actingAs($user)
             ->post("/tasks/{$task->id}/comments", ['body' => 'First comment'])
@@ -50,7 +52,7 @@ class CommentTest extends TestCase
     public function test_a_structured_progress_note_is_stored_distinctly_from_ordinary_comments()
     {
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
 
         $this->actingAs($user)
             ->post("/tasks/{$task->id}/comments", [
@@ -72,7 +74,7 @@ class CommentTest extends TestCase
     public function test_an_invalid_note_type_is_rejected()
     {
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
 
         $this->actingAs($user)
             ->post("/tasks/{$task->id}/comments", ['body' => 'x', 'note_type' => 'not_a_real_type'])
@@ -86,11 +88,14 @@ class CommentTest extends TestCase
         $author = User::factory()->create()->assignRole('Employee');
         $colleague = User::factory()->create()->assignRole('Employee');
 
-        // Restricted board the outsider cannot see.
+        // Restricted board the outsider cannot see. Board membership alone
+        // no longer grants task-level view access (see TaskPolicy::view()),
+        // so colleague's eligibility comes from being a collaborator.
         $restricted = Board::factory()->create(['visibility' => Board::VISIBILITY_RESTRICTED]);
         $column = BoardColumn::factory()->create(['board_id' => $restricted->id]);
-        $task = Task::factory()->create(['board_id' => $restricted->id, 'board_column_id' => $column->id]);
+        $task = Task::factory()->create(['board_id' => $restricted->id, 'board_column_id' => $column->id, 'created_by' => $author->id]);
         $restricted->members()->attach([$author->id, $colleague->id]);
+        $task->assignees()->attach($colleague->id, ['assignment_type' => 'collaborator']);
 
         $outsider = User::factory()->create()->assignRole('Employee');
 
@@ -112,10 +117,9 @@ class CommentTest extends TestCase
         $assignee = User::factory()->create()->assignRole('Employee');
         $commenter = User::factory()->create()->assignRole('Employee');
 
-        $task = $this->makeTask([
-            'created_by' => $creator->id,
-            'primary_assignee_id' => $assignee->id,
-        ]);
+        $task = $this->makeTask($creator, ['primary_assignee_id' => $assignee->id]);
+        TaskAssigneeSync::syncPrimary($task, null);
+        $task->assignees()->attach($commenter->id, ['assignment_type' => 'collaborator']);
 
         $this->actingAs($commenter)->post("/tasks/{$task->id}/comments", ['body' => 'Status?']);
 
@@ -141,7 +145,7 @@ class CommentTest extends TestCase
     {
         $author = User::factory()->create()->assignRole('Employee');
         $other = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($author);
 
         $this->actingAs($author)->post("/tasks/{$task->id}/comments", ['body' => 'Mine']);
         $comment = Comment::query()->firstOrFail();
@@ -158,15 +162,19 @@ class CommentTest extends TestCase
 
     public function test_author_cannot_delete_comment_after_losing_parent_access()
     {
+        $creator = User::factory()->create()->assignRole('Employee');
         $author = User::factory()->create()->assignRole('Employee');
         $board = Board::factory()->create(['visibility' => Board::VISIBILITY_RESTRICTED]);
         $column = BoardColumn::factory()->create(['board_id' => $board->id]);
-        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
+        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'created_by' => $creator->id]);
         $board->members()->attach($author->id);
+        // Collaborator, not board membership, is what actually grants a
+        // non-manager task-level access now — see TaskPolicy::view().
+        $task->assignees()->attach($author->id, ['assignment_type' => 'collaborator']);
 
         $this->actingAs($author)->post("/tasks/{$task->id}/comments", ['body' => 'Mine']);
         $comment = Comment::query()->firstOrFail();
-        $board->members()->detach($author->id);
+        $task->assignees()->detach($author->id);
 
         $this->actingAs($author)->delete("/comments/{$comment->id}")->assertForbidden();
         $this->assertNotSoftDeleted('comments', ['id' => $comment->id]);

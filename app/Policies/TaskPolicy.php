@@ -14,9 +14,37 @@ class TaskPolicy
         // Being added to a task directly (any assignment type) grants visibility
         // into that one task regardless of department/board access — the point
         // of adding someone from outside your department is that they couldn't
-        // already see the board.
-        $hasDirectAccess = Gate::forUser($user)->allows('view', $task->board)
-            || $task->assignees()->where('user_id', $user->id)->exists();
+        // already see the board. Creating a task, or being named its approver,
+        // grants the same, so neither disappears on the people handling it.
+        //
+        // Full board-wide visibility (everything else on the board, not just
+        // your own tasks) is reserved for CEO/Administrator and the task's
+        // Department Manager, per PERMISSIONS_MATRIX.md "View all normal
+        // tasks". Everyone else only sees tasks they're personally assigned
+        // to, created, or reviewing — plus, if they can already reach the
+        // board at all, tasks they've been @mentioned on: a mention doesn't
+        // open a door nobody handed them a key to (e.g. a restricted board
+        // they aren't a member of), just surfaces a task on a board they
+        // could already open.
+        //
+        // A task with no department (e.g. a company-wide board not tied to
+        // one) has no narrower manager to defer to, so any Department
+        // Manager counts rather than nobody.
+        $isDepartmentManager = $user->hasRole('Department Manager') && $task->department_id === null
+            || ($task->department_id !== null
+                && (($user->hasRole('Department Manager') && $user->department_id === $task->department_id)
+                    || in_array($task->department_id, app(BoardPolicy::class)->managedDepartmentIds($user), true)));
+
+        $canViewBoard = Gate::forUser($user)->allows('view', $task->board);
+
+        $isMentioned = $canViewBoard
+            && $task->comments()->whereHas('mentions', fn ($q) => $q->where('mentioned_user_id', $user->id))->exists();
+
+        $hasDirectAccess = $task->assignees()->where('user_id', $user->id)->exists()
+            || $task->created_by === $user->id
+            || $task->approver_id === $user->id
+            || $isMentioned
+            || (($user->hasAnyRole(['CEO', 'Administrator']) || $isDepartmentManager) && $canViewBoard);
 
         if (! $hasDirectAccess) {
             return false;

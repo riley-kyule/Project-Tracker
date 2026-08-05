@@ -133,4 +133,34 @@ class BoardPolicy
 
         return array_values(array_unique($ids));
     }
+
+    /**
+     * Same leadership route as (3) in accessibleDepartmentIds(), but
+     * deliberately excludes plain membership (1)/(2): this answers "does
+     * $user have manager-level authority here," not "can $user see this,"
+     * so a rank-and-file department member doesn't count. Used by
+     * TaskPolicy::view() / Task::scopeVisibleTo() to decide full,
+     * not-just-my-own task visibility — see PERMISSIONS_MATRIX.md "View all
+     * normal tasks": Department Manager gets the whole department,
+     * everyone else only their own assigned/created/approver tasks.
+     *
+     * @return array<int, int>
+     */
+    public function managedDepartmentIds(User $user): array
+    {
+        $ledDepartmentIds = Department::query()
+            ->where('manager_id', $user->id)
+            ->orWhere('assistant_manager_id', $user->id)
+            ->pluck('id');
+
+        $roots = Department::query()->whereIn('id', $ledDepartmentIds)->get();
+
+        $ids = [];
+
+        foreach ($roots as $root) {
+            $ids = [...$ids, ...$root->descendantIds()];
+        }
+
+        return array_values(array_unique($ids));
+    }
 }

@@ -19,7 +19,7 @@ class SearchTest extends TestCase
 
         $open = Board::factory()->create(['visibility' => Board::VISIBILITY_COMPANY]);
         $openColumn = BoardColumn::factory()->create(['board_id' => $open->id]);
-        Task::factory()->create(['board_id' => $open->id, 'board_column_id' => $openColumn->id, 'title' => 'Migration plan alpha']);
+        Task::factory()->create(['board_id' => $open->id, 'board_column_id' => $openColumn->id, 'title' => 'Migration plan alpha', 'created_by' => $user->id]);
 
         $secret = Board::factory()->create(['visibility' => Board::VISIBILITY_RESTRICTED]);
         $secretColumn = BoardColumn::factory()->create(['board_id' => $secret->id]);
@@ -37,7 +37,7 @@ class SearchTest extends TestCase
         $user = User::factory()->create()->assignRole('Employee');
         $board = Board::factory()->create(['visibility' => Board::VISIBILITY_COMPANY]);
         $column = BoardColumn::factory()->create(['board_id' => $board->id]);
-        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
+        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'created_by' => $user->id]);
         $task->forceFill(['task_number' => $task->id])->save();
 
         $response = $this->actingAs($user)->get("/search?q=T-{$task->id}")->assertOk();

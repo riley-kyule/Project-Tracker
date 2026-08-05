@@ -16,12 +16,12 @@ class AttachmentTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeTask(string $visibility = Board::VISIBILITY_COMPANY): Task
+    private function makeTask(User $user, string $visibility = Board::VISIBILITY_COMPANY): Task
     {
         $board = Board::factory()->create(['visibility' => $visibility]);
         $column = BoardColumn::factory()->create(['board_id' => $board->id]);
 
-        return Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
+        return Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'created_by' => $user->id]);
     }
 
     private function pdf(string $name, int $padding = 200): UploadedFile
@@ -34,7 +34,7 @@ class AttachmentTest extends TestCase
         Storage::fake('local');
 
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
 
         $this->actingAs($user)
             ->post("/tasks/{$task->id}/attachments", [
@@ -58,7 +58,7 @@ class AttachmentTest extends TestCase
         Storage::fake('local');
 
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
 
         $this->actingAs($user)
             ->post("/tasks/{$task->id}/attachments", [
@@ -74,7 +74,7 @@ class AttachmentTest extends TestCase
         Storage::fake('local');
 
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
 
         $this->actingAs($user)
             ->post("/tasks/{$task->id}/attachments", [
@@ -90,7 +90,7 @@ class AttachmentTest extends TestCase
         Storage::fake('local');
 
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
 
         $this->actingAs($user)
             ->post("/tasks/{$task->id}/attachments", [
@@ -107,7 +107,7 @@ class AttachmentTest extends TestCase
         Storage::fake('local');
 
         $user = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($user);
         $file = UploadedFile::fake()->createWithContent('malware.pdf', "#!/bin/sh\necho compromised");
 
         $this->actingAs($user)
@@ -124,7 +124,7 @@ class AttachmentTest extends TestCase
         $member = User::factory()->create()->assignRole('Employee');
         $outsider = User::factory()->create()->assignRole('Employee');
 
-        $task = $this->makeTask(Board::VISIBILITY_RESTRICTED);
+        $task = $this->makeTask($member, Board::VISIBILITY_RESTRICTED);
         $task->board->members()->attach($member->id);
 
         $this->actingAs($member)->post("/tasks/{$task->id}/attachments", [
@@ -143,7 +143,7 @@ class AttachmentTest extends TestCase
 
         $uploader = User::factory()->create()->assignRole('Employee');
         $other = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask();
+        $task = $this->makeTask($uploader);
 
         $this->actingAs($uploader)->post("/tasks/{$task->id}/attachments", [
             'file' => $this->pdf('doc.pdf'),
@@ -162,15 +162,18 @@ class AttachmentTest extends TestCase
     {
         Storage::fake('local');
 
+        $author = User::factory()->create()->assignRole('Employee');
         $uploader = User::factory()->create()->assignRole('Employee');
-        $task = $this->makeTask(Board::VISIBILITY_RESTRICTED);
-        $task->board->members()->attach($uploader->id);
+        $task = $this->makeTask($author, Board::VISIBILITY_RESTRICTED);
+        // Collaborator, not board membership, is what actually grants a
+        // non-manager task-level access now — see TaskPolicy::view().
+        $task->assignees()->attach($uploader->id, ['assignment_type' => 'collaborator']);
 
         $this->actingAs($uploader)->post("/tasks/{$task->id}/attachments", [
             'file' => $this->pdf('doc.pdf'),
         ]);
         $attachment = Attachment::query()->firstOrFail();
-        $task->board->members()->detach($uploader->id);
+        $task->assignees()->detach($uploader->id);
 
         $this->actingAs($uploader)->delete("/attachments/{$attachment->id}")->assertForbidden();
         $this->assertDatabaseHas('attachments', ['id' => $attachment->id]);
