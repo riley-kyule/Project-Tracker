@@ -201,7 +201,9 @@ export function TaskDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={NONE}>Unassigned</SelectItem>
-                                    {members.map((member) => (
+                                    {/* Not board-scoped, same reasoning as allMembers everywhere else — assigning
+                                        someone outside this board's department is itself how they get access to it. */}
+                                    {allMembers.map((member) => (
                                         <SelectItem key={member.id} value={member.id.toString()}>
                                             {member.name}
                                         </SelectItem>
