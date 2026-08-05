@@ -201,6 +201,7 @@ export function TaskCollaboration({
     members,
     allMembers,
     boardTasks,
+    canDuplicate,
     onDeleted,
     onChecklistProgressChange,
 }: {
@@ -208,6 +209,7 @@ export function TaskCollaboration({
     members: Member[];
     allMembers: Member[];
     boardTasks: { id: number; title: string; task_number: number }[];
+    canDuplicate: boolean;
     onDeleted: () => void;
     onChecklistProgressChange?: (percentage: number | null, completed: number, total: number) => void;
 }) {
@@ -1397,6 +1399,25 @@ export function TaskCollaboration({
                     {detail.activity.length === 0 && <li className="text-muted-foreground text-xs">No activity recorded yet.</li>}
                 </ul>
             </section>
+
+            {canDuplicate && (
+                <section>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                            router.post(
+                                `/tasks/${taskId}/duplicate`,
+                                {},
+                                { preserveScroll: true, onSuccess: () => toast.success('Task duplicated.'), onError: showError },
+                            )
+                        }
+                    >
+                        <Copy className="mr-1 size-3.5" /> Duplicate task
+                    </Button>
+                </section>
+            )}
 
             {/* Danger zone */}
             {detail.canDelete && (

@@ -14,6 +14,7 @@ use App\Notifications\TaskAssigned;
 use App\Services\AuditLogger;
 use App\Services\PushNotifier;
 use App\Services\TaskAssigneeSync;
+use App\Services\TaskChecklistProgress;
 use App\Services\TaskMover;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -62,6 +63,73 @@ class TaskController extends Controller
 
         TaskAssigneeSync::syncPrimary($task, null);
         $this->notifyAssignee($task, null, $request->user());
+
+        return back();
+    }
+
+    /**
+     * Same concept as ChecklistController::duplicate(): copies the
+     * definitional/structural fields and checklists (items reset to
+     * incomplete), but none of the source task's history or in-progress
+     * state — no comments, attachments, time entries, completion/approval
+     * status, dependencies, or its own recurrence settings.
+     */
+    public function duplicate(Request $request, Task $task): RedirectResponse
+    {
+        Gate::authorize('view', $task);
+        Gate::authorize('create', [Task::class, $task->board]);
+
+        $copy = DB::transaction(function () use ($request, $task) {
+            $copy = Task::create([
+                'title' => $task->title.' (copy)',
+                'description' => $task->description,
+                'department_id' => $task->department_id,
+                'board_id' => $task->board_id,
+                'board_column_id' => $task->board_column_id,
+                'project_id' => $task->project_id,
+                'priority' => $task->priority,
+                'primary_assignee_id' => $task->primary_assignee_id,
+                'work_location' => $task->work_location,
+                'estimated_minutes' => $task->estimated_minutes,
+                'confidentiality' => $task->confidentiality,
+                'created_by' => $request->user()->id,
+                'position' => (int) $task->column->tasks()->max('position') + 1,
+            ]);
+
+            $copy->forceFill(['task_number' => $copy->id])->save();
+
+            $copy->labels()->sync($task->labels()->pluck('labels.id'));
+
+            foreach ($task->checklists as $checklist) {
+                $checklistCopy = $copy->checklists()->create([
+                    'name' => $checklist->name,
+                    'position' => $checklist->position,
+                ]);
+
+                foreach ($checklist->items as $item) {
+                    $checklistCopy->items()->create([
+                        'title' => $item->title,
+                        'position' => $item->position,
+                    ]);
+                }
+            }
+
+            AuditLogger::log($copy, 'created', [], ['title' => $copy->title, 'duplicated_from' => $task->id]);
+
+            return $copy;
+        });
+
+        TaskChecklistProgress::sync($copy);
+        TaskAssigneeSync::syncPrimary($copy, null);
+
+        // Non-primary assignments (collaborator/reviewer/watcher) carry over
+        // too — the primary "assignee" row is already handled above.
+        $task->assignees()
+            ->wherePivotIn('assignment_type', ['collaborator', 'reviewer', 'watcher'])
+            ->get()
+            ->each(fn (User $user) => $copy->assignees()->syncWithoutDetaching([
+                $user->id => ['assignment_type' => $user->pivot->assignment_type],
+            ]));
 
         return back();
     }

@@ -37,6 +37,7 @@ Route::middleware(['auth'])->group(function () {
     // needed outside the board page itself (report emails, etc.) without the
     // caller needing to already know which board it's on.
     Route::get('tasks/{task}', [TaskController::class, 'showOnBoard'])->name('tasks.show');
+    Route::post('tasks/{task}/duplicate', [TaskController::class, 'duplicate'])->name('tasks.duplicate');
     Route::patch('tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');

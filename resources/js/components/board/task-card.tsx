@@ -335,6 +335,7 @@ export function TaskDialog({
                         members={members}
                         allMembers={allMembers}
                         boardTasks={boardTasks}
+                        canDuplicate={can.createTask}
                         onDeleted={onClose}
                         onChecklistProgressChange={(percentage, completed, total) => {
                             setChecklistCounts({ completed, total });
