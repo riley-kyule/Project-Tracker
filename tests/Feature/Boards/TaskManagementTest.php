@@ -226,7 +226,12 @@ class TaskManagementTest extends TestCase
         $this->assertTrue($task->refresh()->ceo_priority);
     }
 
-    public function test_task_cannot_be_assigned_to_someone_without_board_access()
+    /**
+     * Assigning someone outside the board's membership is itself how they
+     * get access to it (TaskPolicy::view() + BoardPolicy::view()'s assigned-
+     * task exception) — the same mechanism as adding a collaborator.
+     */
+    public function test_a_task_can_be_assigned_to_someone_outside_the_boards_membership()
     {
         $member = User::factory()->create()->assignRole('Employee');
         $outsider = User::factory()->create()->assignRole('Employee');
@@ -237,13 +242,35 @@ class TaskManagementTest extends TestCase
         $this->actingAs($member)
             ->from("/boards/{$board->id}")
             ->post("/boards/{$board->id}/tasks", [
-                'title' => 'Sensitive work',
+                'title' => 'Cross-team work',
                 'board_column_id' => $column->id,
                 'priority' => 'medium',
                 'primary_assignee_id' => $outsider->id,
             ])
+            ->assertRedirect();
+
+        $task = Task::query()->where('title', 'Cross-team work')->firstOrFail();
+        $this->assertSame($outsider->id, $task->primary_assignee_id);
+        $this->actingAs($outsider)->get("/boards/{$board->id}")->assertOk();
+    }
+
+    public function test_a_task_cannot_be_assigned_to_an_inactive_user()
+    {
+        $member = User::factory()->create()->assignRole('Employee');
+        $inactive = User::factory()->create(['status' => User::STATUS_INACTIVE])->assignRole('Employee');
+        $board = $this->boardWithColumns();
+        $column = $board->columns()->first();
+
+        $this->actingAs($member)
+            ->from("/boards/{$board->id}")
+            ->post("/boards/{$board->id}/tasks", [
+                'title' => 'Needs an active assignee',
+                'board_column_id' => $column->id,
+                'priority' => 'medium',
+                'primary_assignee_id' => $inactive->id,
+            ])
             ->assertSessionHasErrors('primary_assignee_id');
 
-        $this->assertDatabaseMissing('tasks', ['title' => 'Sensitive work']);
+        $this->assertDatabaseMissing('tasks', ['title' => 'Needs an active assignee']);
     }
 }

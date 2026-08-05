@@ -45,7 +45,7 @@ class TaskBulkActionTest extends TestCase
         }
     }
 
-    public function test_bulk_reassign_rejects_an_assignee_without_board_access()
+    public function test_bulk_reassign_can_assign_someone_outside_the_boards_membership()
     {
         $manager = User::factory()->create()->assignRole('Department Manager');
         $outsider = User::factory()->create()->assignRole('Employee');
@@ -59,6 +59,26 @@ class TaskBulkActionTest extends TestCase
             ->post('/tasks/bulk-reassign', [
                 'task_ids' => [$task->id],
                 'assignee_id' => $outsider->id,
+            ])
+            ->assertRedirect();
+
+        $this->assertSame($outsider->id, $task->refresh()->primary_assignee_id);
+        $this->actingAs($outsider)->get("/boards/{$board->id}")->assertOk();
+    }
+
+    public function test_bulk_reassign_rejects_an_inactive_assignee()
+    {
+        $manager = User::factory()->create()->assignRole('Department Manager');
+        $inactive = User::factory()->create(['status' => User::STATUS_INACTIVE])->assignRole('Employee');
+        $board = $this->boardWithColumns();
+        $column = $board->columns()->first();
+
+        $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'created_by' => $manager->id]);
+
+        $this->actingAs($manager)
+            ->post('/tasks/bulk-reassign', [
+                'task_ids' => [$task->id],
+                'assignee_id' => $inactive->id,
             ])
             ->assertSessionHasErrors('assignee_id');
 

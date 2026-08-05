@@ -42,7 +42,7 @@ class TaskController extends Controller
             ->where('board_id', $board->id)
             ->findOrFail($request->validated('board_column_id'));
 
-        $this->guardAssigneeCanAccessBoard($request->validated('primary_assignee_id'), $board);
+        $this->guardAssigneeIsActive($request->validated('primary_assignee_id'));
 
         $task = DB::transaction(function () use ($request, $board, $column) {
             $task = Task::create([
@@ -71,7 +71,7 @@ class TaskController extends Controller
         Gate::authorize('update', $task);
 
         if ($request->has('primary_assignee_id')) {
-            $this->guardAssigneeCanAccessBoard($request->validated('primary_assignee_id'), $task->board);
+            $this->guardAssigneeIsActive($request->validated('primary_assignee_id'));
         }
 
         $validated = $request->safe()->except(['label_ids', 'ceo_priority', 'confidentiality']);
@@ -277,7 +277,12 @@ class TaskController extends Controller
         }
     }
 
-    private function guardAssigneeCanAccessBoard(?int $assigneeId, Board $board): void
+    /**
+     * Deliberately not gated on board access, same as TaskAssigneeController
+     * — becoming the primary assignee is itself how someone outside the
+     * board's department gets access to this task (TaskPolicy::view()).
+     */
+    private function guardAssigneeIsActive(?int $assigneeId): void
     {
         if ($assigneeId === null) {
             return;
@@ -285,9 +290,9 @@ class TaskController extends Controller
 
         $assignee = User::query()->findOrFail($assigneeId);
 
-        if (! $assignee->isActive() || Gate::forUser($assignee)->denies('view', $board)) {
+        if (! $assignee->isActive()) {
             throw ValidationException::withMessages([
-                'primary_assignee_id' => 'The assignee must be active and able to access this board.',
+                'primary_assignee_id' => 'The assignee must be active.',
             ]);
         }
     }

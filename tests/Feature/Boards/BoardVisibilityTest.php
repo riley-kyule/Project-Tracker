@@ -3,8 +3,11 @@
 namespace Tests\Feature\Boards;
 
 use App\Models\Board;
+use App\Models\BoardColumn;
 use App\Models\Department;
+use App\Models\Task;
 use App\Models\User;
+use App\Services\TaskAssigneeSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -34,6 +37,42 @@ class BoardVisibilityTest extends TestCase
         ]);
 
         $this->actingAs($insider)->get("/boards/{$board->id}")->assertOk();
+        $this->actingAs($outsider)->get("/boards/{$board->id}")->assertForbidden();
+    }
+
+    public function test_a_task_assignee_can_view_a_department_board_outside_their_own_department()
+    {
+        $department = Department::query()->where('slug', 'seo')->firstOrFail();
+        $other = Department::query()->where('slug', 'it')->firstOrFail();
+
+        $outsider = User::factory()->create(['department_id' => $other->id])->assignRole('Employee');
+
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_DEPARTMENT, 'department_id' => $department->id]);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+            'department_id' => $department->id,
+            'primary_assignee_id' => $outsider->id,
+        ]);
+        // Real assignment goes through TaskAssigneeSync, which mirrors
+        // primary_assignee_id into task_assignees — BoardPolicy checks that
+        // pivot, not the column directly, so it needs to be populated here.
+        TaskAssigneeSync::syncPrimary($task, null);
+
+        $this->actingAs($outsider)->get("/boards/{$board->id}")->assertOk();
+    }
+
+    public function test_an_uninvolved_outsider_still_cannot_view_a_department_board()
+    {
+        $department = Department::query()->where('slug', 'seo')->firstOrFail();
+        $other = Department::query()->where('slug', 'it')->firstOrFail();
+
+        $outsider = User::factory()->create(['department_id' => $other->id])->assignRole('Employee');
+
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_DEPARTMENT, 'department_id' => $department->id]);
+        BoardColumn::factory()->create(['board_id' => $board->id]);
+
         $this->actingAs($outsider)->get("/boards/{$board->id}")->assertForbidden();
     }
 

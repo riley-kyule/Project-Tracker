@@ -34,14 +34,16 @@ class TaskBulkActionController extends Controller
         $tasks = Task::query()->with('board')->whereIn('id', $validated['task_ids'])->get();
         $assignee = $validated['assignee_id'] ? User::query()->findOrFail($validated['assignee_id']) : null;
 
+        // Not gated on the assignee's board access — same as the single-task
+        // path, becoming the assignee is itself what grants outside access.
+        if ($assignee && ! $assignee->isActive()) {
+            throw ValidationException::withMessages([
+                'assignee_id' => 'The assignee must be active.',
+            ]);
+        }
+
         foreach ($tasks as $task) {
             Gate::authorize('update', $task);
-
-            if ($assignee && (! $assignee->isActive() || Gate::forUser($assignee)->denies('view', $task->board))) {
-                throw ValidationException::withMessages([
-                    'assignee_id' => "The assignee must be active and able to access every selected task's board.",
-                ]);
-            }
         }
 
         DB::transaction(function () use ($tasks, $assignee) {

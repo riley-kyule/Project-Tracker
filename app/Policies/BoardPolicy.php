@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Board;
 use App\Models\Department;
+use App\Models\Task;
 use App\Models\User;
 
 class BoardPolicy
@@ -21,6 +22,16 @@ class BoardPolicy
 
         if (! $board->is_active) {
             return false;
+        }
+
+        // A task assignment (any type — see TaskAssigneeController) is itself
+        // the mechanism that grants someone outside the board's department
+        // access to it; TaskPolicy::view() already honors this per-task, but
+        // the board page is an all-or-nothing gate in front of that, so it
+        // needs the same exception or an assignee can never reach their own
+        // task's card.
+        if ($this->hasAssignedTask($user, $board)) {
+            return true;
         }
 
         return match ($board->visibility) {
@@ -58,6 +69,14 @@ class BoardPolicy
     public function delete(User $user, Board $board): bool
     {
         return $user->hasRole('Administrator');
+    }
+
+    private function hasAssignedTask(User $user, Board $board): bool
+    {
+        return Task::query()
+            ->where('board_id', $board->id)
+            ->whereHas('assignees', fn ($query) => $query->whereKey($user->id))
+            ->exists();
     }
 
     /**
