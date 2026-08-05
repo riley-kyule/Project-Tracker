@@ -102,6 +102,22 @@ class DepartmentManagementTest extends TestCase
         $this->assertSame('16:00', $department->refresh()->weekly_summary_time);
     }
 
+    public function test_administrators_can_opt_a_department_into_sunday_reports()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $department = Department::query()->where('slug', 'seo')->firstOrFail();
+        $this->assertFalse($department->send_sunday_reports);
+
+        $this->actingAs($admin)
+            ->patch("/admin/departments/{$department->id}", [
+                'name' => $department->name,
+                'send_sunday_reports' => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue($department->refresh()->send_sunday_reports);
+    }
+
     public function test_an_invalid_workflow_template_is_rejected()
     {
         $admin = User::factory()->create()->assignRole('Administrator');

@@ -31,15 +31,25 @@ class DailySummarySchedule
 
     public function isCeoSummaryDue(): bool
     {
+        // The CEO daily is a rollup of department activity — skipping it on
+        // the same day departments skip by default keeps it from arriving
+        // as a near-empty email nobody asked for.
+        if ($this->businessDay()->isSunday()) {
+            return false;
+        }
+
         return $this->isDue(CompanySetting::current()->ceo_summary_time, ReportSnapshot::TYPE_CEO_DAILY, null);
     }
 
     /** @return Collection<int, Department> */
     public function dueDepartments(): Collection
     {
+        $isSunday = $this->businessDay()->isSunday();
+
         return Department::query()
             ->active()
             ->whereNotNull('daily_summary_time')
+            ->when($isSunday, fn ($query) => $query->where('send_sunday_reports', true))
             ->get()
             ->filter(fn (Department $department) => $this->isDue(
                 $department->daily_summary_time,

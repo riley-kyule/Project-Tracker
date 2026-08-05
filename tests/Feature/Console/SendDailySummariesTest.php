@@ -108,6 +108,54 @@ class SendDailySummariesTest extends TestCase
         $this->assertDatabaseCount('report_snapshots', 0);
     }
 
+    public function test_department_summary_is_skipped_on_sunday_by_default()
+    {
+        Mail::fake();
+        $this->travelTo(Carbon::parse('2026-08-02 09:00:00', 'Africa/Nairobi')); // A Sunday.
+
+        $manager = User::factory()->create()->assignRole('Employee');
+        Department::factory()->create([
+            'manager_id' => $manager->id,
+            'daily_summary_time' => '08:00:00',
+            'send_sunday_reports' => false,
+        ]);
+
+        $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
+
+        Mail::assertNothingSent();
+        $this->assertDatabaseCount('report_snapshots', 0);
+    }
+
+    public function test_department_summary_is_sent_on_sunday_when_opted_in()
+    {
+        Mail::fake();
+        $this->travelTo(Carbon::parse('2026-08-02 09:00:00', 'Africa/Nairobi')); // A Sunday.
+
+        $manager = User::factory()->create()->assignRole('Employee');
+        Department::factory()->create([
+            'manager_id' => $manager->id,
+            'daily_summary_time' => '08:00:00',
+            'send_sunday_reports' => true,
+        ]);
+
+        $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
+
+        Mail::assertSent(DepartmentDailySummaryMail::class);
+    }
+
+    public function test_ceo_summary_is_skipped_on_sunday()
+    {
+        Mail::fake();
+        $this->travelTo(Carbon::parse('2026-08-02 09:00:00', 'Africa/Nairobi')); // A Sunday.
+
+        User::factory()->create()->assignRole('CEO');
+        CompanySetting::current()->update(['ceo_summary_time' => '08:00:00']);
+
+        $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
+
+        Mail::assertNotSent(CeoDailySummaryMail::class);
+    }
+
     public function test_running_the_command_twice_does_not_duplicate_the_report()
     {
         Mail::fake();

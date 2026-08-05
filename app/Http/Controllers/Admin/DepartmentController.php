@@ -66,7 +66,7 @@ class DepartmentController extends Controller
     {
         Gate::authorize('update', $department);
 
-        $old = $department->only(['name', 'slug', 'description', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active', 'daily_summary_time', 'weekly_summary_time']);
+        $old = $department->only(['name', 'slug', 'description', 'parent_department_id', 'manager_id', 'assistant_manager_id', 'is_active', 'daily_summary_time', 'weekly_summary_time', 'send_sunday_reports']);
         $department->update([
             ...$request->safe()->except('member_ids'),
             ...($request->slug() !== null ? ['slug' => $request->slug()] : []),

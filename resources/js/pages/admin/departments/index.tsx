@@ -27,6 +27,7 @@ type Department = {
     workflow_template: string | null;
     daily_summary_time: string | null;
     weekly_summary_time: string | null;
+    send_sunday_reports: boolean;
     users_count: number;
     members: { id: number; name: string }[];
 };
@@ -44,6 +45,7 @@ type DepartmentForm = {
     workflow_template: string;
     daily_summary_time: string;
     weekly_summary_time: string;
+    send_sunday_reports: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Departments', href: '/admin/departments' }];
@@ -79,6 +81,7 @@ function DepartmentDialog({
         workflow_template: department?.workflow_template ?? NONE,
         daily_summary_time: department?.daily_summary_time?.slice(0, 5) ?? '',
         weekly_summary_time: department?.weekly_summary_time?.slice(0, 5) ?? '',
+        send_sunday_reports: department?.send_sunday_reports ?? false,
     });
 
     // A department that already has sub-departments can't become one itself.
@@ -210,6 +213,14 @@ function DepartmentDialog({
                         />
                         <p className="text-muted-foreground text-xs">Sent to the head of department and assistant manager. Leave blank to disable.</p>
                         <InputError message={errors.daily_summary_time} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="send_sunday_reports"
+                            checked={data.send_sunday_reports}
+                            onCheckedChange={(checked) => setData('send_sunday_reports', checked === true)}
+                        />
+                        <Label htmlFor="send_sunday_reports">Send the daily summary on Sundays</Label>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="weekly_summary_time">Weekly summary email time (Fridays)</Label>

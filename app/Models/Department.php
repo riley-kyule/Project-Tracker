@@ -40,6 +40,7 @@ class Department extends Model
         'daily_summary_time',
         'daily_summary_last_sent_on',
         'weekly_summary_time',
+        'send_sunday_reports',
     ];
 
     protected function casts(): array
@@ -47,6 +48,7 @@ class Department extends Model
         return [
             'is_active' => 'boolean',
             'daily_summary_last_sent_on' => 'date',
+            'send_sunday_reports' => 'boolean',
         ];
     }
 
