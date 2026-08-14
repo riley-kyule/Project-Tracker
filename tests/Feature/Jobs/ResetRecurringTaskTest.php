@@ -5,6 +5,8 @@ namespace Tests\Feature\Jobs;
 use App\Jobs\ResetRecurringTask;
 use App\Models\Board;
 use App\Models\BoardColumn;
+use App\Models\Checklist;
+use App\Models\ChecklistItem;
 use App\Models\CompanySetting;
 use App\Models\Task;
 use App\Models\User;
@@ -95,5 +97,50 @@ class ResetRecurringTaskTest extends TestCase
         ResetRecurringTask::dispatchSync($task->id);
 
         $this->assertSame($active->id, $task->refresh()->board_column_id);
+    }
+
+    public function test_it_unchecks_all_checklist_items_when_a_task_renews()
+    {
+        Notification::fake();
+        $this->travelTo(Carbon::parse('2026-08-05 07:00:00', 'Africa/Nairobi'));
+
+        $user = User::factory()->create()->assignRole('Employee');
+        $board = Board::factory()->create();
+        $ready = BoardColumn::factory()->create(['board_id' => $board->id, 'semantic_status' => 'ready']);
+        $done = BoardColumn::factory()->create([
+            'board_id' => $board->id,
+            'semantic_status' => 'completed',
+            'is_completion_column' => true,
+        ]);
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $done->id,
+            'created_by' => $user->id,
+            'auto_reset_frequency' => 'daily',
+            'completed_at' => now()->subDay(),
+            'progress_percentage' => 100,
+        ]);
+        $checklist = Checklist::factory()->create(['task_id' => $task->id]);
+        $completedItem = ChecklistItem::factory()->create([
+            'checklist_id' => $checklist->id,
+            'is_completed' => true,
+            'completed_by' => $user->id,
+            'completed_at' => now()->subDay(),
+        ]);
+        $incompleteItem = ChecklistItem::factory()->create([
+            'checklist_id' => $checklist->id,
+            'is_completed' => false,
+        ]);
+
+        ResetRecurringTask::dispatchSync($task->id);
+
+        $this->assertSame($ready->id, $task->refresh()->board_column_id);
+        $this->assertSame(0, $task->progress_percentage);
+        foreach ([$completedItem, $incompleteItem] as $item) {
+            $item->refresh();
+            $this->assertFalse($item->is_completed);
+            $this->assertNull($item->completed_by);
+            $this->assertNull($item->completed_at);
+        }
     }
 }
