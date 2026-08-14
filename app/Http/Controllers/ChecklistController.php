@@ -42,6 +42,36 @@ class ChecklistController extends Controller
         return back();
     }
 
+    public function reorder(Request $request, Task $task): RedirectResponse
+    {
+        Gate::authorize('update', $task);
+
+        $validated = $request->validate([
+            'checklist_ids' => ['required', 'array'],
+            'checklist_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+
+        $currentIds = $task->checklists()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $requestedIds = array_map('intval', $validated['checklist_ids']);
+
+        $sortedCurrentIds = $currentIds;
+        $sortedRequestedIds = $requestedIds;
+        sort($sortedCurrentIds);
+        sort($sortedRequestedIds);
+
+        abort_unless($sortedCurrentIds === $sortedRequestedIds, 422, 'Every checklist for this task must be included exactly once.');
+
+        DB::transaction(function () use ($task, $currentIds, $requestedIds): void {
+            foreach ($requestedIds as $index => $checklistId) {
+                Checklist::query()->whereKey($checklistId)->update(['position' => $index + 1]);
+            }
+
+            AuditLogger::log($task, 'checklists_reordered', ['checklist_ids' => $currentIds], ['checklist_ids' => $requestedIds]);
+        });
+
+        return back();
+    }
+
     public function destroy(Request $request, Checklist $checklist): RedirectResponse
     {
         Gate::authorize('update', $checklist->task);
