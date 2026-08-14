@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { Copy, Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -306,6 +306,31 @@ export function TaskCollaboration({
         });
     };
 
+    const moveChecklist = (checklistId: number, direction: -1 | 1) => {
+        const currentIndex = detail.checklists.findIndex((checklist) => checklist.id === checklistId);
+        const targetIndex = currentIndex + direction;
+
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= detail.checklists.length) return;
+
+        const reordered = [...detail.checklists];
+        [reordered[currentIndex], reordered[targetIndex]] = [reordered[targetIndex], reordered[currentIndex]];
+        setDetail((current) => ({ ...current, checklists: reordered }));
+
+        router.post(
+            `/tasks/${taskId}/checklists/reorder`,
+            { checklist_ids: reordered.map((checklist) => checklist.id) },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: reload,
+                onError: (errors) => {
+                    reload();
+                    showError(errors);
+                },
+            },
+        );
+    };
+
     if (status === 'loading') {
         return (
             <div className="space-y-6">
@@ -338,7 +363,7 @@ export function TaskCollaboration({
             {/* Checklists */}
             <section>
                 <h3 className="mb-2 text-sm font-semibold">Checklists</h3>
-                {detail.checklists.map((checklist) => {
+                {detail.checklists.map((checklist, checklistIndex) => {
                     const done = checklist.items.filter((item) => item.is_completed).length;
                     return (
                         <div key={checklist.id} className="border-sidebar-border/70 dark:border-sidebar-border mb-3 rounded-lg border p-3">
@@ -387,6 +412,24 @@ export function TaskCollaboration({
                                 )}
                                 <span className="text-muted-foreground flex items-center text-xs">
                                     {done}/{checklist.items.length}
+                                    <button
+                                        type="button"
+                                        aria-label={`Move ${checklist.name} up`}
+                                        disabled={!detail.canEditChecklist || checklistIndex === 0}
+                                        onClick={() => moveChecklist(checklist.id, -1)}
+                                        className="text-muted-foreground hover:text-foreground ml-2 disabled:pointer-events-none disabled:opacity-30"
+                                    >
+                                        <ArrowUp className="inline size-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label={`Move ${checklist.name} down`}
+                                        disabled={!detail.canEditChecklist || checklistIndex === detail.checklists.length - 1}
+                                        onClick={() => moveChecklist(checklist.id, 1)}
+                                        className="text-muted-foreground hover:text-foreground ml-1 disabled:pointer-events-none disabled:opacity-30"
+                                    >
+                                        <ArrowDown className="inline size-3.5" />
+                                    </button>
                                     <button
                                         type="button"
                                         aria-label={`Duplicate ${checklist.name}`}
