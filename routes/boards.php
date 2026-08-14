@@ -68,6 +68,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
 
     Route::post('tasks/{task}/checklists', [ChecklistController::class, 'store'])->name('checklists.store');
+    Route::post('tasks/{task}/checklists/reorder', [ChecklistController::class, 'reorder'])->name('checklists.reorder');
     Route::patch('checklists/{checklist}', [ChecklistController::class, 'update'])->name('checklists.update');
     Route::delete('checklists/{checklist}', [ChecklistController::class, 'destroy'])->name('checklists.destroy');
     Route::post('checklists/{checklist}/duplicate', [ChecklistController::class, 'duplicate'])->name('checklists.duplicate');
