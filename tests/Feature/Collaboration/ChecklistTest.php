@@ -91,4 +91,41 @@ class ChecklistTest extends TestCase
         $this->assertSame('Write copy', $copy->items->first()->title);
         $this->assertFalse($copy->items->first()->is_completed);
     }
+
+    public function test_task_owner_can_reorder_checklists()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask($user);
+        $first = Checklist::factory()->create(['task_id' => $task->id, 'name' => 'First', 'position' => 1]);
+        $second = Checklist::factory()->create(['task_id' => $task->id, 'name' => 'Second', 'position' => 2]);
+        $third = Checklist::factory()->create(['task_id' => $task->id, 'name' => 'Third', 'position' => 3]);
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/checklists/reorder", [
+                'checklist_ids' => [$third->id, $first->id, $second->id],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(
+            [$third->id, $first->id, $second->id],
+            $task->checklists()->pluck('id')->all(),
+        );
+    }
+
+    public function test_checklist_reorder_rejects_ids_from_another_task()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask($user);
+        $otherTask = $this->makeTask($user);
+        $checklist = Checklist::factory()->create(['task_id' => $task->id]);
+        $otherChecklist = Checklist::factory()->create(['task_id' => $otherTask->id]);
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/checklists/reorder", [
+                'checklist_ids' => [$checklist->id, $otherChecklist->id],
+            ])
+            ->assertStatus(422);
+
+        $this->assertSame($otherTask->id, $otherChecklist->refresh()->task_id);
+    }
 }
