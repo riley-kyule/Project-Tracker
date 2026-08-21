@@ -269,29 +269,293 @@ function QuickAdd({ boardId, columnId }: { boardId: number; columnId: number }) 
     );
 }
 
-function BulkMoveBar({ selectedIds, columns, onDone }: { selectedIds: number[]; columns: ColumnOption[]; onDone: () => void }) {
-    const [columnId, setColumnId] = useState('');
+const UNASSIGNED = 'unassigned';
+
+function BulkAssignDialog({
+    selectedIds,
+    allMembers,
+    onClose,
+    onDone,
+}: {
+    selectedIds: number[];
+    allMembers: Member[];
+    onClose: () => void;
+    onDone: () => void;
+}) {
+    const [assigneeId, setAssigneeId] = useState(UNASSIGNED);
     const [processing, setProcessing] = useState(false);
 
     const submit = () => {
-        if (!columnId) return;
         setProcessing(true);
+        router.post(
+            '/tasks/bulk-reassign',
+            { task_ids: selectedIds, assignee_id: assigneeId === UNASSIGNED ? null : Number(assigneeId) },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onFinish: () => setProcessing(false),
+                onSuccess: () => {
+                    onClose();
+                    onDone();
+                },
+            },
+        );
+    };
+
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Assign {selectedIds.length} task(s)</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <Select value={assigneeId} onValueChange={setAssigneeId}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Assignee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={UNASSIGNED}>Unassign</SelectItem>
+                            {allMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id.toString()}>
+                                    {member.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button onClick={submit} disabled={processing}>
+                        Assign
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function BulkCollaboratorDialog({
+    selectedIds,
+    allMembers,
+    onClose,
+    onDone,
+}: {
+    selectedIds: number[];
+    allMembers: Member[];
+    onClose: () => void;
+    onDone: () => void;
+}) {
+    const [userId, setUserId] = useState('');
+    const [assignmentType, setAssignmentType] = useState<'collaborator' | 'reviewer' | 'watcher'>('collaborator');
+    const [processing, setProcessing] = useState(false);
+
+    const submit = () => {
+        if (!userId) return;
+        setProcessing(true);
+        router.post(
+            '/tasks/bulk-add-collaborator',
+            { task_ids: selectedIds, user_id: Number(userId), assignment_type: assignmentType },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onFinish: () => setProcessing(false),
+                onSuccess: () => {
+                    onClose();
+                    onDone();
+                },
+            },
+        );
+    };
+
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add a collaborator to {selectedIds.length} task(s)</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <Select value={userId} onValueChange={setUserId}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Person" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {allMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id.toString()}>
+                                    {member.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={assignmentType} onValueChange={(value) => setAssignmentType(value as typeof assignmentType)}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="collaborator">Collaborator</SelectItem>
+                            <SelectItem value="reviewer">Reviewer</SelectItem>
+                            <SelectItem value="watcher">Watcher</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button onClick={submit} disabled={processing || !userId}>
+                        Add
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function BulkApprovalDialog({
+    selectedIds,
+    allMembers,
+    onClose,
+    onDone,
+}: {
+    selectedIds: number[];
+    allMembers: Member[];
+    onClose: () => void;
+    onDone: () => void;
+}) {
+    const [reviewerId, setReviewerId] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    const submit = () => {
+        if (!reviewerId) return;
+        setProcessing(true);
+        router.post(
+            '/tasks/bulk-request-approval',
+            { task_ids: selectedIds, reviewer_id: Number(reviewerId) },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onFinish: () => setProcessing(false),
+                onSuccess: () => {
+                    onClose();
+                    onDone();
+                },
+            },
+        );
+    };
+
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Request approval for {selectedIds.length} task(s)</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <Select value={reviewerId} onValueChange={setReviewerId}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Reviewer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {allMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id.toString()}>
+                                    {member.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button onClick={submit} disabled={processing || !reviewerId}>
+                        Submit
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function BulkAutoRenewDialog({ selectedIds, onClose, onDone }: { selectedIds: number[]; onClose: () => void; onDone: () => void }) {
+    const [frequency, setFrequency] = useState<'off' | 'daily' | 'weekly' | 'monthly'>('off');
+    const [processing, setProcessing] = useState(false);
+
+    const submit = () => {
+        setProcessing(true);
+        router.post(
+            '/tasks/bulk-auto-renew',
+            { task_ids: selectedIds, auto_reset_frequency: frequency === 'off' ? null : frequency },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onFinish: () => setProcessing(false),
+                onSuccess: () => {
+                    onClose();
+                    onDone();
+                },
+            },
+        );
+    };
+
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Set auto-renew for {selectedIds.length} task(s)</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <Select value={frequency} onValueChange={(value) => setFrequency(value as typeof frequency)}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="off">Off</SelectItem>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button onClick={submit} disabled={processing}>
+                        Save
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+type BulkDialogKind = 'assign' | 'collaborate' | 'approval' | 'auto-renew' | null;
+
+function BulkActionsBar({
+    selectedIds,
+    columns,
+    allMembers,
+    onDone,
+}: {
+    selectedIds: number[];
+    columns: ColumnOption[];
+    allMembers: Member[];
+    onDone: () => void;
+}) {
+    const [columnId, setColumnId] = useState('');
+    const [moving, setMoving] = useState(false);
+    const [dialog, setDialog] = useState<BulkDialogKind>(null);
+
+    const move = () => {
+        if (!columnId) return;
+        setMoving(true);
         router.post(
             '/tasks/bulk-move',
             { task_ids: selectedIds, board_column_id: Number(columnId) },
-            {
-                preserveScroll: true,
-                onFinish: () => setProcessing(false),
-                onSuccess: onDone,
-            },
+            { preserveScroll: true, preserveState: true, onFinish: () => setMoving(false), onSuccess: onDone },
         );
+    };
+
+    const duplicate = () => {
+        router.post('/tasks/bulk-duplicate', { task_ids: selectedIds }, { preserveScroll: true, preserveState: true, onSuccess: onDone });
+    };
+
+    const destroy = () => {
+        if (!confirm(`Delete ${selectedIds.length} task(s)? This cannot be undone.`)) return;
+        router.delete('/tasks/bulk-delete', {
+            data: { task_ids: selectedIds },
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: onDone,
+        });
     };
 
     return (
         <div className="bg-muted/50 border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-center gap-2 rounded-xl border p-3">
             <span className="text-sm font-medium">{selectedIds.length} selected</span>
             <Select value={columnId} onValueChange={setColumnId}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-44">
                     <SelectValue placeholder="Move to…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -302,12 +566,40 @@ function BulkMoveBar({ selectedIds, columns, onDone }: { selectedIds: number[]; 
                     ))}
                 </SelectContent>
             </Select>
-            <Button size="sm" onClick={submit} disabled={processing || !columnId}>
+            <Button size="sm" onClick={move} disabled={moving || !columnId}>
                 Move
             </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline">
+                        More actions
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => setDialog('assign')}>Assign to…</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setDialog('collaborate')}>Add collaborator…</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setDialog('approval')}>Ask for approval…</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setDialog('auto-renew')}>Set auto-renew…</DropdownMenuItem>
+                    <DropdownMenuItem onClick={duplicate}>Duplicate</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={destroy}>
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
             <Button size="sm" variant="ghost" onClick={onDone}>
                 Cancel
             </Button>
+
+            {dialog === 'assign' && (
+                <BulkAssignDialog selectedIds={selectedIds} allMembers={allMembers} onClose={() => setDialog(null)} onDone={onDone} />
+            )}
+            {dialog === 'collaborate' && (
+                <BulkCollaboratorDialog selectedIds={selectedIds} allMembers={allMembers} onClose={() => setDialog(null)} onDone={onDone} />
+            )}
+            {dialog === 'approval' && (
+                <BulkApprovalDialog selectedIds={selectedIds} allMembers={allMembers} onClose={() => setDialog(null)} onDone={onDone} />
+            )}
+            {dialog === 'auto-renew' && <BulkAutoRenewDialog selectedIds={selectedIds} onClose={() => setDialog(null)} onDone={onDone} />}
         </div>
     );
 }
@@ -322,6 +614,7 @@ function BoardColumn({
     onOpenTask,
     onEdit,
     onMove,
+    selectMode,
     selectedIds,
     onToggleSelect,
 }: {
@@ -334,6 +627,7 @@ function BoardColumn({
     onOpenTask: (task: BoardTask) => void;
     onEdit: (column: Column) => void;
     onMove: (columnId: number, direction: -1 | 1) => void;
+    selectMode: boolean;
     selectedIds?: Set<number>;
     onToggleSelect?: (taskId: number, checked: boolean) => void;
 }) {
@@ -417,7 +711,7 @@ function BoardColumn({
                             task={task}
                             onOpen={onOpenTask}
                             selected={selectedIds?.has(task.id)}
-                            onToggleSelect={canManage ? onToggleSelect : undefined}
+                            onToggleSelect={canManage && selectMode ? onToggleSelect : undefined}
                         />
                     ))}
                 </div>
@@ -457,6 +751,7 @@ export default function BoardShow({
     const [search, setSearch] = useState('');
     const [assigneeFilter, setAssigneeFilter] = useState(ALL);
     const [priorityFilter, setPriorityFilter] = useState(ALL);
+    const [selectMode, setSelectMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
     useEffect(() => {
@@ -466,6 +761,11 @@ export default function BoardShow({
         // user didn't choose is worse than just clearing the selection.
         setSelectedIds(new Set());
     }, [board.columns]);
+
+    const toggleSelectMode = () => {
+        setSelectMode((current) => !current);
+        setSelectedIds(new Set());
+    };
 
     const toggleSelect = (taskId: number, checked: boolean) => {
         setSelectedIds((current) => {
@@ -668,6 +968,11 @@ export default function BoardShow({
             <div className="flex h-[calc(100svh-4rem)] flex-col gap-3 overflow-hidden p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
+                    {can.manage && (
+                        <Button variant={selectMode ? 'secondary' : 'outline'} size="sm" onClick={toggleSelectMode}>
+                            {selectMode ? 'Done selecting' : 'Select'}
+                        </Button>
+                    )}
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                         <Input
                             placeholder="Search tasks…"
@@ -741,7 +1046,12 @@ export default function BoardShow({
                     </div>
                 )}
                 {selectedIds.size > 0 && (
-                    <BulkMoveBar selectedIds={[...selectedIds]} columns={columnOptions} onDone={() => setSelectedIds(new Set())} />
+                    <BulkActionsBar
+                        selectedIds={[...selectedIds]}
+                        columns={columnOptions}
+                        allMembers={allMembers}
+                        onDone={() => setSelectedIds(new Set())}
+                    />
                 )}
                 <DndContext
                     sensors={sensors}
@@ -760,6 +1070,7 @@ export default function BoardShow({
                                 canManage={can.manage}
                                 isFirst={index === 0}
                                 isLast={index === visibleColumns.length - 1}
+                                selectMode={selectMode}
                                 selectedIds={selectedIds}
                                 onToggleSelect={toggleSelect}
                                 onOpenTask={setOpenTask}
