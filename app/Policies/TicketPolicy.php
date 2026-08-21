@@ -20,7 +20,12 @@ class TicketPolicy
 
     public function create(User $user): bool
     {
-        return true; // Every employee may submit tickets (PERMISSIONS_MATRIX).
+        // Deliberately role-blind, Viewer included: anyone with a laptop can
+        // need IT support, and the service desk is the one place a
+        // read-only role should still be able to write. Confirmed as
+        // intentional during the 2026-08 audit, not an oversight — see
+        // PERMISSIONS_MATRIX.md's "Submit tickets" row.
+        return true;
     }
 
     /** IT department members (plus CEO/Administrator as overseers) may raise a ticket on someone else's behalf. */
