@@ -21,5 +21,8 @@ export default defineConfig({
         setupFiles: ['./resources/js/test-setup.ts'],
         globals: true,
         css: false,
+        // tests/e2e runs under Playwright's own test runner (npm run
+        // test:e2e), not Vitest — its test() isn't the same function.
+        exclude: ['node_modules/**', 'tests/e2e/**'],
     },
 });

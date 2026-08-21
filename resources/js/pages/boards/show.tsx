@@ -351,7 +351,11 @@ function BoardColumn({
     };
 
     return (
-        <div className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-[85vw] max-w-72 shrink-0 flex-col overflow-hidden rounded-xl border">
+        <div
+            data-testid="board-column"
+            data-column-name={column.name}
+            className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-[85vw] max-w-72 shrink-0 flex-col overflow-hidden rounded-xl border"
+        >
             <div className="flex shrink-0 items-center justify-between gap-1 p-3 pb-1">
                 <TooltipProvider>
                     <Tooltip delayDuration={300}>

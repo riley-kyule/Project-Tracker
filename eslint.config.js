@@ -38,6 +38,17 @@ export default [
         },
     },
     {
+        // Playwright's fixture API names its setup callback's second
+        // parameter "use" (test.extend({ x: async (_, use) => ... })) —
+        // coincidentally matching React's own use() naming convention, which
+        // trips react-hooks/rules-of-hooks in files that have no React
+        // component at all.
+        files: ['tests/e2e/**'],
+        rules: {
+            'react-hooks/rules-of-hooks': 'off',
+        },
+    },
+    {
         ignores: ['vendor', 'node_modules', 'public', 'bootstrap/ssr', 'tailwind.config.js'],
     },
     prettier, // Turn off all rules that might conflict with Prettier
