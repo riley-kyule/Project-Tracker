@@ -81,4 +81,27 @@ describe('TaskCard', () => {
 
         expect(container.querySelector('button')).not.toBeInTheDocument();
     });
+
+    it('renders no selection checkbox when onToggleSelect is not provided', () => {
+        renderCard();
+
+        expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('reports selection without opening the task', async () => {
+        const onOpen = vi.fn();
+        const onToggleSelect = vi.fn();
+        renderCard({ onOpen, onToggleSelect, selected: false });
+
+        await userEvent.click(screen.getByRole('checkbox', { name: /select ship the thing/i }));
+
+        expect(onToggleSelect).toHaveBeenCalledWith(1, true);
+        expect(onOpen).not.toHaveBeenCalled();
+    });
+
+    it('reflects the selected prop on the checkbox', () => {
+        renderCard({ onToggleSelect: vi.fn(), selected: true });
+
+        expect(screen.getByRole('checkbox', { name: /select ship the thing/i })).toBeChecked();
+    });
 });

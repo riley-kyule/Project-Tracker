@@ -60,7 +60,19 @@ function overdue(task: BoardTask) {
 
 export type ColumnOption = { id: number; name: string };
 
-export function TaskCard({ task, onOpen, overlay = false }: { task: BoardTask; onOpen?: (task: BoardTask) => void; overlay?: boolean }) {
+export function TaskCard({
+    task,
+    onOpen,
+    overlay = false,
+    selected,
+    onToggleSelect,
+}: {
+    task: BoardTask;
+    onOpen?: (task: BoardTask) => void;
+    overlay?: boolean;
+    selected?: boolean;
+    onToggleSelect?: (taskId: number, checked: boolean) => void;
+}) {
     // Drag listeners live on the handle, not the whole card: keyboard drag
     // (Space to pick up, arrows to move, Space to drop — see the
     // KeyboardSensor registered in boards/show.tsx) needs Enter/Space on the
@@ -92,6 +104,15 @@ export function TaskCard({ task, onOpen, overlay = false }: { task: BoardTask; o
             } ${overlay ? 'rotate-2 shadow-lg' : ''}`}
         >
             <div className="flex items-start gap-2">
+                {!overlay && onToggleSelect && (
+                    <Checkbox
+                        checked={selected ?? false}
+                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={(checked) => onToggleSelect(task.id, checked === true)}
+                        aria-label={`Select ${task.title}`}
+                        className="mt-0.5 shrink-0"
+                    />
+                )}
                 {!overlay && (
                     <button
                         ref={setActivatorNodeRef}

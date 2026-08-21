@@ -223,6 +223,49 @@ function QuickAdd({ boardId, columnId }: { boardId: number; columnId: number }) 
     );
 }
 
+function BulkMoveBar({ selectedIds, columns, onDone }: { selectedIds: number[]; columns: ColumnOption[]; onDone: () => void }) {
+    const [columnId, setColumnId] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    const submit = () => {
+        if (!columnId) return;
+        setProcessing(true);
+        router.post(
+            '/tasks/bulk-move',
+            { task_ids: selectedIds, board_column_id: Number(columnId) },
+            {
+                preserveScroll: true,
+                onFinish: () => setProcessing(false),
+                onSuccess: onDone,
+            },
+        );
+    };
+
+    return (
+        <div className="bg-muted/50 border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-center gap-2 rounded-xl border p-3">
+            <span className="text-sm font-medium">{selectedIds.length} selected</span>
+            <Select value={columnId} onValueChange={setColumnId}>
+                <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Move to…" />
+                </SelectTrigger>
+                <SelectContent>
+                    {columns.map((column) => (
+                        <SelectItem key={column.id} value={column.id.toString()}>
+                            {column.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <Button size="sm" onClick={submit} disabled={processing || !columnId}>
+                Move
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onDone}>
+                Cancel
+            </Button>
+        </div>
+    );
+}
+
 function BoardColumn({
     column,
     boardId,
@@ -233,6 +276,8 @@ function BoardColumn({
     onOpenTask,
     onEdit,
     onMove,
+    selectedIds,
+    onToggleSelect,
 }: {
     column: Column;
     boardId: number;
@@ -243,6 +288,8 @@ function BoardColumn({
     onOpenTask: (task: BoardTask) => void;
     onEdit: (column: Column) => void;
     onMove: (columnId: number, direction: -1 | 1) => void;
+    selectedIds?: Set<number>;
+    onToggleSelect?: (taskId: number, checked: boolean) => void;
 }) {
     const { setNodeRef } = useDroppable({ id: `column-${column.id}` });
     const overLimit = column.wip_limit !== null && column.tasks.length > column.wip_limit;
@@ -315,7 +362,13 @@ function BoardColumn({
             <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div ref={setNodeRef} className="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto p-2">
                     {column.tasks.map((task) => (
-                        <TaskCard key={task.id} task={task} onOpen={onOpenTask} />
+                        <TaskCard
+                            key={task.id}
+                            task={task}
+                            onOpen={onOpenTask}
+                            selected={selectedIds?.has(task.id)}
+                            onToggleSelect={canManage ? onToggleSelect : undefined}
+                        />
                     ))}
                 </div>
             </SortableContext>
@@ -352,8 +405,27 @@ export default function BoardShow({
     const [search, setSearch] = useState('');
     const [assigneeFilter, setAssigneeFilter] = useState(ALL);
     const [priorityFilter, setPriorityFilter] = useState(ALL);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-    useEffect(() => setColumns(board.columns), [board.columns]);
+    useEffect(() => {
+        setColumns(board.columns);
+        // A reload can mean selected tasks moved, were archived, or no
+        // longer exist — stale IDs pointing at a bulk-move destination the
+        // user didn't choose is worse than just clearing the selection.
+        setSelectedIds(new Set());
+    }, [board.columns]);
+
+    const toggleSelect = (taskId: number, checked: boolean) => {
+        setSelectedIds((current) => {
+            const next = new Set(current);
+            if (checked) {
+                next.add(taskId);
+            } else {
+                next.delete(taskId);
+            }
+            return next;
+        });
+    };
 
     // Opens the task named by ?task= (see TaskController::showOnBoard, the
     // permalink report emails link to) once its card is available, then
@@ -577,6 +649,9 @@ export default function BoardShow({
                         )}
                     </div>
                 </div>
+                {selectedIds.size > 0 && (
+                    <BulkMoveBar selectedIds={[...selectedIds]} columns={columnOptions} onDone={() => setSelectedIds(new Set())} />
+                )}
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCorners}
@@ -594,6 +669,8 @@ export default function BoardShow({
                                 canManage={can.manage}
                                 isFirst={index === 0}
                                 isLast={index === visibleColumns.length - 1}
+                                selectedIds={selectedIds}
+                                onToggleSelect={toggleSelect}
                                 onOpenTask={setOpenTask}
                                 onEdit={setColumnDialog}
                                 onMove={moveColumn}
