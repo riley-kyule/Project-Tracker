@@ -43,6 +43,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | E2E Test Login Bypass
+    |--------------------------------------------------------------------------
+    |
+    | EWMS has no password login — Google SSO is the only real sign-in
+    | method — so the Playwright suite (tests/e2e) needs another way to
+    | establish a session. This must stay false everywhere except a
+    | throwaway local/testing environment the e2e suite provisions itself;
+    | see routes/e2e.php and app/Http/Controllers/Testing/E2eAuthController.
+    |
+    */
+
+    'allow_e2e_login' => (bool) env('ALLOW_E2E_LOGIN', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------
     |
