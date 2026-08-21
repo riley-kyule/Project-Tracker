@@ -7,6 +7,7 @@ use App\Http\Requests\Tasks\UpdateTaskRequest;
 use App\Mail\TaskAssignedMail;
 use App\Models\Board;
 use App\Models\BoardColumn;
+use App\Models\ChecklistTemplate;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -293,6 +294,15 @@ class TaskController extends Controller
                 ->get(),
             'checklists' => $task->checklists()->with('items')->get(),
             'canEditChecklist' => $request->user()->can('update', $task),
+            'checklistTemplates' => ChecklistTemplate::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'created_by', 'items'])
+                ->map(fn (ChecklistTemplate $template) => [
+                    'id' => $template->id,
+                    'name' => $template->name,
+                    'item_count' => count($template->items),
+                    'canDelete' => $request->user()->can('delete', $template),
+                ]),
             'links' => $task->links()->with('creator:id,name')->get(),
             'canEditLinks' => $request->user()->can('update', $task),
             'project' => $task->project()->first(['projects.id', 'projects.name']),

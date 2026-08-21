@@ -4,6 +4,7 @@ use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BoardColumnController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\ChecklistController;
+use App\Http\Controllers\ChecklistTemplateController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RecurrenceRuleController;
@@ -69,9 +70,12 @@ Route::middleware(['auth', 'throttle:api-writes'])->group(function () {
 
     Route::post('tasks/{task}/checklists', [ChecklistController::class, 'store'])->name('checklists.store');
     Route::post('tasks/{task}/checklists/reorder', [ChecklistController::class, 'reorder'])->name('checklists.reorder');
+    Route::post('tasks/{task}/checklists/from-template', [ChecklistController::class, 'applyTemplate'])->name('checklists.from-template');
     Route::patch('checklists/{checklist}', [ChecklistController::class, 'update'])->name('checklists.update');
     Route::delete('checklists/{checklist}', [ChecklistController::class, 'destroy'])->name('checklists.destroy');
     Route::post('checklists/{checklist}/duplicate', [ChecklistController::class, 'duplicate'])->name('checklists.duplicate');
+    Route::post('checklists/{checklist}/save-as-template', [ChecklistTemplateController::class, 'store'])->name('checklist-templates.store');
+    Route::delete('checklist-templates/{checklistTemplate}', [ChecklistTemplateController::class, 'destroy'])->name('checklist-templates.destroy');
     Route::post('checklists/{checklist}/items', [ChecklistController::class, 'storeItem'])->name('checklist-items.store');
     Route::patch('checklist-items/{item}', [ChecklistController::class, 'updateItem'])->name('checklist-items.update');
     Route::delete('checklist-items/{item}', [ChecklistController::class, 'destroyItem'])->name('checklist-items.destroy');

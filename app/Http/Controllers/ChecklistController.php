@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Checklist;
 use App\Models\ChecklistItem;
+use App\Models\ChecklistTemplate;
 use App\Models\Task;
 use App\Services\AuditLogger;
 use App\Services\TaskChecklistProgress;
@@ -108,6 +109,32 @@ class ChecklistController extends Controller
         });
 
         AuditLogger::log($task, 'checklist_created', [], ['checklist_id' => $copy->id, 'name' => $copy->name]);
+        TaskChecklistProgress::sync($task);
+
+        return back();
+    }
+
+    public function applyTemplate(Request $request, Task $task): RedirectResponse
+    {
+        Gate::authorize('update', $task);
+
+        $validated = $request->validate(['template_id' => ['required', 'integer', 'exists:checklist_templates,id']]);
+        $template = ChecklistTemplate::query()->findOrFail($validated['template_id']);
+
+        $checklist = DB::transaction(function () use ($task, $template) {
+            $checklist = $task->checklists()->create([
+                'name' => $template->name,
+                'position' => (int) $task->checklists()->max('position') + 1,
+            ]);
+
+            foreach ($template->items as $index => $title) {
+                $checklist->items()->create(['title' => $title, 'position' => $index + 1]);
+            }
+
+            return $checklist;
+        });
+
+        AuditLogger::log($task, 'checklist_created', [], ['checklist_id' => $checklist->id, 'name' => $checklist->name, 'from_template' => $template->id]);
         TaskChecklistProgress::sync($task);
 
         return back();

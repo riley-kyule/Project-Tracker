@@ -6,6 +6,7 @@ use App\Models\Board;
 use App\Models\BoardColumn;
 use App\Models\Checklist;
 use App\Models\ChecklistItem;
+use App\Models\ChecklistTemplate;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -127,5 +128,68 @@ class ChecklistTest extends TestCase
             ->assertStatus(422);
 
         $this->assertSame($otherTask->id, $otherChecklist->refresh()->task_id);
+    }
+
+    public function test_a_checklist_can_be_saved_as_a_reusable_template()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask($user);
+        $checklist = Checklist::factory()->create(['task_id' => $task->id, 'name' => 'Launch steps']);
+        ChecklistItem::factory()->create(['checklist_id' => $checklist->id, 'title' => 'Write copy', 'position' => 1]);
+        ChecklistItem::factory()->create(['checklist_id' => $checklist->id, 'title' => 'Get sign-off', 'position' => 2]);
+
+        $this->actingAs($user)
+            ->post("/checklists/{$checklist->id}/save-as-template", ['name' => 'Launch checklist'])
+            ->assertRedirect();
+
+        $template = ChecklistTemplate::query()->firstOrFail();
+        $this->assertSame('Launch checklist', $template->name);
+        $this->assertSame($user->id, $template->created_by);
+        $this->assertSame(['Write copy', 'Get sign-off'], $template->items);
+    }
+
+    public function test_a_template_can_be_applied_to_create_a_new_checklist()
+    {
+        $user = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask($user);
+        $template = ChecklistTemplate::query()->create([
+            'created_by' => $user->id,
+            'name' => 'Onboarding',
+            'items' => ['Provision laptop', 'Grant access', 'Schedule 1:1'],
+        ]);
+
+        $this->actingAs($user)
+            ->post("/tasks/{$task->id}/checklists/from-template", ['template_id' => $template->id])
+            ->assertRedirect();
+
+        $checklist = Checklist::query()->where('task_id', $task->id)->firstOrFail();
+        $this->assertSame('Onboarding', $checklist->name);
+        $this->assertSame(['Provision laptop', 'Grant access', 'Schedule 1:1'], $checklist->items()->orderBy('position')->pluck('title')->all());
+    }
+
+    public function test_only_the_creator_or_an_administrator_can_delete_a_template()
+    {
+        $creator = User::factory()->create()->assignRole('Employee');
+        $stranger = User::factory()->create()->assignRole('Employee');
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $template = ChecklistTemplate::query()->create(['created_by' => $creator->id, 'name' => 'Mine', 'items' => ['Step']]);
+
+        $this->actingAs($stranger)->delete("/checklist-templates/{$template->id}")->assertForbidden();
+        $this->assertModelExists($template);
+
+        $this->actingAs($admin)->delete("/checklist-templates/{$template->id}")->assertRedirect();
+        $this->assertModelMissing($template);
+    }
+
+    public function test_unrelated_users_cannot_apply_a_template_to_a_task_they_cannot_edit()
+    {
+        $owner = User::factory()->create()->assignRole('Employee');
+        $stranger = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask($owner);
+        $template = ChecklistTemplate::query()->create(['created_by' => $owner->id, 'name' => 'Steps', 'items' => ['A']]);
+
+        $this->actingAs($stranger)
+            ->post("/tasks/{$task->id}/checklists/from-template", ['template_id' => $template->id])
+            ->assertForbidden();
     }
 }

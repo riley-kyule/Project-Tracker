@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, Copy, Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookmarkPlus, Copy, Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -29,6 +29,13 @@ type ChecklistNode = {
     id: number;
     name: string;
     items: ChecklistItemNode[];
+};
+
+type ChecklistTemplateNode = {
+    id: number;
+    name: string;
+    item_count: number;
+    canDelete: boolean;
 };
 
 type AttachmentNode = {
@@ -106,6 +113,7 @@ type Detail = {
     canDelete: boolean;
     comments: CommentNode[];
     checklists: ChecklistNode[];
+    checklistTemplates: ChecklistTemplateNode[];
     canEditChecklist: boolean;
     links: LinkNode[];
     canEditLinks: boolean;
@@ -136,6 +144,7 @@ const emptyDetail: Detail = {
     canDelete: false,
     comments: [],
     checklists: [],
+    checklistTemplates: [],
     canEditChecklist: false,
     links: [],
     canEditLinks: false,
@@ -228,6 +237,8 @@ export function TaskCollaboration({
     const [editingItemTitle, setEditingItemTitle] = useState('');
     const [editingChecklistId, setEditingChecklistId] = useState<number | null>(null);
     const [editingChecklistName, setEditingChecklistName] = useState('');
+    const [savingTemplateChecklistId, setSavingTemplateChecklistId] = useState<number | null>(null);
+    const [templateName, setTemplateName] = useState('');
     const [newDependencyId, setNewDependencyId] = useState(NO_DEPENDENCY);
     const [newRelationId, setNewRelationId] = useState(NO_DEPENDENCY);
     const [newFrequency, setNewFrequency] = useState('weekly');
@@ -441,6 +452,18 @@ export function TaskCollaboration({
                                     </button>
                                     <button
                                         type="button"
+                                        aria-label={`Save ${checklist.name} as a template`}
+                                        disabled={!detail.canEditChecklist}
+                                        onClick={() => {
+                                            setSavingTemplateChecklistId(checklist.id);
+                                            setTemplateName(checklist.name);
+                                        }}
+                                        className="text-muted-foreground hover:text-foreground ml-2 disabled:pointer-events-none disabled:opacity-40"
+                                    >
+                                        <BookmarkPlus className="inline size-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
                                         aria-label={`Delete ${checklist.name}`}
                                         disabled={!detail.canEditChecklist}
                                         onClick={() => destroy(`/checklists/${checklist.id}`)}
@@ -518,6 +541,31 @@ export function TaskCollaboration({
                                     </li>
                                 ))}
                             </ul>
+                            {savingTemplateChecklistId === checklist.id && (
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const name = templateName.trim();
+                                        if (!name) return;
+                                        post(`/checklists/${checklist.id}/save-as-template`, { name }, () => setSavingTemplateChecklistId(null));
+                                    }}
+                                    className="bg-muted/50 mt-2 flex gap-2 rounded-md p-2"
+                                >
+                                    <Input
+                                        autoFocus
+                                        placeholder="Template name…"
+                                        value={templateName}
+                                        onChange={(e) => setTemplateName(e.target.value)}
+                                        className="h-8 text-sm"
+                                    />
+                                    <Button type="submit" size="sm" variant="secondary">
+                                        Save
+                                    </Button>
+                                    <Button type="button" size="sm" variant="ghost" onClick={() => setSavingTemplateChecklistId(null)}>
+                                        Cancel
+                                    </Button>
+                                </form>
+                            )}
                             <form
                                 onSubmit={(e) => {
                                     e.preventDefault();
@@ -559,6 +607,36 @@ export function TaskCollaboration({
                         Add
                     </Button>
                 </form>
+                {detail.checklistTemplates.length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-muted-foreground text-xs">Templates:</span>
+                        {detail.checklistTemplates.map((template) => (
+                            <span
+                                key={template.id}
+                                className="border-sidebar-border/70 dark:border-sidebar-border flex items-center gap-1 rounded-full border py-1 pr-1 pl-3 text-sm"
+                            >
+                                <button
+                                    type="button"
+                                    disabled={!detail.canEditChecklist}
+                                    onClick={() => post(`/tasks/${taskId}/checklists/from-template`, { template_id: template.id })}
+                                    className="hover:underline disabled:pointer-events-none disabled:opacity-40"
+                                >
+                                    {template.name} ({template.item_count})
+                                </button>
+                                {template.canDelete && (
+                                    <button
+                                        type="button"
+                                        aria-label={`Delete the ${template.name} template`}
+                                        onClick={() => destroy(`/checklist-templates/${template.id}`)}
+                                        className="text-muted-foreground hover:text-destructive rounded-full p-0.5"
+                                    >
+                                        <X className="size-3" />
+                                    </button>
+                                )}
+                            </span>
+                        ))}
+                    </div>
+                )}
             </section>
 
             {/* People */}
