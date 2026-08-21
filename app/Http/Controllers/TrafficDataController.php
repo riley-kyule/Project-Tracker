@@ -58,7 +58,7 @@ class TrafficDataController extends Controller
         $from = Carbon::parse($validated['date_from'])->startOfDay();
         $to = Carbon::parse($validated['date_to'])->startOfDay();
         $comparisonPeriod = $validated['comparison_period'] ?? 'none';
-        [$compareFrom, $compareTo] = $comparisonPeriod !== 'none' ? $this->comparisonRange($from, $to, $comparisonPeriod) : [null, null];
+        [$compareFrom, $compareTo] = $comparisonPeriod !== 'none' ? self::comparisonRange($from, $to, $comparisonPeriod) : [null, null];
 
         $key = AnalyticsCache::key('ceo-traffic', $websiteDomain, $from, $to, $compareFrom, $compareTo);
 
@@ -84,8 +84,13 @@ class TrafficDataController extends Controller
         }
     }
 
-    /** @return array{0: Carbon, 1: Carbon} */
-    private function comparisonRange(Carbon $from, Carbon $to, string $period): array
+    /**
+     * Public: also called by ewms:warm-analytics-cache to replicate this
+     * dashboard's default comparison range exactly.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public static function comparisonRange(Carbon $from, Carbon $to, string $period): array
     {
         if ($period === 'previous_year') {
             return [$from->copy()->subYear(), $to->copy()->subYear()];

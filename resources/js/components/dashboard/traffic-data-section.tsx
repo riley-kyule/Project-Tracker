@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 function TrafficChartsSkeleton() {
@@ -168,25 +169,36 @@ export function TrafficDataSection() {
             .catch(() => setConfigured(false));
     }, []);
 
+    // GA4/GSC results are cached server-side until end of day (AnalyticsCache)
+    // — refresh=1 is the manual bypass, same as Marketing Statistics' Refresh
+    // button, for "I know this changed, don't wait until tomorrow."
+    const load = useCallback(
+        (forceRefresh: boolean) => {
+            if (!configured || !websiteDomain) {
+                return;
+            }
+
+            setLoading(true);
+            const params = new URLSearchParams({
+                website_domain: websiteDomain,
+                date_from: dateFrom,
+                date_to: dateTo,
+                comparison_period: comparisonPeriod,
+                ...(forceRefresh ? { refresh: '1' } : {}),
+            });
+
+            fetch(`/dashboards/ceo/traffic-data?${params}`, { headers: { Accept: 'application/json' } })
+                .then((response) => response.json())
+                .then((payload: TrafficResponse) => setData(payload))
+                .catch(() => setData({ configured: true, error: 'Could not load traffic data.' }))
+                .finally(() => setLoading(false));
+        },
+        [configured, websiteDomain, dateFrom, dateTo, comparisonPeriod],
+    );
+
     useEffect(() => {
-        if (!configured || !websiteDomain) {
-            return;
-        }
-
-        setLoading(true);
-        const params = new URLSearchParams({
-            website_domain: websiteDomain,
-            date_from: dateFrom,
-            date_to: dateTo,
-            comparison_period: comparisonPeriod,
-        });
-
-        fetch(`/dashboards/ceo/traffic-data?${params}`, { headers: { Accept: 'application/json' } })
-            .then((response) => response.json())
-            .then((payload: TrafficResponse) => setData(payload))
-            .catch(() => setData({ configured: true, error: 'Could not load traffic data.' }))
-            .finally(() => setLoading(false));
-    }, [configured, websiteDomain, dateFrom, dateTo, comparisonPeriod]);
+        load(false);
+    }, [load]);
 
     if (configured === null) {
         return (
@@ -229,7 +241,19 @@ export function TrafficDataSection() {
         <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Traffic data</h2>
-                {loading && <span className="text-muted-foreground text-xs">Refreshing…</span>}
+                <div className="flex items-center gap-2">
+                    {loading && <span className="text-muted-foreground text-xs">Refreshing…</span>}
+                    <button
+                        type="button"
+                        onClick={() => load(true)}
+                        disabled={loading}
+                        title="Cached until end of day — refresh to pull it live now"
+                        className="text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                    >
+                        <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+                        <span className="sr-only">Refresh traffic data</span>
+                    </button>
+                </div>
             </div>
 
             {/* Filters: one row, above every chart below — they all scope to the same slice. */}
