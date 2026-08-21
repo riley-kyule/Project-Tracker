@@ -276,5 +276,4 @@ class TicketService
 
         $ticket->status = $to;
     }
-
 }
