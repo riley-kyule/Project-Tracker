@@ -43,9 +43,10 @@ function BusinessHoursCard({ businessHours }: { businessHours: BusinessHours }) 
     });
 
     const toggleDay = (day: number) => {
-        setData('business_hours_days', data.business_hours_days.includes(day)
-            ? data.business_hours_days.filter((d) => d !== day)
-            : [...data.business_hours_days, day].sort());
+        setData(
+            'business_hours_days',
+            data.business_hours_days.includes(day) ? data.business_hours_days.filter((d) => d !== day) : [...data.business_hours_days, day].sort(),
+        );
     };
 
     const submit = (e: React.FormEvent) => {
@@ -57,9 +58,7 @@ function BusinessHoursCard({ businessHours }: { businessHours: BusinessHours }) 
         <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border space-y-4 rounded-xl border p-4">
             <div>
                 <h2 className="text-sm font-semibold">Business hours</h2>
-                <p className="text-muted-foreground text-xs">
-                    What "business hours only" refers to on the SLA policies below.
-                </p>
+                <p className="text-muted-foreground text-xs">What "business hours only" refers to on the SLA policies below.</p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
@@ -167,10 +166,7 @@ function SlaPolicyRow({ policy }: { policy: SlaPolicy }) {
             </div>
             <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                        checked={data.business_hours_only}
-                        onCheckedChange={(checked) => setData('business_hours_only', checked === true)}
-                    />
+                    <Checkbox checked={data.business_hours_only} onCheckedChange={(checked) => setData('business_hours_only', checked === true)} />
                     Business hours only
                 </label>
                 <label className="flex items-center gap-2 text-sm">

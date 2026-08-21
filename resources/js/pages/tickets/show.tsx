@@ -294,10 +294,7 @@ export default function TicketShow({
                         <p className="mb-2">This ticket was closed automatically — no reply was received in time.</p>
                         <div className="flex gap-2">
                             {canConfirmResolvedNow && (
-                                <Button
-                                    size="sm"
-                                    onClick={() => router.post(`/tickets/${ticket.id}/confirm-resolved`, {}, { preserveScroll: true })}
-                                >
+                                <Button size="sm" onClick={() => router.post(`/tickets/${ticket.id}/confirm-resolved`, {}, { preserveScroll: true })}>
                                     Confirm resolved
                                 </Button>
                             )}

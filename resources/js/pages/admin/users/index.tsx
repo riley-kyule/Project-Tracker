@@ -316,9 +316,7 @@ export default function UsersIndex({
                                     {(canManage || canDelete) && (
                                         <td className="p-3 text-right">
                                             <div className="flex items-center justify-end gap-1">
-                                                {canManage && (
-                                                    <EditUserDialog user={user} users={users} departments={departments} roles={roles} />
-                                                )}
+                                                {canManage && <EditUserDialog user={user} users={users} departments={departments} roles={roles} />}
                                                 {canDelete && user.id !== auth.user.id && (
                                                     <Button
                                                         variant="ghost"

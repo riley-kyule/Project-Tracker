@@ -227,9 +227,7 @@ export default function ProjectShow({
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                     <h2 className="mb-1 text-sm font-semibold">People</h2>
-                    <p className="text-muted-foreground mb-2 text-xs">
-                        Beyond the owner above — anyone can be added here, regardless of department.
-                    </p>
+                    <p className="text-muted-foreground mb-2 text-xs">Beyond the owner above — anyone can be added here, regardless of department.</p>
                     <ul className="mb-2 space-y-1.5">
                         {project.members.map((member) => (
                             <li key={member.id} className="flex items-center gap-2 text-sm">
