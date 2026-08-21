@@ -101,3 +101,7 @@ jobs:
         run: vendor/bin/pint --test
       - name: Tests (Pest)
         run: php artisan test
+      - name: Dependency audit (Composer)
+        run: composer audit --locked --no-interaction
+      - name: Dependency audit (npm)
+        run: npm audit --omit=dev --package-lock-only
