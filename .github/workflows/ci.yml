@@ -97,6 +97,8 @@ jobs:
         run: npx eslint resources/js
       - name: Format check (Prettier)
         run: npm run format:check
+      - name: Tests (Vitest)
+        run: npm run test
       - name: Code style (Pint)
         run: vendor/bin/pint --test
       - name: Tests (Pest)
