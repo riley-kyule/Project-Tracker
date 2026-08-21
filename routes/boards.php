@@ -34,6 +34,11 @@ Route::middleware(['auth', 'throttle:api-writes'])->group(function () {
     Route::post('boards/{board}/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::post('tasks/bulk-reassign', [TaskBulkActionController::class, 'reassign'])->name('tasks.bulk-reassign');
     Route::post('tasks/bulk-move', [TaskBulkActionController::class, 'move'])->name('tasks.bulk-move');
+    Route::delete('tasks/bulk-delete', [TaskBulkActionController::class, 'destroy'])->name('tasks.bulk-delete');
+    Route::post('tasks/bulk-duplicate', [TaskBulkActionController::class, 'duplicate'])->name('tasks.bulk-duplicate');
+    Route::post('tasks/bulk-auto-renew', [TaskBulkActionController::class, 'setAutoRenew'])->name('tasks.bulk-auto-renew');
+    Route::post('tasks/bulk-add-collaborator', [TaskBulkActionController::class, 'addCollaborator'])->name('tasks.bulk-add-collaborator');
+    Route::post('tasks/bulk-request-approval', [TaskBulkActionController::class, 'requestApproval'])->name('tasks.bulk-request-approval');
     // A stable permalink for a task — used anywhere a link to "this task" is
     // needed outside the board page itself (report emails, etc.) without the
     // caller needing to already know which board it's on.
