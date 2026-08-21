@@ -12,7 +12,7 @@
 # This trades image immutability for a working "Deploy now" button — see
 # docs/DEPLOYMENT.md's "Optional in-app self-deploy" section.
 # -----------------------------------------------------------------------------
-FROM php:8.4-fpm-alpine AS app
+FROM php:8.5-fpm-alpine AS app
 
 RUN apk add --no-cache \
         postgresql-dev icu-dev libzip-dev oniguruma-dev libxml2-dev \
