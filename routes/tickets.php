@@ -15,6 +15,7 @@ Route::middleware(['auth', 'throttle:api-writes'])->group(function () {
     Route::get('dashboards/ceo', [DashboardController::class, 'ceo'])->name('dashboards.ceo');
     Route::get('dashboards/department', [DashboardController::class, 'department'])->name('dashboards.department');
     Route::get('dashboards/ceo/traffic-data/websites', [TrafficDataController::class, 'websites'])->name('dashboards.ceo.traffic-data.websites');
+    Route::get('dashboards/ceo/traffic-data/breakdowns', [TrafficDataController::class, 'breakdowns'])->name('dashboards.ceo.traffic-data.breakdowns');
     Route::get('dashboards/ceo/traffic-data', [TrafficDataController::class, 'index'])->name('dashboards.ceo.traffic-data');
     Route::get('reports/tasks', [ReportController::class, 'tasks'])->name('reports.tasks');
     Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');

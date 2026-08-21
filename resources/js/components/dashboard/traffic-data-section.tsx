@@ -1,39 +1,16 @@
+import { CategoryBarChart } from '@/components/marketing-statistics/category-bar-chart';
+import { CategoryPieChart } from '@/components/marketing-statistics/category-pie-chart';
+import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
+import { TrendChart } from '@/components/marketing-statistics/trend-chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
+import { type Kpi, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-
-function TrafficChartsSkeleton() {
-    return (
-        <div className="grid gap-4 lg:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-72 rounded-xl" />
-            ))}
-        </div>
-    );
-}
+import { useCallback, useEffect, useState } from 'react';
 
 const ALL_WEBSITES = 'all';
-
-type Website = { website_domain: string; website_name: string; country: string | null };
-type Summary = { users: number; sessions: number; key_events: number; engagement_rate: number | null };
-type TrendPoint = { event_date: string; users: number; sessions: number };
-type TrafficSource = { source: string; medium: string; users: number };
-type Device = { device_category: string; users: number };
-type LandingPage = { page_location: string; users: number; page_views: number };
-type VisitorLocation = { user_country: string; users: number };
-
-type TrafficResponse = {
-    configured: boolean;
-    error?: string;
-    summary?: { current: Summary; comparison: Summary | null };
-    trend?: TrendPoint[];
-    trafficSources?: TrafficSource[];
-    devices?: Device[];
-    landingPages?: LandingPage[];
-    locations?: VisitorLocation[];
-};
+const DEVICE_ORDER = ['desktop', 'mobile', 'tablet', 'smart tv'];
 
 const DATE_PRESETS = [
     { key: 'last_7_days', label: 'Last 7 days', days: 7 },
@@ -48,77 +25,58 @@ const COMPARISON_OPTIONS = [
     { value: 'previous_year', label: 'Previous year' },
 ] as const;
 
-// Fixed order, validated against this app's light/dark chart surfaces
-// (scripts/validate_palette.js) — assign by series identity, never cycle.
-const SERIES = {
-    light: { s1: '#2a78d6', s2: '#1baf7a', s3: '#eda100', s4: '#008300', gridline: '#e1e0d9', muted: '#898781' },
-    dark: { s1: '#3987e5', s2: '#199e70', s3: '#c98500', s4: '#008300', gridline: '#2c2c2a', muted: '#898781' },
+type Ga4Trend = { event_date: string; users: number; sessions: number; engaged_sessions: number };
+type GscTrend = { data_date: string; clicks: number; impressions: number; average_position: number | null };
+
+type ReportResponse = {
+    ga4: { source: SourceStatus; kpis: Record<string, Kpi> | null; trend: Ga4Trend[] };
+    gsc: { source: SourceStatus; kpis: Record<string, Kpi> | null; trend: GscTrend[] };
 };
 
-const DEVICE_ORDER = ['desktop', 'mobile', 'tablet'];
+type Ga4Breakdowns = {
+    traffic_sources: { source: string; medium: string; users: number }[];
+    devices: { device_category: string; users: number }[];
+    landing_pages: { page_location: string; users: number; page_views: number }[];
+    locations: { user_country: string; users: number }[];
+    key_events: { key_event: string; key_event_category: string; key_event_count: number; users: number }[];
+};
 
-function useIsDark(): boolean {
-    const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+type GscBreakdowns = {
+    queries: { query: string; clicks: number; impressions: number; ctr: number | null; average_position: number | null }[];
+    pages: { url: string; clicks: number; impressions: number; ctr: number | null }[];
+    countries: { country: string; clicks: number; impressions: number }[];
+    devices: { device: string; clicks: number; impressions: number }[];
+};
 
-    useEffect(() => {
-        const observer = new MutationObserver(() => setIsDark(document.documentElement.classList.contains('dark')));
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-        return () => observer.disconnect();
-    }, []);
+type ComparisonRow = {
+    website_id: string;
+    name: string;
+    domain: string;
+    ga4: { users: number; sessions: number; engagement_rate: number | null } | null;
+    gsc: { clicks: number; impressions: number; average_position: number | null } | null;
+};
 
-    return isDark;
+type BreakdownsResponse = {
+    ga4: Ga4Breakdowns | null;
+    gsc: GscBreakdowns | null;
+    comparison: { rows: ComparisonRow[]; sources: { ga4: SourceStatus; gsc: SourceStatus } };
+};
+
+function pct(value: number): string {
+    return `${(value * 100).toFixed(1)}%`;
+}
+
+function compact(value: number | null | undefined): string {
+    return value === null || value === undefined
+        ? '—'
+        : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
 function toDateInput(date: Date): string {
     return date.toISOString().slice(0, 10);
 }
 
-function compact(value: number): string {
-    return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
-}
-
-function pct(value: number | null): string {
-    return value === null ? '—' : `${(value * 100).toFixed(1)}%`;
-}
-
-function StatTile({
-    label,
-    value,
-    comparisonValue,
-    formatValue,
-}: {
-    label: string;
-    value: number;
-    comparisonValue: number | null | undefined;
-    formatValue: (n: number) => string;
-}) {
-    const delta =
-        comparisonValue !== null && comparisonValue !== undefined && comparisonValue !== 0 ? (value - comparisonValue) / comparisonValue : null;
-
-    return (
-        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-            <div className="text-2xl font-semibold">{formatValue(value)}</div>
-            <div className="text-muted-foreground text-sm">{label}</div>
-            {delta !== null && (
-                <div className={`mt-1 text-xs font-medium ${delta >= 0 ? 'text-[#006300] dark:text-[#0ca30c]' : 'text-destructive'}`}>
-                    {delta >= 0 ? '▲' : '▼'} {Math.abs(delta * 100).toFixed(1)}% vs comparison period
-                </div>
-            )}
-        </div>
-    );
-}
-
-function TooltipRow({ color, name, value }: { color: string; name: string; value: string }) {
-    return (
-        <div className="flex items-center gap-2">
-            <span className="inline-block h-0.5 w-3 shrink-0" style={{ backgroundColor: color }} />
-            <span className="font-semibold tabular-nums">{value}</span>
-            <span className="text-muted-foreground">{name}</span>
-        </div>
-    );
-}
-
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({ title, children }: { title: string; children?: React.ReactNode }) {
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
             <h3 className="mb-3 text-sm font-semibold">{title}</h3>
@@ -127,57 +85,86 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
     );
 }
 
-export function TrafficDataSection() {
-    const isDark = useIsDark();
-    const colors = isDark ? SERIES.dark : SERIES.light;
+function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: [string, string][] }) {
+    return (
+        <SectionCard title={title}>
+            <div className="max-h-64 overflow-x-auto overflow-y-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-muted-foreground text-left">
+                            {columns.map(([key, label]) => (
+                                <th key={key} className={key === columns[0][0] ? 'py-1.5 font-medium' : 'py-1.5 text-right font-medium'}>
+                                    {label}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row, i) => (
+                            <tr key={i} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                                {columns.map(([key], colIndex) => (
+                                    <td key={key} className={colIndex === 0 ? 'max-w-48 truncate py-1.5' : 'py-1.5 text-right tabular-nums'}>
+                                        {typeof row[key] === 'number' && key.includes('ctr')
+                                            ? `${((row[key] as number) * 100).toFixed(1)}%`
+                                            : String(row[key] ?? '')}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                        {rows.length === 0 && (
+                            <tr>
+                                <td colSpan={columns.length} className="text-muted-foreground py-3 text-center">
+                                    No data for this range.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </SectionCard>
+    );
+}
 
-    const [configured, setConfigured] = useState<boolean | null>(null);
-    const [websites, setWebsites] = useState<Website[]>([]);
-    const [websitesError, setWebsitesError] = useState<string | null>(null);
+export function TrafficDataSection() {
+    const [websites, setWebsites] = useState<MarketingWebsite[]>([]);
     const [websiteDomain, setWebsiteDomain] = useState<string>(ALL_WEBSITES);
 
     const [datePreset, setDatePreset] = useState<(typeof DATE_PRESETS)[number]['key']>('last_30_days');
     const [customFrom, setCustomFrom] = useState(() => toDateInput(new Date(Date.now() - 30 * 86400000)));
     const [customTo, setCustomTo] = useState(() => toDateInput(new Date(Date.now() - 86400000)));
-    const [comparisonPeriod, setComparisonPeriod] = useState<(typeof COMPARISON_OPTIONS)[number]['value']>('previous_period');
+    const [comparisonPeriod, setComparisonPeriod] = useState<(typeof COMPARISON_OPTIONS)[number]['value']>('none');
 
-    const [data, setData] = useState<TrafficResponse | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [report, setReport] = useState<ReportResponse | null>(null);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [breakdowns, setBreakdowns] = useState<BreakdownsResponse | null>(null);
+    const [breakdownsLoading, setBreakdownsLoading] = useState(false);
 
-    const { dateFrom, dateTo } = useMemo(() => {
-        const preset = DATE_PRESETS.find((p) => p.key === datePreset);
-
-        if (!preset || preset.days === null) {
-            return { dateFrom: customFrom, dateTo: customTo };
-        }
-
+    const preset = DATE_PRESETS.find((p) => p.key === datePreset);
+    let dateFrom: string;
+    let dateTo: string;
+    if (!preset || preset.days === null) {
+        dateFrom = customFrom;
+        dateTo = customTo;
+    } else {
         const to = new Date(Date.now() - 86400000);
         const from = new Date(to.getTime() - (preset.days - 1) * 86400000);
-
-        return { dateFrom: toDateInput(from), dateTo: toDateInput(to) };
-    }, [datePreset, customFrom, customTo]);
+        dateFrom = toDateInput(from);
+        dateTo = toDateInput(to);
+    }
 
     useEffect(() => {
         fetch('/dashboards/ceo/traffic-data/websites', { headers: { Accept: 'application/json' } })
             .then((response) => response.json())
-            .then((payload: { configured: boolean; websites: Website[]; error?: string }) => {
-                setConfigured(payload.configured);
-                setWebsites(payload.websites);
-                setWebsitesError(payload.error ?? null);
-            })
-            .catch(() => setConfigured(false));
+            .then((payload: { websites: MarketingWebsite[] }) => setWebsites(payload.websites))
+            .catch(() => setWebsites([]));
     }, []);
 
     // GA4/GSC results are cached server-side until end of day (AnalyticsCache)
     // — refresh=1 is the manual bypass, same as Marketing Statistics' Refresh
     // button, for "I know this changed, don't wait until tomorrow."
-    const load = useCallback(
+    const loadReport = useCallback(
         (forceRefresh: boolean) => {
-            if (!configured || !websiteDomain) {
-                return;
-            }
-
-            setLoading(true);
+            setReportLoading(true);
             const params = new URLSearchParams({
                 website_domain: websiteDomain,
                 date_from: dateFrom,
@@ -188,53 +175,62 @@ export function TrafficDataSection() {
 
             fetch(`/dashboards/ceo/traffic-data?${params}`, { headers: { Accept: 'application/json' } })
                 .then((response) => response.json())
-                .then((payload: TrafficResponse) => setData(payload))
-                .catch(() => setData({ configured: true, error: 'Could not load traffic data.' }))
-                .finally(() => setLoading(false));
+                .then((payload: ReportResponse) => setReport(payload))
+                .finally(() => setReportLoading(false));
         },
-        [configured, websiteDomain, dateFrom, dateTo, comparisonPeriod],
+        [websiteDomain, dateFrom, dateTo, comparisonPeriod],
+    );
+
+    const loadBreakdowns = useCallback(
+        (forceRefresh: boolean) => {
+            setBreakdownsLoading(true);
+            const params = new URLSearchParams({
+                website_domain: websiteDomain,
+                date_from: dateFrom,
+                date_to: dateTo,
+                ...(forceRefresh ? { refresh: '1' } : {}),
+            });
+
+            fetch(`/dashboards/ceo/traffic-data/breakdowns?${params}`, { headers: { Accept: 'application/json' } })
+                .then((response) => response.json())
+                .then((payload: BreakdownsResponse) => setBreakdowns(payload))
+                .finally(() => setBreakdownsLoading(false));
+        },
+        [websiteDomain, dateFrom, dateTo],
     );
 
     useEffect(() => {
-        load(false);
-    }, [load]);
+        loadReport(false);
+    }, [loadReport]);
 
-    if (configured === null) {
-        return (
-            <div className="flex flex-col gap-4">
-                <h2 className="text-sm font-semibold">Traffic data</h2>
-                <TrafficChartsSkeleton />
-            </div>
-        );
-    }
+    useEffect(() => {
+        loadBreakdowns(false);
+    }, [loadBreakdowns]);
 
-    if (!configured) {
-        return (
-            <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-                <h2 className="mb-1 text-sm font-semibold">Traffic data</h2>
-                <p className="text-muted-foreground text-sm">
-                    BigQuery analytics isn't connected yet. See <code className="font-mono">ANALYTICS_BIGQUERY_FINDINGS.md</code> for setup steps.
-                </p>
-            </div>
-        );
-    }
+    useSourceStatusToasts(report ? { ga4: report.ga4.source, gsc: report.gsc.source } : undefined);
 
-    if (websites.length === 0) {
-        return (
-            <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-                <h2 className="mb-1 text-sm font-semibold">Traffic data</h2>
-                <p className="text-muted-foreground text-sm">
-                    {websitesError
-                        ? 'Connected, but the reporting views could not be queried — see the authorized-view setup notes.'
-                        : 'No websites have recent data in the reporting views yet.'}
-                </p>
-                {websitesError && <p className="text-muted-foreground mt-1 font-mono text-xs">{websitesError}</p>}
-            </div>
-        );
-    }
+    const refresh = () => {
+        loadReport(true);
+        loadBreakdowns(true);
+    };
 
-    const current = data?.summary?.current;
-    const comparison = data?.summary?.comparison;
+    const engagementTrend = (report?.ga4.trend ?? []).map((row) => ({
+        event_date: row.event_date,
+        engagement_rate: row.sessions ? row.engaged_sessions / row.sessions : 0,
+    }));
+    const ctrTrend = (report?.gsc.trend ?? []).map((row) => ({
+        data_date: row.data_date,
+        ctr: row.impressions ? row.clicks / row.impressions : 0,
+    }));
+
+    const comparisonRows = breakdowns?.comparison.rows ?? [];
+    const comparisonChartRows = comparisonRows.map((row) => ({
+        name: row.name,
+        ga4_users: row.ga4?.users ?? 0,
+        gsc_clicks: row.gsc?.clicks ?? 0,
+    }));
+
+    const loading = reportLoading || breakdownsLoading;
 
     return (
         <div className="flex flex-col gap-4">
@@ -244,7 +240,7 @@ export function TrafficDataSection() {
                     {loading && <span className="text-muted-foreground text-xs">Refreshing…</span>}
                     <button
                         type="button"
-                        onClick={() => load(true)}
+                        onClick={refresh}
                         disabled={loading}
                         title="Cached until end of day — refresh to pull it live now"
                         className="text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
@@ -255,7 +251,7 @@ export function TrafficDataSection() {
                 </div>
             </div>
 
-            {/* Filters: one row, above every chart below — they all scope to the same slice. */}
+            {/* Filters: one row, above every section below — they all scope to the same slice. */}
             <div className="flex flex-wrap items-center gap-2">
                 <Select value={websiteDomain} onValueChange={setWebsiteDomain}>
                     <SelectTrigger className="w-56">
@@ -264,8 +260,8 @@ export function TrafficDataSection() {
                     <SelectContent>
                         <SelectItem value={ALL_WEBSITES}>All Platforms</SelectItem>
                         {websites.map((website) => (
-                            <SelectItem key={website.website_domain} value={website.website_domain}>
-                                {website.website_name}
+                            <SelectItem key={website.domain} value={website.domain}>
+                                {website.name}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -276,9 +272,9 @@ export function TrafficDataSection() {
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {DATE_PRESETS.map((preset) => (
-                            <SelectItem key={preset.key} value={preset.key}>
-                                {preset.label}
+                        {DATE_PRESETS.map((p) => (
+                            <SelectItem key={p.key} value={p.key}>
+                                {p.label}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -319,207 +315,229 @@ export function TrafficDataSection() {
                 </Select>
             </div>
 
-            {data?.error && (
-                <p className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
-                    Connected, but this query didn't return data — the reporting views may not be queryable yet for this project (see the
-                    authorized-view notes), or this website/range has no rows.
-                    <span className="mt-1 block font-mono text-xs">{data.error}</span>
-                </p>
-            )}
-
-            {!current && loading && <TrafficChartsSkeleton />}
-
-            {current && (
-                <>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <StatTile label="Users" value={current.users} comparisonValue={comparison?.users} formatValue={compact} />
-                        <StatTile label="Sessions" value={current.sessions} comparisonValue={comparison?.sessions} formatValue={compact} />
-                        <StatTile label="Key events" value={current.key_events} comparisonValue={comparison?.key_events} formatValue={compact} />
-                        <StatTile
-                            label="Engagement rate"
-                            value={current.engagement_rate ?? 0}
-                            comparisonValue={comparison?.engagement_rate}
-                            formatValue={(v) => pct(v)}
+            {/* GA4 */}
+            <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">GA4 traffic</h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <KpiTile
+                    label="Users"
+                    kpi={report?.ga4.kpis?.aggregate_property_users ?? null}
+                    drilldownTitle="Users trend"
+                    drilldown={<TrendChart data={report?.ga4.trend ?? []} dateKey="event_date" series={[{ key: 'users', name: 'Users' }]} />}
+                />
+                <KpiTile
+                    label="Sessions"
+                    kpi={report?.ga4.kpis?.sessions ?? null}
+                    drilldownTitle="Sessions trend"
+                    drilldown={<TrendChart data={report?.ga4.trend ?? []} dateKey="event_date" series={[{ key: 'sessions', name: 'Sessions' }]} />}
+                />
+                <KpiTile
+                    label="Key events"
+                    kpi={report?.ga4.kpis?.key_events ?? null}
+                    drilldownTitle="Key events breakdown"
+                    drilldown={
+                        <CategoryBarChart
+                            data={breakdowns?.ga4?.key_events ?? []}
+                            labelKey="key_event"
+                            valueKey="key_event_count"
+                            valueLabel="events"
                         />
-                    </div>
+                    }
+                />
+                <KpiTile
+                    label="Engagement rate"
+                    kpi={report?.ga4.kpis?.engagement_rate ?? null}
+                    format={pct}
+                    drilldownTitle="Engagement rate trend"
+                    drilldown={
+                        <TrendChart data={engagementTrend} dateKey="event_date" series={[{ key: 'engagement_rate', name: 'Engagement rate' }]} valueFormat={pct} />
+                    }
+                />
+            </div>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        <ChartCard title="Users & sessions trend">
-                            <ResponsiveContainer width="100%" height={260}>
-                                <LineChart data={data?.trend ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                                    <CartesianGrid stroke={colors.gridline} strokeDasharray="0" vertical={false} />
-                                    <XAxis
-                                        dataKey="event_date"
-                                        tick={{ fontSize: 12, fill: colors.muted }}
-                                        tickFormatter={(value) => new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                        axisLine={{ stroke: colors.gridline }}
-                                        tickLine={false}
-                                    />
-                                    <YAxis tick={{ fontSize: 12, fill: colors.muted }} axisLine={false} tickLine={false} width={44} />
-                                    <Tooltip
-                                        content={({ active, payload, label }) =>
-                                            active && payload?.length ? (
-                                                <div className="bg-popover rounded-md border px-3 py-2 text-xs shadow-md">
-                                                    <div className="text-muted-foreground mb-1">
-                                                        {new Date(String(label)).toLocaleDateString(undefined, {
-                                                            month: 'short',
-                                                            day: 'numeric',
-                                                            year: 'numeric',
-                                                        })}
-                                                    </div>
-                                                    {payload.map((entry) => (
-                                                        <TooltipRow
-                                                            key={entry.dataKey as string}
-                                                            color={entry.color ?? colors.s1}
-                                                            name={entry.name as string}
-                                                            value={compact(entry.value as number)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            ) : null
-                                        }
-                                    />
-                                    <Legend
-                                        wrapperStyle={{ fontSize: 12 }}
-                                        formatter={(value) => <span className="text-secondary-foreground">{value}</span>}
-                                    />
-                                    <Line type="monotone" dataKey="users" name="Users" stroke={colors.s1} strokeWidth={2} dot={false} />
-                                    <Line type="monotone" dataKey="sessions" name="Sessions" stroke={colors.s2} strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </ChartCard>
+            <SectionCard title="Users & sessions trend">
+                <TrendChart
+                    data={report?.ga4.trend ?? []}
+                    dateKey="event_date"
+                    series={[
+                        { key: 'users', name: 'Users' },
+                        { key: 'sessions', name: 'Sessions' },
+                    ]}
+                />
+            </SectionCard>
 
-                        <ChartCard title="Traffic sources (users)">
-                            <ResponsiveContainer width="100%" height={260}>
-                                <BarChart data={data?.trafficSources ?? []} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
-                                    <CartesianGrid stroke={colors.gridline} horizontal={false} />
-                                    <XAxis type="number" tick={{ fontSize: 12, fill: colors.muted }} axisLine={false} tickLine={false} />
-                                    <YAxis
-                                        type="category"
-                                        dataKey="source"
-                                        tick={{ fontSize: 12, fill: colors.muted }}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        width={110}
-                                    />
-                                    <Tooltip
-                                        content={({ active, payload }) =>
-                                            active && payload?.length ? (
-                                                <div className="bg-popover rounded-md border px-3 py-2 text-xs shadow-md">
-                                                    <TooltipRow
-                                                        color={colors.s1}
-                                                        name={`${payload[0].payload.source} / ${payload[0].payload.medium}`}
-                                                        value={`${compact(payload[0].value as number)} users`}
-                                                    />
-                                                </div>
-                                            ) : null
-                                        }
-                                    />
-                                    <Bar dataKey="users" name="Users" fill={colors.s1} radius={[0, 4, 4, 0]} barSize={20} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </ChartCard>
-
-                        <ChartCard title="Devices (users)">
-                            <ResponsiveContainer width="100%" height={260}>
-                                <PieChart>
-                                    <Tooltip
-                                        content={({ active, payload }) =>
-                                            active && payload?.length ? (
-                                                <div className="bg-popover rounded-md border px-3 py-2 text-xs shadow-md">
-                                                    <TooltipRow
-                                                        color={payload[0].payload.fill}
-                                                        name={String(payload[0].name)}
-                                                        value={`${compact(payload[0].value as number)} users`}
-                                                    />
-                                                </div>
-                                            ) : null
-                                        }
-                                    />
-                                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                                    <Pie
-                                        data={data?.devices ?? []}
-                                        dataKey="users"
-                                        nameKey="device_category"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={90}
-                                        label={(entry: { device_category?: string; percent?: number }) =>
-                                            `${entry.device_category} ${((entry.percent ?? 0) * 100).toFixed(0)}%`
-                                        }
-                                    >
-                                        {(data?.devices ?? []).map((device) => {
-                                            const orderIndex = DEVICE_ORDER.indexOf(device.device_category?.toLowerCase());
-                                            const slot = [colors.s1, colors.s2, colors.s3, colors.s4][orderIndex >= 0 ? orderIndex : 3];
-                                            return <Cell key={device.device_category} fill={slot} />;
-                                        })}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </ChartCard>
-
-                        <ChartCard title="Top landing pages">
-                            <div className="max-h-[260px] overflow-x-auto overflow-y-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="text-muted-foreground text-left">
-                                            <th className="py-1.5 font-medium">Page</th>
-                                            <th className="py-1.5 text-right font-medium">Users</th>
-                                            <th className="py-1.5 text-right font-medium">Page views</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(data?.landingPages ?? []).map((page) => (
-                                            <tr key={page.page_location} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
-                                                <td className="max-w-56 truncate py-1.5" title={page.page_location}>
-                                                    {page.page_location}
-                                                </td>
-                                                <td className="py-1.5 text-right tabular-nums">{page.users.toLocaleString()}</td>
-                                                <td className="py-1.5 text-right tabular-nums">{page.page_views.toLocaleString()}</td>
-                                            </tr>
-                                        ))}
-                                        {(data?.landingPages ?? []).length === 0 && (
-                                            <tr>
-                                                <td colSpan={3} className="text-muted-foreground py-3 text-center">
-                                                    No data for this range.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </ChartCard>
-                    </div>
-
-                    <ChartCard title="Top visitor countries">
-                        <div className="max-h-64 overflow-x-auto overflow-y-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="text-muted-foreground text-left">
-                                        <th className="py-1.5 font-medium">Country</th>
-                                        <th className="py-1.5 text-right font-medium">Users</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(data?.locations ?? []).map((location) => (
-                                        <tr key={location.user_country} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
-                                            <td className="py-1.5">{location.user_country}</td>
-                                            <td className="py-1.5 text-right tabular-nums">{location.users.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                    {(data?.locations ?? []).length === 0 && (
-                                        <tr>
-                                            <td colSpan={2} className="text-muted-foreground py-3 text-center">
-                                                No data for this range.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </ChartCard>
-                </>
+            {breakdownsLoading && !breakdowns ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-72 rounded-xl" />
+                    ))}
+                </div>
+            ) : (
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <SectionCard title="Traffic sources (users)">
+                        <CategoryBarChart
+                            data={(breakdowns?.ga4?.traffic_sources ?? []).map((r) => ({ label: `${r.source} / ${r.medium}`, users: r.users }))}
+                            labelKey="label"
+                            valueKey="users"
+                            valueLabel="users"
+                        />
+                    </SectionCard>
+                    <SectionCard title="Devices (users)">
+                        <CategoryPieChart data={breakdowns?.ga4?.devices ?? []} labelKey="device_category" valueKey="users" order={DEVICE_ORDER} />
+                    </SectionCard>
+                    <BreakdownTable
+                        title="Landing pages"
+                        rows={breakdowns?.ga4?.landing_pages ?? []}
+                        columns={[
+                            ['page_location', 'Page'],
+                            ['users', 'Users'],
+                            ['page_views', 'Page views'],
+                        ]}
+                    />
+                    <BreakdownTable
+                        title="Visitor locations"
+                        rows={breakdowns?.ga4?.locations ?? []}
+                        columns={[
+                            ['user_country', 'Country'],
+                            ['users', 'Users'],
+                        ]}
+                    />
+                </div>
             )}
+
+            {/* GSC */}
+            <h3 className="text-muted-foreground mt-2 text-xs font-semibold tracking-wide uppercase">Google Search Console</h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <KpiTile
+                    label="Clicks"
+                    kpi={report?.gsc.kpis?.clicks ?? null}
+                    drilldownTitle="Clicks trend"
+                    drilldown={<TrendChart data={report?.gsc.trend ?? []} dateKey="data_date" series={[{ key: 'clicks', name: 'Clicks' }]} />}
+                />
+                <KpiTile
+                    label="Impressions"
+                    kpi={report?.gsc.kpis?.impressions ?? null}
+                    drilldownTitle="Impressions trend"
+                    drilldown={
+                        <TrendChart data={report?.gsc.trend ?? []} dateKey="data_date" series={[{ key: 'impressions', name: 'Impressions' }]} />
+                    }
+                />
+                <KpiTile
+                    label="CTR"
+                    kpi={report?.gsc.kpis?.ctr ?? null}
+                    format={pct}
+                    drilldownTitle="CTR trend"
+                    drilldown={<TrendChart data={ctrTrend} dateKey="data_date" series={[{ key: 'ctr', name: 'CTR' }]} valueFormat={pct} />}
+                />
+                <KpiTile
+                    label="Average position"
+                    kpi={report?.gsc.kpis?.average_position ?? null}
+                    format={(v) => v.toFixed(1)}
+                    drilldownTitle="Average position trend"
+                    drilldown={
+                        <TrendChart
+                            data={report?.gsc.trend ?? []}
+                            dateKey="data_date"
+                            series={[{ key: 'average_position', name: 'Avg. position' }]}
+                            valueFormat={(v) => v.toFixed(1)}
+                        />
+                    }
+                />
+            </div>
+
+            <SectionCard title="Clicks & impressions trend">
+                <TrendChart
+                    data={report?.gsc.trend ?? []}
+                    dateKey="data_date"
+                    series={[
+                        { key: 'clicks', name: 'Clicks' },
+                        { key: 'impressions', name: 'Impressions' },
+                    ]}
+                />
+            </SectionCard>
+
+            {breakdownsLoading && !breakdowns ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-72 rounded-xl" />
+                    ))}
+                </div>
+            ) : (
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <BreakdownTable
+                        title="Queries"
+                        rows={breakdowns?.gsc?.queries ?? []}
+                        columns={[
+                            ['query', 'Query'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                            ['ctr', 'CTR'],
+                        ]}
+                    />
+                    <BreakdownTable
+                        title="Pages"
+                        rows={breakdowns?.gsc?.pages ?? []}
+                        columns={[
+                            ['url', 'Page'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                        ]}
+                    />
+                    <BreakdownTable
+                        title="Countries"
+                        rows={breakdowns?.gsc?.countries ?? []}
+                        columns={[
+                            ['country', 'Country'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                        ]}
+                    />
+                    <SectionCard title="Devices (clicks)">
+                        <CategoryPieChart data={breakdowns?.gsc?.devices ?? []} labelKey="device" valueKey="clicks" order={DEVICE_ORDER} />
+                    </SectionCard>
+                </div>
+            )}
+
+            {/* Per-site comparison */}
+            <h3 className="text-muted-foreground mt-2 text-xs font-semibold tracking-wide uppercase">Website comparison</h3>
+            <div className="grid gap-4 lg:grid-cols-2">
+                <SectionCard title="GA4 users by website">
+                    <CategoryBarChart data={comparisonChartRows} labelKey="name" valueKey="ga4_users" valueLabel="users" />
+                </SectionCard>
+                <SectionCard title="GSC clicks by website">
+                    <CategoryBarChart data={comparisonChartRows} labelKey="name" valueKey="gsc_clicks" valueLabel="clicks" />
+                </SectionCard>
+            </div>
+            <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-muted-foreground text-left">
+                            <th className="py-1.5 font-medium">Website</th>
+                            <th className="py-1.5 text-right font-medium">GA4 users</th>
+                            <th className="py-1.5 text-right font-medium">GA4 sessions</th>
+                            <th className="py-1.5 text-right font-medium">GSC clicks</th>
+                            <th className="py-1.5 text-right font-medium">GSC impressions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {comparisonRows.map((row) => (
+                            <tr key={row.website_id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                                <td className="py-1.5">{row.name}</td>
+                                <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.users)}</td>
+                                <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.sessions)}</td>
+                                <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.clicks)}</td>
+                                <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.impressions)}</td>
+                            </tr>
+                        ))}
+                        {comparisonRows.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="text-muted-foreground py-3 text-center">
+                                    No mapped websites found.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

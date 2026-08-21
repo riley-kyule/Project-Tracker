@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Services\Analytics\AhrefsReportQuery;
-use App\Services\Analytics\AnalyticsCache;
 use App\Services\Analytics\AnalyticsFreshnessChecker;
 use App\Services\Analytics\AnalyticsReportBuilder;
 use App\Services\Analytics\GscReportQuery;
@@ -13,7 +12,6 @@ use App\Services\Analytics\WebsiteRegistryQuery;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 /**
  * The Marketing Statistics module. Every action reads only from prepared
@@ -32,8 +30,6 @@ use Throwable;
  */
 class MarketingStatisticsController extends Controller
 {
-    public function __construct(private AnalyticsCache $cache) {}
-
     public function overview(
         Request $request, TrafficDashboardQuery $ga4, GscReportQuery $gsc, AhrefsReportQuery $ahrefs,
         WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
@@ -41,7 +37,7 @@ class MarketingStatisticsController extends Controller
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
-        $registry = $this->websiteRegistry($registryQuery, $reportBuilder, $filters->forceRefresh);
+        $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
         $domain = $filters->resolvedWebsiteId;
 
         $ga4Report = $reportBuilder->ga4Report(
@@ -82,7 +78,7 @@ class MarketingStatisticsController extends Controller
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
-        $registry = $this->websiteRegistry($registryQuery, $reportBuilder, $filters->forceRefresh);
+        $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
         $domain = $filters->resolvedWebsiteId;
 
         $report = $reportBuilder->ga4Report(
@@ -99,27 +95,9 @@ class MarketingStatisticsController extends Controller
             // GA4 UNION ALL view) — deferred so the KPIs and headline trend
             // above paint immediately instead of waiting on all of them, and
             // cached the same way as the main report (see AnalyticsCache).
-            'breakdowns' => Inertia::defer(function () use ($report, $ga4, $domain, $filters) {
-                if ($report['status'] === 'failed') {
-                    return null;
-                }
-
-                $key = AnalyticsCache::key('ga4-breakdowns', $domain, $filters->dateFrom, $filters->dateTo);
-
-                try {
-                    return $this->cache->remember($key, fn () => [
-                        'traffic_sources' => $ga4->trafficSources($domain, $filters->dateFrom, $filters->dateTo),
-                        'devices' => $ga4->devices($domain, $filters->dateFrom, $filters->dateTo),
-                        'landing_pages' => $ga4->landingPages($domain, $filters->dateFrom, $filters->dateTo),
-                        'locations' => $ga4->locations($domain, $filters->dateFrom, $filters->dateTo),
-                        'key_events' => $ga4->keyEventsBreakdown($domain, $filters->dateFrom, $filters->dateTo),
-                    ], $filters->forceRefresh);
-                } catch (Throwable) {
-                    // Summary succeeded but a breakdown query failed independently — the
-                    // page still renders with KPIs, just without these detail lists.
-                    return null;
-                }
-            }),
+            'breakdowns' => Inertia::defer(fn () => $report['status'] === 'failed'
+                ? null
+                : $reportBuilder->ga4Breakdowns($ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh)),
         ]);
     }
 
@@ -128,7 +106,7 @@ class MarketingStatisticsController extends Controller
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
-        $registry = $this->websiteRegistry($registryQuery, $reportBuilder, $filters->forceRefresh);
+        $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
         $domain = $filters->resolvedWebsiteId;
 
         $report = $reportBuilder->gscReport(
@@ -142,24 +120,9 @@ class MarketingStatisticsController extends Controller
             'kpis' => $report['kpis'],
             'trend' => $report['trend'],
             // Four extra BigQuery queries — deferred and cached for the same reasons as GA4's.
-            'breakdowns' => Inertia::defer(function () use ($report, $gsc, $domain, $filters) {
-                if ($report['status'] === 'failed') {
-                    return null;
-                }
-
-                $key = AnalyticsCache::key('gsc-breakdowns', $domain, $filters->dateFrom, $filters->dateTo);
-
-                try {
-                    return $this->cache->remember($key, fn () => [
-                        'queries' => $gsc->queries($domain, $filters->dateFrom, $filters->dateTo),
-                        'pages' => $gsc->pages($domain, $filters->dateFrom, $filters->dateTo),
-                        'countries' => $gsc->countries($domain, $filters->dateFrom, $filters->dateTo),
-                        'devices' => $gsc->devices($domain, $filters->dateFrom, $filters->dateTo),
-                    ], $filters->forceRefresh);
-                } catch (Throwable) {
-                    return null;
-                }
-            }),
+            'breakdowns' => Inertia::defer(fn () => $report['status'] === 'failed'
+                ? null
+                : $reportBuilder->gscBreakdowns($gsc, $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh)),
         ]);
     }
 
@@ -168,7 +131,7 @@ class MarketingStatisticsController extends Controller
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
-        $registry = $this->websiteRegistry($registryQuery, $reportBuilder, $filters->forceRefresh);
+        $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
 
         $report = $reportBuilder->ahrefsReport(
             $ahrefs, $filters->resolvedWebsiteId, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
@@ -196,35 +159,14 @@ class MarketingStatisticsController extends Controller
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
-        $registry = $this->websiteRegistry($registryQuery, $reportBuilder, $filters->forceRefresh);
-        $domains = array_column($registry, 'domain');
-
-        $ga4Key = AnalyticsCache::key('comparison-ga4', $domains, $filters->dateFrom, $filters->dateTo);
-        $gscKey = AnalyticsCache::key('comparison-gsc', $domains, $filters->dateFrom, $filters->dateTo);
-
-        $ga4Summary = $reportBuilder->attempt(
-            fn () => $this->cache->remember($ga4Key, fn () => $ga4->summaryByWebsite($domains, $filters->dateFrom, $filters->dateTo), $filters->forceRefresh),
-        );
-        $gscSummary = $reportBuilder->attempt(
-            fn () => $this->cache->remember($gscKey, fn () => $gsc->summaryByWebsite($domains, $filters->dateFrom, $filters->dateTo), $filters->forceRefresh),
-        );
-
-        $rows = array_map(fn (array $site) => [
-            'website_id' => $site['website_id'],
-            'name' => $site['name'],
-            'domain' => $site['domain'],
-            'ga4' => $ga4Summary['rows'][$site['domain']] ?? null,
-            'gsc' => $gscSummary['rows'][$site['domain']] ?? null,
-        ], $registry);
+        $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
+        $comparison = $reportBuilder->websiteComparison($ga4, $gsc, $registry, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh);
 
         return Inertia::render('marketing-statistics/comparison', [
             'selected' => $filters->toArray(),
             'websites' => $registry,
-            'rows' => $rows,
-            'sources' => [
-                'ga4' => $reportBuilder->sourceSummary($ga4Summary),
-                'gsc' => $reportBuilder->sourceSummary($gscSummary),
-            ],
+            'rows' => $comparison['rows'],
+            'sources' => $comparison['sources'],
         ]);
     }
 
@@ -235,7 +177,7 @@ class MarketingStatisticsController extends Controller
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
-        $registry = $this->websiteRegistry($registryQuery, $reportBuilder, $filters->forceRefresh);
+        $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
 
         return Inertia::render('marketing-statistics/freshness', [
             'selected' => $filters->toArray(),
@@ -250,19 +192,5 @@ class MarketingStatisticsController extends Controller
             // as the other Marketing Statistics tabs.
             'sources' => Inertia::defer(fn () => $freshnessChecker->check()),
         ]);
-    }
-
-    /** @return array<int, array{website_id: string, domain: string, name: string}> */
-    private function websiteRegistry(WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder, bool $forceRefresh = false): array
-    {
-        $result = $reportBuilder->attempt(
-            fn () => $this->cache->remember('registry', fn () => $registryQuery->websites(), $forceRefresh),
-        );
-
-        return array_map(fn (array $row) => [
-            'website_id' => $row['domain'],
-            'domain' => $row['domain'],
-            'name' => $row['name'],
-        ], $result['rows']);
     }
 }

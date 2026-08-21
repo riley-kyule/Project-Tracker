@@ -25,23 +25,6 @@ class TrafficDashboardQuery
         return $this->runner->isConfigured();
     }
 
-    /**
-     * The site picker's option list, bounded to sites with activity in the
-     * last 90 days (an unbounded DISTINCT here would rescan every GA4
-     * dataset's full history — these views aren't materialized).
-     *
-     * @return array<int, array{website_domain: string, website_name: string, country: string|null}>
-     */
-    public function mappedWebsites(): array
-    {
-        return $this->runner->rows(<<<'SQL'
-            SELECT DISTINCT website_domain, website_name, country
-            FROM `analytics_core.vw_daily_website_metrics`
-            WHERE event_date >= @since
-            ORDER BY website_name
-            SQL, ['since' => now()->subDays(90)->toDateString()]);
-    }
-
     /** @return array{users: int, sessions: int, key_events: int, engagement_rate: float|null} */
     public function summary(string|array|null $websiteDomain, Carbon $from, Carbon $to): array
     {

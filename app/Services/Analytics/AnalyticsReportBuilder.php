@@ -188,4 +188,96 @@ class AnalyticsReportBuilder
     {
         return ['status' => $report['status'], 'error' => $report['error']];
     }
+
+    /**
+     * The registry every report below is keyed against — shared by every
+     * caller (Marketing Statistics' own controller and anything else that
+     * needs "the list of mapped websites") so they all read/warm the exact
+     * same 'registry' cache entry instead of each keeping their own copy.
+     *
+     * @return array<int, array{website_id: string, domain: string, name: string}>
+     */
+    public function registry(WebsiteRegistryQuery $registryQuery, bool $forceRefresh = false): array
+    {
+        $result = $this->attempt(fn () => $this->cache->remember('registry', fn () => $registryQuery->websites(), $forceRefresh));
+
+        return array_map(fn (array $row) => [
+            'website_id' => $row['domain'],
+            'domain' => $row['domain'],
+            'name' => $row['name'],
+        ], $result['rows']);
+    }
+
+    /**
+     * Five extra BigQuery queries beyond ga4Report() — cached and
+     * try/catch-isolated independently, so a breakdown failure never takes
+     * down the KPIs/trend a caller already has. Null on failure (as opposed
+     * to ga4Report()'s status-tagged array) since callers only ever render
+     * this conditionally, same as Marketing Statistics' `ga4()` action.
+     */
+    public function ga4Breakdowns(TrafficDashboardQuery $ga4, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false): ?array
+    {
+        $key = AnalyticsCache::key('ga4-breakdowns', $domain, $dateFrom, $dateTo);
+
+        try {
+            return $this->cache->remember($key, fn () => [
+                'traffic_sources' => $ga4->trafficSources($domain, $dateFrom, $dateTo),
+                'devices' => $ga4->devices($domain, $dateFrom, $dateTo),
+                'landing_pages' => $ga4->landingPages($domain, $dateFrom, $dateTo),
+                'locations' => $ga4->locations($domain, $dateFrom, $dateTo),
+                'key_events' => $ga4->keyEventsBreakdown($domain, $dateFrom, $dateTo),
+            ], $forceRefresh);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /** Four extra BigQuery queries beyond gscReport() — same isolation as ga4Breakdowns(). */
+    public function gscBreakdowns(GscReportQuery $gsc, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false): ?array
+    {
+        $key = AnalyticsCache::key('gsc-breakdowns', $domain, $dateFrom, $dateTo);
+
+        try {
+            return $this->cache->remember($key, fn () => [
+                'queries' => $gsc->queries($domain, $dateFrom, $dateTo),
+                'pages' => $gsc->pages($domain, $dateFrom, $dateTo),
+                'countries' => $gsc->countries($domain, $dateFrom, $dateTo),
+                'devices' => $gsc->devices($domain, $dateFrom, $dateTo),
+            ], $forceRefresh);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * One grouped GA4 query + one grouped GSC query across every registered
+     * website — a fixed cost regardless of site count (see
+     * TrafficDashboardQuery::summaryByWebsite() / GscReportQuery::summaryByWebsite()).
+     *
+     * @param  array<int, array{website_id: string, domain: string, name: string}>  $registry
+     * @return array{rows: array, sources: array{ga4: array, gsc: array}}
+     */
+    public function websiteComparison(TrafficDashboardQuery $ga4, GscReportQuery $gsc, array $registry, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false): array
+    {
+        $domains = array_column($registry, 'domain');
+        $ga4Key = AnalyticsCache::key('comparison-ga4', $domains, $dateFrom, $dateTo);
+        $gscKey = AnalyticsCache::key('comparison-gsc', $domains, $dateFrom, $dateTo);
+
+        $ga4Summary = $this->attempt(
+            fn () => $this->cache->remember($ga4Key, fn () => $ga4->summaryByWebsite($domains, $dateFrom, $dateTo), $forceRefresh),
+        );
+        $gscSummary = $this->attempt(
+            fn () => $this->cache->remember($gscKey, fn () => $gsc->summaryByWebsite($domains, $dateFrom, $dateTo), $forceRefresh),
+        );
+
+        $rows = array_map(fn (array $site) => [
+            'website_id' => $site['website_id'],
+            'name' => $site['name'],
+            'domain' => $site['domain'],
+            'ga4' => $ga4Summary['rows'][$site['domain']] ?? null,
+            'gsc' => $gscSummary['rows'][$site['domain']] ?? null,
+        ], $registry);
+
+        return ['rows' => $rows, 'sources' => ['ga4' => $this->sourceSummary($ga4Summary), 'gsc' => $this->sourceSummary($gscSummary)]];
+    }
 }
