@@ -10,7 +10,7 @@ jobs:
     name: Docs link check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Verify relative markdown links resolve
         run: |
           set -uo pipefail
@@ -70,7 +70,7 @@ jobs:
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: '6379'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -132,7 +132,7 @@ jobs:
       DB_USERNAME: ewms
       DB_PASSWORD: secret
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
