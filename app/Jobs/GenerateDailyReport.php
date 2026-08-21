@@ -34,6 +34,11 @@ class GenerateDailyReport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    // The worker's own --tries flag (docs/DEPLOYMENT.md) already covers
+    // retries; this only bounds a single attempt so one slow aggregate
+    // query or a hung mail send can't tie up a worker indefinitely.
+    public int $timeout = 120;
+
     public function __construct(
         public string $reportType,
         public ?int $departmentId,

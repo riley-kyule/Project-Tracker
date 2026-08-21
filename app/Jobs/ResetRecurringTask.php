@@ -20,6 +20,8 @@ class ResetRecurringTask implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $timeout = 60;
+
     public function __construct(public int $taskId) {}
 
     public function handle(TaskAutoResetSchedule $schedule): void

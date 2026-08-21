@@ -34,6 +34,10 @@ class GenerateWeeklyReport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    // See GenerateDailyReport — same reasoning, weekly aggregates cover more
+    // ground per query than daily ones.
+    public int $timeout = 180;
+
     public function __construct(
         public string $reportType,
         public ?int $userId,
