@@ -21,6 +21,10 @@ class GoogleBigQueryRunner implements BigQueryRunner
     {
         $results = $this->client()->runQuery(
             $this->client()->query($sql)->parameters($parameters),
+            [
+                'timeoutMs' => config('analytics.bigquery.query_timeout_ms'),
+                'maxRetries' => config('analytics.bigquery.query_max_retries'),
+            ],
         );
 
         $rows = [];
