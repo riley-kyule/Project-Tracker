@@ -10,7 +10,7 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TrafficDataController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'throttle:api-writes'])->group(function () {
     Route::get('dashboards/it', [DashboardController::class, 'it'])->name('dashboards.it');
     Route::get('dashboards/ceo', [DashboardController::class, 'ceo'])->name('dashboards.ceo');
     Route::get('dashboards/department', [DashboardController::class, 'department'])->name('dashboards.department');
@@ -21,7 +21,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('reports/remote-support', [ReportController::class, 'remoteSupport'])->name('reports.remote-support');
     Route::post('saved-filters', [SavedFilterController::class, 'store'])->name('saved-filters.store');
     Route::delete('saved-filters/{savedFilter}', [SavedFilterController::class, 'destroy'])->name('saved-filters.destroy');
-    Route::get('search', [SearchController::class, 'index'])->name('search');
+    Route::get('search', [SearchController::class, 'index'])->middleware('throttle:search')->name('search');
 
     Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');
     Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
@@ -33,7 +33,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('tickets/{ticket}/confirm-resolved', [TicketController::class, 'confirmResolved'])->name('tickets.confirm-resolved');
     Route::post('tickets/{ticket}/convert-to-task', [TicketController::class, 'convertToTask'])->name('tickets.convert');
     Route::post('tickets/{ticket}/comments', [TicketController::class, 'comment'])->name('tickets.comments.store');
-    Route::post('tickets/{ticket}/attachments', [AttachmentController::class, 'storeForTicket'])->name('tickets.attachments.store');
+    Route::post('tickets/{ticket}/attachments', [AttachmentController::class, 'storeForTicket'])->middleware('throttle:uploads')->name('tickets.attachments.store');
     Route::delete('tickets/{ticket}', [TicketController::class, 'destroy'])->name('tickets.destroy');
 
     Route::get('admin/sla-policies', [SlaPolicyController::class, 'index'])->name('admin.sla-policies.index');

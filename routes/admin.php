@@ -9,7 +9,7 @@ use App\Http\Controllers\Admin\ReportDeliveryController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'throttle:api-writes'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('departments', [DepartmentController::class, 'index'])->name('departments.index');
     Route::post('departments', [DepartmentController::class, 'store'])->name('departments.store');
     Route::patch('departments/{department}', [DepartmentController::class, 'update'])->name('departments.update');

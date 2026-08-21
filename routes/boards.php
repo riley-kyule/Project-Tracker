@@ -18,7 +18,7 @@ use App\Http\Controllers\TaskRelationController;
 use App\Http\Controllers\TimeEntryController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'throttle:api-writes'])->group(function () {
     Route::get('boards', [BoardController::class, 'index'])->name('boards.index');
     Route::post('boards', [BoardController::class, 'store'])->name('boards.store');
     Route::get('boards/{board}', [BoardController::class, 'show'])->name('boards.show');
@@ -79,7 +79,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('tasks/{task}/links', [TaskLinkController::class, 'store'])->name('task-links.store');
     Route::delete('task-links/{link}', [TaskLinkController::class, 'destroy'])->name('task-links.destroy');
 
-    Route::post('tasks/{task}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
+    Route::post('tasks/{task}/attachments', [AttachmentController::class, 'store'])->middleware('throttle:uploads')->name('attachments.store');
     Route::get('attachments/{attachment}', [AttachmentController::class, 'download'])->name('attachments.download');
     Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
