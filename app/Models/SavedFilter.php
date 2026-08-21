@@ -9,6 +9,12 @@ class SavedFilter extends Model
 {
     public const SCOPE_REPORTS_TASKS = 'reports.tasks';
 
+    /** One scope string per board (e.g. "board.42") rather than a single shared scope, since board filters (search/assignee/priority) are per-board, not global like the reports list. */
+    public static function boardScope(int $boardId): string
+    {
+        return "board.{$boardId}";
+    }
+
     protected $fillable = [
         'user_id',
         'scope',

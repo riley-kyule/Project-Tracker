@@ -7,6 +7,7 @@ use App\Models\Board;
 use App\Models\BoardColumn;
 use App\Models\Department;
 use App\Models\Label;
+use App\Models\SavedFilter;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -154,6 +155,11 @@ class BoardController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'labels' => Label::query()->orderBy('name')->get(),
+            'savedFilters' => SavedFilter::query()
+                ->where('user_id', $request->user()->id)
+                ->where('scope', SavedFilter::boardScope($board->id))
+                ->orderBy('name')
+                ->get(['id', 'name', 'filters']),
             'can' => [
                 'manage' => $request->user()->can('manage', $board),
                 'createTask' => $request->user()->can('create', [Task::class, $board]),

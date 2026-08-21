@@ -1,7 +1,7 @@
 import { TaskCard, TaskDialog, type BoardTask, type Can, type ColumnOption, type LabelOption, type Member } from '@/components/board/task-card';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,11 +24,57 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Head, router, useForm } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Bookmark, ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 type BoardTaskOption = { id: number; title: string; task_number: number };
+
+type BoardFilterValues = { search: string; assignee_id: string; priority: string };
+
+type SavedFilter = { id: number; name: string; filters: Partial<BoardFilterValues> };
+
+function SaveBoardFilterDialog({ boardId, currentFilters }: { boardId: number; currentFilters: BoardFilterValues }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, post, processing, errors, reset, transform } = useForm({ name: '' });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((form) => ({ ...form, scope: `board.${boardId}`, filters: currentFilters }));
+        post('/saved-filters', {
+            preserveScroll: true,
+            onSuccess: () => {
+                setOpen(false);
+                reset();
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <Plus className="mr-1 size-4" /> Save filter
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Save current filter</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="board-filter-name">Name</Label>
+                        <Input id="board-filter-name" value={data.name} onChange={(e) => setData('name', e.target.value)} required autoFocus />
+                        <InputError message={errors.name} />
+                    </div>
+                    <Button type="submit" disabled={processing}>
+                        Save
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 type BlockedMove = { taskId: number; columnId: number; position: number; message: string };
 
@@ -387,6 +433,7 @@ export default function BoardShow({
     members,
     allMembers,
     labels,
+    savedFilters,
     can,
 }: {
     board: Board;
@@ -394,6 +441,7 @@ export default function BoardShow({
     members: Member[];
     allMembers: Member[];
     labels: LabelOption[];
+    savedFilters: SavedFilter[];
     can: Can;
 }) {
     const [columns, setColumns] = useState<Column[]>(board.columns);
@@ -470,6 +518,21 @@ export default function BoardShow({
     );
 
     const columnOptions: ColumnOption[] = useMemo(() => columns.map((column) => ({ id: column.id, name: column.name })), [columns]);
+
+    const currentFilters: BoardFilterValues = { search, assignee_id: assigneeFilter, priority: priorityFilter };
+
+    // Applied entirely client-side, unlike reports/tasks.tsx's saved filters
+    // — the board's own filters are local component state, not query-string
+    // driven, so there's nothing to navigate to.
+    const applySavedFilter = (savedFilter: SavedFilter) => {
+        setSearch(savedFilter.filters.search ?? '');
+        setAssigneeFilter(savedFilter.filters.assignee_id ?? ALL);
+        setPriorityFilter(savedFilter.filters.priority ?? ALL);
+    };
+
+    const deleteSavedFilter = (id: number) => {
+        router.delete(`/saved-filters/${id}`, { preserveScroll: true });
+    };
 
     const findColumn = (taskId: number) => columns.find((column) => column.tasks.some((task) => task.id === taskId));
 
@@ -647,8 +710,32 @@ export default function BoardShow({
                                 Clear
                             </Button>
                         )}
+                        <SaveBoardFilterDialog boardId={board.id} currentFilters={currentFilters} />
                     </div>
                 </div>
+                {savedFilters.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Bookmark className="text-muted-foreground size-4" />
+                        {savedFilters.map((savedFilter) => (
+                            <span
+                                key={savedFilter.id}
+                                className="border-sidebar-border/70 dark:border-sidebar-border flex items-center gap-1 rounded-full border py-1 pr-1 pl-3 text-sm"
+                            >
+                                <button type="button" onClick={() => applySavedFilter(savedFilter)} className="hover:underline">
+                                    {savedFilter.name}
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-label={`Delete ${savedFilter.name}`}
+                                    onClick={() => deleteSavedFilter(savedFilter.id)}
+                                    className="text-muted-foreground hover:text-destructive rounded-full p-0.5"
+                                >
+                                    <X className="size-3" />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
                 {selectedIds.size > 0 && (
                     <BulkMoveBar selectedIds={[...selectedIds]} columns={columnOptions} onDone={() => setSelectedIds(new Set())} />
                 )}
