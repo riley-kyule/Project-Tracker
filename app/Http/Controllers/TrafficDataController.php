@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Analytics\AnalyticsCache;
 use App\Services\Analytics\TrafficDashboardQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Throwable;
 
 class TrafficDataController extends Controller
 {
+    public function __construct(private AnalyticsCache $cache) {}
+
     public function websites(Request $request, TrafficDashboardQuery $query): JsonResponse
     {
         abort_unless($request->user()->hasAnyRole(['CEO', 'Administrator']), 403);
@@ -19,12 +22,23 @@ class TrafficDataController extends Controller
         }
 
         try {
-            return response()->json(['configured' => true, 'websites' => $query->mappedWebsites()]);
+            $websites = $this->cache->remember(
+                'ceo-traffic-websites', fn () => $query->mappedWebsites(), $request->boolean('refresh'),
+            );
+
+            return response()->json(['configured' => true, 'websites' => $websites]);
         } catch (Throwable $e) {
             return response()->json(['configured' => true, 'websites' => [], 'error' => $e->getMessage()], 502);
         }
     }
 
+    /**
+     * Was up to 7 sequential live BigQuery calls per request (summary ×2,
+     * trend, 4 breakdowns) — the CEO dashboard's own "taking ages" report.
+     * Cached as one unit like AnalyticsReportBuilder's report methods: the
+     * whole payload behind a single key, only on success, so a transient
+     * failure is never what gets cached for the rest of the day.
+     */
     public function index(Request $request, TrafficDashboardQuery $query): JsonResponse
     {
         abort_unless($request->user()->hasAnyRole(['CEO', 'Administrator']), 403);
@@ -44,27 +58,27 @@ class TrafficDataController extends Controller
         $from = Carbon::parse($validated['date_from'])->startOfDay();
         $to = Carbon::parse($validated['date_to'])->startOfDay();
         $comparisonPeriod = $validated['comparison_period'] ?? 'none';
+        [$compareFrom, $compareTo] = $comparisonPeriod !== 'none' ? $this->comparisonRange($from, $to, $comparisonPeriod) : [null, null];
+
+        $key = AnalyticsCache::key('ceo-traffic', $websiteDomain, $from, $to, $compareFrom, $compareTo);
 
         try {
-            $comparison = null;
+            $payload = $this->cache->remember($key, function () use ($query, $websiteDomain, $from, $to, $compareFrom, $compareTo) {
+                return [
+                    'configured' => true,
+                    'summary' => [
+                        'current' => $query->summary($websiteDomain, $from, $to),
+                        'comparison' => $compareFrom !== null ? $query->summary($websiteDomain, $compareFrom, $compareTo) : null,
+                    ],
+                    'trend' => $query->dailyTrend($websiteDomain, $from, $to),
+                    'trafficSources' => $query->trafficSources($websiteDomain, $from, $to),
+                    'devices' => $query->devices($websiteDomain, $from, $to),
+                    'landingPages' => $query->landingPages($websiteDomain, $from, $to),
+                    'locations' => $query->locations($websiteDomain, $from, $to),
+                ];
+            }, $request->boolean('refresh'));
 
-            if ($comparisonPeriod !== 'none') {
-                [$compareFrom, $compareTo] = $this->comparisonRange($from, $to, $comparisonPeriod);
-                $comparison = $query->summary($websiteDomain, $compareFrom, $compareTo);
-            }
-
-            return response()->json([
-                'configured' => true,
-                'summary' => [
-                    'current' => $query->summary($websiteDomain, $from, $to),
-                    'comparison' => $comparison,
-                ],
-                'trend' => $query->dailyTrend($websiteDomain, $from, $to),
-                'trafficSources' => $query->trafficSources($websiteDomain, $from, $to),
-                'devices' => $query->devices($websiteDomain, $from, $to),
-                'landingPages' => $query->landingPages($websiteDomain, $from, $to),
-                'locations' => $query->locations($websiteDomain, $from, $to),
-            ]);
+            return response()->json($payload);
         } catch (Throwable $e) {
             return response()->json(['configured' => true, 'error' => $e->getMessage()], 502);
         }

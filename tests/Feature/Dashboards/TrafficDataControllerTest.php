@@ -12,6 +12,9 @@ class TrafficDataControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Public so the anonymous fake below (a different class) can append to it. */
+    public array $recordedCalls = [];
+
     public function test_guests_are_redirected_to_login()
     {
         $this->get('/dashboards/ceo/traffic-data/websites')->assertRedirect('/login');
@@ -199,5 +202,73 @@ class TrafficDataControllerTest extends TestCase
         ]))
             ->assertStatus(502)
             ->assertJson(['configured' => true, 'error' => 'Access Denied: Table burnished-stone-421212:analytics_352711530.events_*']);
+    }
+
+    private function bindCountingRunner(): void
+    {
+        $this->recordedCalls = [];
+        $test = $this;
+
+        $this->app->instance(BigQueryRunner::class, new class($test) implements BigQueryRunner
+        {
+            public function __construct(private TrafficDataControllerTest $test) {}
+
+            public function isConfigured(): bool
+            {
+                return true;
+            }
+
+            public function rows(string $sql, array $parameters = []): array
+            {
+                $this->test->recordedCalls[] = $sql;
+
+                if (str_contains($sql, 'vw_daily_website_metrics') && ! str_contains($sql, 'GROUP BY')) {
+                    return [['users' => 100, 'sessions' => 120, 'engagement_rate' => 0.5]];
+                }
+
+                if (str_contains($sql, 'vw_key_events')) {
+                    return [['key_events' => 10]];
+                }
+
+                return [];
+            }
+        });
+    }
+
+    public function test_a_second_request_with_the_same_filters_reuses_the_cache_instead_of_requerying_bigquery()
+    {
+        $this->bindCountingRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $params = http_build_query(['website_domain' => 'exotickenya.com', 'date_from' => '2026-07-01', 'date_to' => '2026-07-07']);
+        $this->actingAs($ceo)->getJson("/dashboards/ceo/traffic-data?{$params}")->assertOk();
+        $this->actingAs($ceo)->getJson("/dashboards/ceo/traffic-data?{$params}")->assertOk();
+
+        $trendCalls = collect($this->recordedCalls)->filter(fn ($sql) => str_contains($sql, 'GROUP BY event_date'))->count();
+        $this->assertSame(1, $trendCalls, 'expected the second identical request to be served from cache, not BigQuery again');
+    }
+
+    public function test_the_refresh_flag_busts_the_cache_and_requeries_bigquery()
+    {
+        $this->bindCountingRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $params = http_build_query(['website_domain' => 'exotickenya.com', 'date_from' => '2026-07-01', 'date_to' => '2026-07-07']);
+        $this->actingAs($ceo)->getJson("/dashboards/ceo/traffic-data?{$params}")->assertOk();
+        $this->actingAs($ceo)->getJson("/dashboards/ceo/traffic-data?{$params}&refresh=1")->assertOk();
+
+        $trendCalls = collect($this->recordedCalls)->filter(fn ($sql) => str_contains($sql, 'GROUP BY event_date'))->count();
+        $this->assertSame(2, $trendCalls, 'refresh=1 must force a live requery even though a cached value exists');
+    }
+
+    public function test_the_mapped_website_list_is_also_cached()
+    {
+        $this->bindCountingRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->getJson('/dashboards/ceo/traffic-data/websites')->assertOk();
+        $this->actingAs($ceo)->getJson('/dashboards/ceo/traffic-data/websites')->assertOk();
+
+        $this->assertCount(1, $this->recordedCalls, 'the mapped website list should only be queried once across both requests');
     }
 }
