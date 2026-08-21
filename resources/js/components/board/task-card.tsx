@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useForm } from '@inertiajs/react';
-import { Calendar, Lock, Star } from 'lucide-react';
+import { Calendar, GripVertical, Lock, Star } from 'lucide-react';
 import { useState } from 'react';
 
 export type Member = { id: number; name: string };
@@ -61,20 +61,50 @@ function overdue(task: BoardTask) {
 export type ColumnOption = { id: number; name: string };
 
 export function TaskCard({ task, onOpen, overlay = false }: { task: BoardTask; onOpen?: (task: BoardTask) => void; overlay?: boolean }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, disabled: overlay });
+    // Drag listeners live on the handle, not the whole card: keyboard drag
+    // (Space to pick up, arrows to move, Space to drop — see the
+    // KeyboardSensor registered in boards/show.tsx) needs Enter/Space on the
+    // card itself to mean "open", not "start dragging". Splitting the two
+    // interactions onto separate elements is dnd-kit's own recommended
+    // pattern for a sortable item that's also independently clickable.
+    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+        id: task.id,
+        disabled: overlay,
+    });
+
+    const open = () => onOpen?.(task);
 
     return (
         <div
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            {...attributes}
-            {...listeners}
-            onClick={() => onOpen?.(task)}
-            className={`bg-background border-sidebar-border/70 dark:border-sidebar-border cursor-grab rounded-lg border p-3 text-left shadow-sm ${
+            role="button"
+            tabIndex={overlay ? undefined : 0}
+            onClick={open}
+            onKeyDown={(e) => {
+                if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    open();
+                }
+            }}
+            className={`bg-background border-sidebar-border/70 dark:border-sidebar-border focus-visible:ring-ring rounded-lg border p-3 text-left shadow-sm focus-visible:ring-2 focus-visible:outline-none ${
                 isDragging ? 'opacity-40' : ''
             } ${overlay ? 'rotate-2 shadow-lg' : ''}`}
         >
             <div className="flex items-start gap-2">
+                {!overlay && (
+                    <button
+                        ref={setActivatorNodeRef}
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Reorder ${task.title}: press space to pick up, arrow keys to move, space to drop, escape to cancel`}
+                        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -m-1 shrink-0 cursor-grab touch-none rounded p-1 focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                        <GripVertical className="size-4" />
+                    </button>
+                )}
                 <span className="text-sm leading-snug font-medium">{task.title}</span>
                 <span className="ml-auto flex shrink-0 items-center gap-1">
                     {(task.unresolved_dependencies_count ?? 0) > 0 && (

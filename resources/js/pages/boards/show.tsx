@@ -12,6 +12,7 @@ import { type BreadcrumbItem } from '@/types';
 import {
     DndContext,
     DragOverlay,
+    KeyboardSensor,
     PointerSensor,
     closestCorners,
     useDroppable,
@@ -21,7 +22,7 @@ import {
     type DragOverEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -375,7 +376,10 @@ export default function BoardShow({
         }
     }, [columns]);
 
-    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
 
     const filtering = search !== '' || assigneeFilter !== ALL || priorityFilter !== ALL;
 
