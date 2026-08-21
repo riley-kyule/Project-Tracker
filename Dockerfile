@@ -75,5 +75,5 @@ CMD ["php-fpm"]
 # repo — see the external "proxy" network in docker-compose.yml) terminates
 # TLS in front of this and never talks to PHP directly.
 # -----------------------------------------------------------------------------
-FROM nginx:1.27-alpine AS webserver
+FROM nginx:1.30-alpine AS webserver
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
