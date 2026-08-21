@@ -10,6 +10,7 @@ use App\Services\Analytics\MarketingStatisticsFilters;
 use App\Services\Analytics\TrafficDashboardQuery;
 use App\Services\Analytics\WebsiteRegistryQuery;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Throwable;
 
 /**
@@ -74,11 +75,11 @@ class WarmAnalyticsCache extends Command
      * GA4's raw-event views (unlike GSC's materialized rollups) are slow
      * enough that even one uncached traffic-data payload can take minutes
      * (confirmed: over 3 minutes for a single website's 6 queries) — worth
-     * warming despite the cost, but only for the one website the dashboard
-     * actually opens to by default, not all ~70 registered sites the way
-     * Marketing Statistics warms above; a CEO/Admin browsing other sites
-     * from the dropdown still pays the live cost for those, same as any
-     * other cache miss.
+     * warming despite the cost, but only for the picker's default ("All
+     * Platforms", null domain) plus the first individual website, not all
+     * ~70 registered sites the way Marketing Statistics warms above; a
+     * CEO/Admin browsing other sites from the dropdown still pays the live
+     * cost for those, same as any other cache miss.
      */
     private function warmCeoTrafficData(TrafficDashboardQuery $ga4, AnalyticsCache $cache): void
     {
@@ -94,9 +95,19 @@ class WarmAnalyticsCache extends Command
             return;
         }
 
-        $domain = $websites[0]['website_domain'];
         [$from, $to] = MarketingStatisticsFilters::resolveRange('last_30_days', null, null);
         [$compareFrom, $compareTo] = TrafficDataController::comparisonRange($from, $to, 'previous_period');
+
+        // null first: "All Platforms" is the picker's default landing view,
+        // same convention as Marketing Statistics' "All Sites".
+        foreach ([null, $websites[0]['website_domain']] as $domain) {
+            $this->warmCeoTrafficTarget($ga4, $cache, $domain, $from, $to, $compareFrom, $compareTo);
+        }
+    }
+
+    private function warmCeoTrafficTarget(
+        TrafficDashboardQuery $ga4, AnalyticsCache $cache, ?string $domain, Carbon $from, Carbon $to, Carbon $compareFrom, Carbon $compareTo,
+    ): void {
         $key = AnalyticsCache::key('ceo-traffic', $domain, $from, $to, $compareFrom, $compareTo);
 
         try {
@@ -114,7 +125,8 @@ class WarmAnalyticsCache extends Command
                 'locations' => $ga4->locations($domain, $from, $to),
             ]);
         } catch (Throwable $e) {
-            $this->warn("CEO traffic data warm failed for {$domain} ({$e->getMessage()}).");
+            $label = $domain ?? 'All Platforms';
+            $this->warn("CEO traffic data warm failed for {$label} ({$e->getMessage()}).");
         }
     }
 }

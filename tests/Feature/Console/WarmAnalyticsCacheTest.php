@@ -79,15 +79,16 @@ class WarmAnalyticsCacheTest extends TestCase
         // Marketing Statistics: (GA4 dailyRows + keyEventsTotal, GSC dailyRows)
         // per target, 3 targets (all sites, a.example.com, b.example.com) — so
         // 3 calls each to vw_daily_website_metrics and gsc_daily_site.
-        // CEO traffic data (one default website only): summary() ×2
-        // (current + comparison) + dailyTrend() = 3 more vw_daily_website_metrics calls.
+        // CEO traffic data (All Platforms + the default website): summary()
+        // ×2 (current + comparison) + dailyTrend() = 3 calls each, ×2
+        // targets = 6 more vw_daily_website_metrics calls.
         $ga4Calls = collect($this->recordedCalls)
             ->filter(fn ($call) => str_contains($call['sql'], 'vw_daily_website_metrics') && ! str_contains($call['sql'], 'SELECT DISTINCT'))
             ->count();
         $gscCalls = collect($this->recordedCalls)->filter(fn ($call) => str_contains($call['sql'], 'gsc_daily_site'))->count();
         $mappedWebsitesCalls = collect($this->recordedCalls)->filter(fn ($call) => str_contains($call['sql'], 'SELECT DISTINCT website_domain'))->count();
 
-        $this->assertSame(6, $ga4Calls);
+        $this->assertSame(9, $ga4Calls);
         $this->assertSame(3, $gscCalls);
         $this->assertSame(1, $mappedWebsitesCalls);
     }
@@ -124,6 +125,27 @@ class WarmAnalyticsCacheTest extends TestCase
         $this->assertCount(
             $callsAfterWarming, $this->recordedCalls,
             'the CEO dashboard\'s default site/range/comparison should be served entirely from the warmed cache',
+        );
+    }
+
+    public function test_the_ceo_dashboards_all_platforms_option_after_warming_reuses_the_cache()
+    {
+        $this->bindFakeRunner();
+        $this->artisan('ewms:warm-analytics-cache')->assertSuccessful();
+
+        $callsAfterWarming = count($this->recordedCalls);
+
+        $ceo = User::factory()->create()->assignRole('CEO');
+        $this->actingAs($ceo)->getJson('/dashboards/ceo/traffic-data?'.http_build_query([
+            'website_domain' => 'all',
+            'date_from' => now()->subDays(30)->startOfDay()->toDateString(),
+            'date_to' => now()->subDay()->startOfDay()->toDateString(),
+            'comparison_period' => 'previous_period',
+        ]))->assertOk();
+
+        $this->assertCount(
+            $callsAfterWarming, $this->recordedCalls,
+            'the CEO dashboard\'s "All Platforms" default should be served entirely from the warmed cache',
         );
     }
 

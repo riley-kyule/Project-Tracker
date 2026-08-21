@@ -43,7 +43,7 @@ class TrafficDashboardQuery
     }
 
     /** @return array{users: int, sessions: int, key_events: int, engagement_rate: float|null} */
-    public function summary(string|array $websiteDomain, Carbon $from, Carbon $to): array
+    public function summary(string|array|null $websiteDomain, Carbon $from, Carbon $to): array
     {
         [$clause, $params] = $this->optionalWebsiteClause($websiteDomain);
 
@@ -71,7 +71,7 @@ class TrafficDashboardQuery
     }
 
     /** @return array<int, array{event_date: string, users: int, sessions: int}> */
-    public function dailyTrend(string|array $websiteDomain, Carbon $from, Carbon $to): array
+    public function dailyTrend(string|array|null $websiteDomain, Carbon $from, Carbon $to): array
     {
         [$clause, $params] = $this->optionalWebsiteClause($websiteDomain);
 

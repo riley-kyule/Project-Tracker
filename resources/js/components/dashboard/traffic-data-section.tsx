@@ -14,6 +14,8 @@ function TrafficChartsSkeleton() {
     );
 }
 
+const ALL_WEBSITES = 'all';
+
 type Website = { website_domain: string; website_name: string; country: string | null };
 type Summary = { users: number; sessions: number; key_events: number; engagement_rate: number | null };
 type TrendPoint = { event_date: string; users: number; sessions: number };
@@ -132,7 +134,7 @@ export function TrafficDataSection() {
     const [configured, setConfigured] = useState<boolean | null>(null);
     const [websites, setWebsites] = useState<Website[]>([]);
     const [websitesError, setWebsitesError] = useState<string | null>(null);
-    const [websiteDomain, setWebsiteDomain] = useState<string>('');
+    const [websiteDomain, setWebsiteDomain] = useState<string>(ALL_WEBSITES);
 
     const [datePreset, setDatePreset] = useState<(typeof DATE_PRESETS)[number]['key']>('last_30_days');
     const [customFrom, setCustomFrom] = useState(() => toDateInput(new Date(Date.now() - 30 * 86400000)));
@@ -162,9 +164,6 @@ export function TrafficDataSection() {
                 setConfigured(payload.configured);
                 setWebsites(payload.websites);
                 setWebsitesError(payload.error ?? null);
-                if (payload.websites.length > 0) {
-                    setWebsiteDomain(payload.websites[0].website_domain);
-                }
             })
             .catch(() => setConfigured(false));
     }, []);
@@ -263,6 +262,7 @@ export function TrafficDataSection() {
                         <SelectValue placeholder="Select a website" />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem value={ALL_WEBSITES}>All Platforms</SelectItem>
                         {websites.map((website) => (
                             <SelectItem key={website.website_domain} value={website.website_domain}>
                                 {website.website_name}

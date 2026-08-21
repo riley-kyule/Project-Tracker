@@ -54,7 +54,10 @@ class TrafficDataController extends Controller
             'comparison_period' => ['nullable', 'in:previous_period,previous_year,none'],
         ]);
 
-        $websiteDomain = $validated['website_domain'];
+        // 'all' is the site picker's "All Platforms" aggregate — null fans
+        // out to every mapped website, same sentinel Marketing Statistics
+        // uses for its own "All Sites" option (MarketingStatisticsFilters).
+        $websiteDomain = $validated['website_domain'] === 'all' ? null : $validated['website_domain'];
         $from = Carbon::parse($validated['date_from'])->startOfDay();
         $to = Carbon::parse($validated['date_to'])->startOfDay();
         $comparisonPeriod = $validated['comparison_period'] ?? 'none';

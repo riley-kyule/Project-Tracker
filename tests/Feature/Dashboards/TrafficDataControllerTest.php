@@ -145,6 +145,46 @@ class TrafficDataControllerTest extends TestCase
         ]);
     }
 
+    public function test_all_platforms_aggregates_across_every_website()
+    {
+        $this->app->instance(BigQueryRunner::class, new class implements BigQueryRunner
+        {
+            public function isConfigured(): bool
+            {
+                return true;
+            }
+
+            public function rows(string $sql, array $parameters = []): array
+            {
+                if (str_contains($sql, 'website_domain =')) {
+                    throw new RuntimeException('should not filter to a single website for the "all" option');
+                }
+
+                if (str_contains($sql, 'vw_daily_website_metrics') && ! str_contains($sql, 'GROUP BY')) {
+                    return [['users' => 300, 'sessions' => 400, 'engagement_rate' => 0.6]];
+                }
+
+                if (str_contains($sql, 'vw_key_events')) {
+                    return [['key_events' => 20]];
+                }
+
+                return [];
+            }
+        });
+
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->getJson('/dashboards/ceo/traffic-data?'.http_build_query([
+            'website_domain' => 'all',
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-07',
+            'comparison_period' => 'none',
+        ]))->assertOk()->assertJson([
+            'configured' => true,
+            'summary' => ['current' => ['users' => 300, 'sessions' => 400, 'key_events' => 20, 'engagement_rate' => 0.6]],
+        ]);
+    }
+
     public function test_no_comparison_when_comparison_period_is_none()
     {
         $this->app->instance(BigQueryRunner::class, new class implements BigQueryRunner
