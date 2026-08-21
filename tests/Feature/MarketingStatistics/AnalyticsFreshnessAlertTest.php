@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\MarketingStatistics;
 
+use App\Models\Department;
 use App\Models\User;
 use App\Notifications\AnalyticsSourceStale;
 use App\Services\Analytics\Contracts\BigQueryRunner;
@@ -62,6 +63,20 @@ class AnalyticsFreshnessAlertTest extends TestCase
         Notification::assertSentTo($marketing, AnalyticsSourceStale::class, fn ($n) => $n->source === 'ahrefs');
         Notification::assertNotSentTo($ceo, AnalyticsSourceStale::class, fn ($n) => $n->source === 'gsc');
         Notification::assertNothingSentTo($employee);
+    }
+
+    /** Department-based access (no role/permission) must reach the alert recipient list too, same as the 'Marketing' role. */
+    public function test_marketing_sub_department_members_are_notified_without_the_explicit_permission()
+    {
+        $this->bindStaleRunner();
+        Notification::fake();
+
+        $seo = Department::query()->where('slug', 'seo')->firstOrFail();
+        $seoMember = User::factory()->create(['department_id' => $seo->id])->assignRole('Employee');
+
+        $this->artisan('ewms:check-analytics-freshness')->assertSuccessful();
+
+        Notification::assertSentTo($seoMember, AnalyticsSourceStale::class, fn ($n) => $n->source === 'ahrefs');
     }
 
     public function test_running_it_twice_within_the_dedup_window_does_not_double_notify()

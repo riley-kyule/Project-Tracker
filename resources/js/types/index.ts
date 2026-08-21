@@ -6,6 +6,7 @@ export interface Auth {
     roles: string[];
     managesDepartment: boolean;
     hasWebsiteAssignments: boolean;
+    canViewMarketingStatistics: boolean;
 }
 
 export interface BreadcrumbItem {

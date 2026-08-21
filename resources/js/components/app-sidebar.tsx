@@ -57,9 +57,7 @@ export function AppSidebar() {
         ...(isExec ? [{ title: 'CEO Dashboard', url: '/dashboards/ceo', icon: Crown }] : []),
         ...(auth.managesDepartment ? [{ title: 'My Department', url: '/dashboards/department', icon: UsersRound }] : []),
         ...(auth.permissions.includes('reports.view') ? [{ title: 'Reports', url: '/reports/tasks', icon: BarChart3 }] : []),
-        ...(auth.permissions.includes('view marketing statistics')
-            ? [{ title: 'Marketing Statistics', url: '/marketing-statistics', icon: LineChart }]
-            : []),
+        ...(auth.canViewMarketingStatistics ? [{ title: 'Marketing Statistics', url: '/marketing-statistics', icon: LineChart }] : []),
         ...(auth.permissions.includes('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
         ...(auth.permissions.includes('tickets.manage') ? [{ title: 'SLA Policies', url: '/admin/sla-policies', icon: Sliders }] : []),
         ...(auth.permissions.includes('registry.manage') ? [{ title: 'Websites', url: '/admin/websites', icon: Globe }] : []),

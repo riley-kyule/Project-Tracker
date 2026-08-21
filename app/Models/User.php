@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -139,6 +140,24 @@ class User extends Authenticatable
         ];
 
         return collect($memberDepartmentIds)->contains(fn ($id) => in_array($id, $marketing->descendantIds(), true));
+    }
+
+    /**
+     * Query-scope equivalent of canViewMarketingStatistics() — for bulk
+     * lookups (e.g. "who should be notified about stale analytics data")
+     * where loading every user just to filter in PHP would be wasteful.
+     * Kept in sync with the instance method's rule by hand since a scope
+     * can't call an unsaved model's own method.
+     */
+    public function scopeCanViewMarketingStatistics(Builder $query): Builder
+    {
+        $marketingDepartmentIds = Department::query()->where('slug', 'marketing')->first()?->descendantIds() ?? [];
+
+        return $query->where(fn (Builder $query) => $query
+            ->permission('view marketing statistics')
+            ->when($marketingDepartmentIds !== [], fn (Builder $query) => $query
+                ->orWhereIn('department_id', $marketingDepartmentIds)
+                ->orWhereHas('departmentMemberships', fn ($q) => $q->whereIn('departments.id', $marketingDepartmentIds))));
     }
 
     public function websiteAssignments(): HasMany

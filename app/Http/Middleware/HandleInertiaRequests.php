@@ -50,6 +50,13 @@ class HandleInertiaRequests extends Middleware
                         || Department::query()->where('manager_id', $user->id)->orWhere('assistant_manager_id', $user->id)->exists()
                     : false,
                 'hasWebsiteAssignments' => $user ? $user->websiteAssignments()->exists() : false,
+                // Broader than the 'view marketing statistics' permission
+                // alone — also true for Marketing department (and
+                // sub-department) members, matching
+                // User::canViewMarketingStatistics() exactly (the same
+                // check MarketingStatisticsController enforces), so the nav
+                // link never disagrees with what the page itself allows.
+                'canViewMarketingStatistics' => $user?->canViewMarketingStatistics() ?? false,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

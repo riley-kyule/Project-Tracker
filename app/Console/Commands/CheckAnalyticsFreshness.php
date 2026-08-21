@@ -22,7 +22,7 @@ class CheckAnalyticsFreshness extends Command
     public function handle(AnalyticsFreshnessChecker $checker): int
     {
         $sources = $checker->check();
-        $recipients = User::permission('view marketing statistics')->get();
+        $recipients = User::query()->canViewMarketingStatistics()->get();
         $sent = 0;
 
         foreach ($sources as $source => $result) {

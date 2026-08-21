@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\MarketingStatistics;
 
+use App\Models\Department;
 use App\Models\User;
 use App\Services\Analytics\Contracts\BigQueryRunner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -110,6 +111,37 @@ class MarketingStatisticsControllerTest extends TestCase
             $user = User::factory()->create()->assignRole($role);
             $this->actingAs($user)->get('/marketing-statistics')->assertOk();
         }
+    }
+
+    /**
+     * Marketing department (and sub-department) members can reach the page
+     * without the 'view marketing statistics' permission — and the shared
+     * Inertia `auth.canViewMarketingStatistics` prop the sidebar's nav link
+     * depends on must agree, or the link stays hidden even though the page
+     * itself is reachable.
+     */
+    public function test_marketing_department_and_sub_department_members_can_access_without_the_explicit_permission()
+    {
+        $this->bindFakeRunner();
+
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+        $seo = Department::query()->where('slug', 'seo')->firstOrFail();
+        $it = Department::query()->where('slug', 'it')->firstOrFail();
+
+        $marketingMember = User::factory()->create(['department_id' => $marketing->id])->assignRole('Employee');
+        $seoMember = User::factory()->create(['department_id' => $seo->id])->assignRole('Employee');
+        $itMember = User::factory()->create(['department_id' => $it->id])->assignRole('Employee');
+
+        $this->actingAs($marketingMember)->get('/marketing-statistics')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('auth.canViewMarketingStatistics', true));
+        $this->actingAs($seoMember)->get('/marketing-statistics')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('auth.canViewMarketingStatistics', true));
+
+        $this->actingAs($itMember)->get('/marketing-statistics')->assertForbidden();
+        $this->actingAs($itMember)->get('/dashboard')
+            ->assertInertia(fn ($page) => $page->where('auth.canViewMarketingStatistics', false));
     }
 
     public function test_single_website_selection_filters_ga4_and_gsc_queries_to_that_website()
