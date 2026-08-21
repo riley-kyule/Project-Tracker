@@ -28,6 +28,7 @@ class MarketingStatisticsFilters
         public readonly string $comparison,
         public readonly ?Carbon $compareFrom,
         public readonly ?Carbon $compareTo,
+        public readonly bool $forceRefresh,
     ) {}
 
     public static function fromRequest(Request $request): self
@@ -40,6 +41,7 @@ class MarketingStatisticsFilters
             'comparison' => ['nullable', 'in:'.implode(',', self::COMPARISONS)],
             'compare_from' => ['nullable', 'date'],
             'compare_to' => ['nullable', 'date', 'after_or_equal:compare_from'],
+            'refresh' => ['nullable', 'boolean'],
         ]);
 
         $websiteId = $validated['website_id'] ?? 'all';
@@ -61,11 +63,22 @@ class MarketingStatisticsFilters
             comparison: $comparison,
             compareFrom: $compareFrom,
             compareTo: $compareTo,
+            // Deliberately not in toArray() below — a refresh is a one-off
+            // action on this request, not a filter that should stick around
+            // and silently force-refresh again on the next unrelated visit
+            // (e.g. a browser back/forward or a shared link).
+            forceRefresh: $request->boolean('refresh'),
         );
     }
 
-    /** @return array{0: Carbon, 1: Carbon} */
-    private static function resolveRange(string $range, ?string $customFrom, ?string $customTo): array
+    /**
+     * Public: also called directly by ewms:warm-analytics-cache, which has
+     * no HTTP request to parse filters from and just wants "the same
+     * default range this module would normally resolve."
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public static function resolveRange(string $range, ?string $customFrom, ?string $customTo): array
     {
         if ($range === 'custom' && $customFrom && $customTo) {
             return [Carbon::parse($customFrom)->startOfDay(), Carbon::parse($customTo)->startOfDay()];

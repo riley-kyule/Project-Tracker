@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type ComparisonMode, type DateRange, type MarketingFilters, type MarketingWebsite } from '@/types/marketing-statistics';
 import { router } from '@inertiajs/react';
+import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 
 const ALL_SITES = 'all';
@@ -36,6 +37,7 @@ function toDateInput(date: Date): string {
 
 export function FilterBar({ websites, selected, basePath }: { websites: MarketingWebsite[]; selected: MarketingFilters; basePath: string }) {
     const [pending, setPending] = useState<MarketingFilters>(selected);
+    const [refreshing, setRefreshing] = useState(false);
 
     const apply = () => {
         const params: Record<string, string> = {
@@ -60,6 +62,37 @@ export function FilterBar({ websites, selected, basePath }: { websites: Marketin
     const reset = () => {
         setPending(DEFAULTS);
         router.get(basePath, {}, { preserveState: true, preserveScroll: true });
+    };
+
+    // Reads from `selected` (what's actually on screen), not `pending` (any
+    // unsaved edits in the form) — Refresh re-fetches the current view live,
+    // it doesn't also apply changes the user hasn't confirmed yet. GA4/GSC
+    // are cached until end of day otherwise (see AnalyticsCache) — this is
+    // the manual bypass for "I know this changed, don't wait until tomorrow."
+    const refresh = () => {
+        const params: Record<string, string> = {
+            website_id: selected.website_id,
+            range: selected.range,
+            comparison: selected.comparison,
+            refresh: '1',
+        };
+
+        if (selected.range === 'custom') {
+            params.date_from = selected.date_from;
+            params.date_to = selected.date_to;
+        }
+
+        if (selected.comparison === 'custom') {
+            params.compare_from = selected.compare_from ?? '';
+            params.compare_to = selected.compare_to ?? '';
+        }
+
+        router.get(basePath, params, {
+            preserveState: true,
+            preserveScroll: true,
+            onStart: () => setRefreshing(true),
+            onFinish: () => setRefreshing(false),
+        });
     };
 
     const maxDate = toDateInput(new Date(Date.now() - 86400000));
@@ -160,6 +193,16 @@ export function FilterBar({ websites, selected, basePath }: { websites: Marketin
             <div className="ml-auto flex gap-2">
                 <Button variant="outline" onClick={reset} type="button">
                     Reset
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={refresh}
+                    disabled={refreshing}
+                    type="button"
+                    title="GA4/GSC data is cached until end of day — refresh to pull it live now"
+                >
+                    <RefreshCw className={`mr-1 size-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    Refresh
                 </Button>
                 <Button onClick={apply} type="button">
                     Apply

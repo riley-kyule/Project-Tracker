@@ -352,4 +352,72 @@ class MarketingStatisticsControllerTest extends TestCase
         $this->assertNull($siteC['ga4']);
         $this->assertNull($siteC['gsc']);
     }
+
+    public function test_a_second_visit_with_the_same_filters_reuses_the_cached_gsc_report_instead_of_requerying()
+    {
+        $this->bindFakeRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->get('/marketing-statistics/gsc?website_id=a.example.com')->assertOk();
+        $this->actingAs($ceo)->get('/marketing-statistics/gsc?website_id=a.example.com')->assertOk();
+
+        $gscSummaryCalls = collect($this->recordedCalls)
+            ->filter(fn ($call) => str_contains($call['sql'], 'gsc_daily_site') && str_contains($call['sql'], 'SAFE_DIVIDE'))
+            ->count();
+
+        $this->assertSame(1, $gscSummaryCalls, 'expected the second identical request to hit the cache, not BigQuery again');
+    }
+
+    public function test_different_filters_are_cached_independently_and_both_query_bigquery()
+    {
+        $this->bindFakeRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->get('/marketing-statistics/gsc?website_id=a.example.com')->assertOk();
+        $this->actingAs($ceo)->get('/marketing-statistics/gsc?website_id=b.example.com')->assertOk();
+
+        $gscSummaryCalls = collect($this->recordedCalls)
+            ->filter(fn ($call) => str_contains($call['sql'], 'gsc_daily_site') && str_contains($call['sql'], 'SAFE_DIVIDE'))
+            ->count();
+
+        $this->assertSame(2, $gscSummaryCalls, 'a different website filter must not hit the same cache entry');
+    }
+
+    public function test_the_refresh_flag_busts_the_cache_and_requeries_bigquery()
+    {
+        $this->bindFakeRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->get('/marketing-statistics/gsc?website_id=a.example.com')->assertOk();
+        $this->actingAs($ceo)->get('/marketing-statistics/gsc?website_id=a.example.com&refresh=1')->assertOk();
+
+        $gscSummaryCalls = collect($this->recordedCalls)
+            ->filter(fn ($call) => str_contains($call['sql'], 'gsc_daily_site') && str_contains($call['sql'], 'SAFE_DIVIDE'))
+            ->count();
+
+        $this->assertSame(2, $gscSummaryCalls, 'refresh=1 must force a live requery even though a cached value exists');
+    }
+
+    public function test_the_refresh_flag_is_not_echoed_back_into_the_persisted_url_filters()
+    {
+        $this->bindFakeRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $response = $this->actingAs($ceo)->get('/marketing-statistics/gsc?refresh=1')->assertOk();
+
+        $this->assertArrayNotHasKey('refresh', $response->viewData('page')['props']['selected']);
+    }
+
+    public function test_the_website_registry_is_cached_across_different_tabs()
+    {
+        $this->bindFakeRunner();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->get('/marketing-statistics')->assertOk();
+        $this->actingAs($ceo)->get('/marketing-statistics/ga4')->assertOk();
+
+        $registryCalls = collect($this->recordedCalls)->filter(fn ($call) => str_contains($call['sql'], 'metadata.websites'))->count();
+
+        $this->assertSame(1, $registryCalls, 'the registry only changes rarely — it should be shared across tabs, not refetched per page');
+    }
 }
