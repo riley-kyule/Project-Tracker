@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
  * (`analytics_admin.gsc_property_registry`) we don't have access to —
  * freshness here is computed from `gsc_daily_site` directly instead.
  *
- * All queries default to search_type = 'web' — the primary "Search
+ * All queries default to search_type = 'WEB' — the primary "Search
  * results" surface GSC reports on by default; image/video/news are a
  * distinct dimension this module doesn't expose yet.
  */
@@ -49,7 +49,7 @@ class GscReportQuery
               SUM(impressions) AS impressions,
               SAFE_DIVIDE(SUM(average_position * impressions), SUM(impressions)) AS average_position
             FROM `analytics_core.gsc_daily_site`
-            WHERE search_type = 'web' AND data_date BETWEEN @date_from AND @date_to{$clause}
+            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
             GROUP BY data_date
             ORDER BY data_date
             SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
@@ -68,7 +68,7 @@ class GscReportQuery
               SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr,
               SAFE_DIVIDE(SUM(average_position * impressions), SUM(impressions)) AS average_position
             FROM `analytics_core.gsc_daily_queries`
-            WHERE search_type = 'web' AND data_date BETWEEN @date_from AND @date_to{$clause}
+            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
             GROUP BY query
             ORDER BY clicks DESC
             LIMIT @row_limit
@@ -87,7 +87,7 @@ class GscReportQuery
               SUM(impressions) AS impressions,
               SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr
             FROM `analytics_core.gsc_daily_pages`
-            WHERE search_type = 'web' AND data_date BETWEEN @date_from AND @date_to{$clause}
+            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
             GROUP BY url
             ORDER BY clicks DESC
             LIMIT @row_limit
@@ -102,7 +102,7 @@ class GscReportQuery
         return $this->runner->rows(<<<SQL
             SELECT country, SUM(clicks) AS clicks, SUM(impressions) AS impressions
             FROM `analytics_core.gsc_daily_countries`
-            WHERE search_type = 'web' AND data_date BETWEEN @date_from AND @date_to{$clause}
+            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
             GROUP BY country
             ORDER BY clicks DESC
             LIMIT @row_limit
@@ -117,7 +117,7 @@ class GscReportQuery
         return $this->runner->rows(<<<SQL
             SELECT device, SUM(clicks) AS clicks, SUM(impressions) AS impressions
             FROM `analytics_core.gsc_daily_devices`
-            WHERE search_type = 'web' AND data_date BETWEEN @date_from AND @date_to{$clause}
+            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
             GROUP BY device
             ORDER BY clicks DESC
             SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
@@ -137,7 +137,7 @@ class GscReportQuery
               MAX(data_date) AS latest_date,
               DATE_DIFF(CURRENT_DATE(), MAX(data_date), DAY) AS days_behind
             FROM `analytics_core.gsc_daily_site`
-            WHERE search_type = 'web'
+            WHERE search_type = 'WEB'
             GROUP BY domain
             SQL);
     }
@@ -159,7 +159,7 @@ class GscReportQuery
               SUM(impressions) AS impressions,
               SAFE_DIVIDE(SUM(average_position * impressions), SUM(impressions)) AS average_position
             FROM `analytics_core.gsc_daily_site`
-            WHERE search_type = 'web' AND domain IN UNNEST(@domains) AND data_date BETWEEN @date_from AND @date_to
+            WHERE search_type = 'WEB' AND domain IN UNNEST(@domains) AND data_date BETWEEN @date_from AND @date_to
             GROUP BY domain
             SQL, ['domains' => array_values($domains), 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
 
