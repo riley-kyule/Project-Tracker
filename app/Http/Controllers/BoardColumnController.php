@@ -8,6 +8,7 @@ use App\Models\BoardColumn;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -83,11 +84,13 @@ class BoardColumnController extends Controller
             throw ValidationException::withMessages(['column_ids' => 'The column list must match every column on this board exactly once.']);
         }
 
-        foreach (array_values($validated['column_ids']) as $index => $columnId) {
-            BoardColumn::query()->whereKey($columnId)->update(['position' => $index + 1]);
-        }
+        DB::transaction(function () use ($board, $validated): void {
+            foreach (array_values($validated['column_ids']) as $index => $columnId) {
+                BoardColumn::query()->whereKey($columnId)->update(['position' => $index + 1]);
+            }
 
-        AuditLogger::log($board, 'columns_reordered', [], ['column_ids' => $validated['column_ids']]);
+            AuditLogger::log($board, 'columns_reordered', [], ['column_ids' => $validated['column_ids']]);
+        });
 
         return back();
     }

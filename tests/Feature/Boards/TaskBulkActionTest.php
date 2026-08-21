@@ -131,6 +131,32 @@ class TaskBulkActionTest extends TestCase
         }
     }
 
+    public function test_bulk_move_gives_each_task_a_distinct_incrementing_position()
+    {
+        $manager = User::factory()->create()->assignRole('Department Manager');
+        $board = $this->boardWithColumns();
+        [$backlog, $ready] = $board->columns()->get()->all();
+
+        $existing = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $ready->id, 'position' => 1, 'created_by' => $manager->id]);
+        $tasks = Task::factory()->count(3)->create(['board_id' => $board->id, 'board_column_id' => $backlog->id, 'created_by' => $manager->id]);
+
+        $this->actingAs($manager)
+            ->post('/tasks/bulk-move', [
+                'task_ids' => $tasks->pluck('id')->all(),
+                'board_column_id' => $ready->id,
+            ])
+            ->assertRedirect();
+
+        $positions = Task::query()
+            ->where('board_column_id', $ready->id)
+            ->pluck('position')
+            ->all();
+
+        $this->assertCount(4, $positions);
+        $this->assertCount(4, array_unique($positions), 'every task in the column must have a distinct position');
+        $this->assertContains($existing->fresh()->position, $positions);
+    }
+
     public function test_bulk_move_rejects_tasks_from_a_different_board()
     {
         $manager = User::factory()->create()->assignRole('Department Manager');

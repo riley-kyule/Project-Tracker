@@ -79,9 +79,23 @@ class TaskBulkActionController extends Controller
             }
         }
 
+        // One starting position, then a local counter — not a fresh MAX()
+        // query per task. TaskMover::move() still re-clamps against a live
+        // query inside its own transaction, so this is purely a query-count
+        // fix, not a correctness dependency.
+        //
+        // Deliberately not wrapped in one outer transaction: TaskMover::move()
+        // dispatches recurrence generation and notifications right after its
+        // own per-task commit (persist-before-dispatch, see AGENTS.md). An
+        // outer transaction around the whole batch would fire those before
+        // the batch itself is durable, so a later task's failure could leave
+        // a sent notification describing a change that then rolled back.
+        // Each task's move stays its own atomic, independently valid unit.
+        $position = (int) Task::query()->where('board_column_id', $column->id)->max('position') + 1;
+
         foreach ($tasks as $task) {
-            $position = (int) Task::query()->where('board_column_id', $column->id)->max('position') + 1;
             TaskMover::move($task, $column, $position);
+            $position++;
         }
 
         return back()->with('success', count($tasks).' task(s) moved.');
