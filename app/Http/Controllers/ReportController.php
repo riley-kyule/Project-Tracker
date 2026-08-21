@@ -10,6 +10,7 @@ use App\Models\TicketStatusHistory;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -17,6 +18,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ReportController extends Controller
 {
     public const TASK_FILTERS = ['all', 'due_today', 'overdue', 'blocked', 'awaiting_review', 'ceo_priority', 'completed_week', 'unassigned'];
+
+    /** Widest range remoteSupport() will materialize into memory in one request, for both the on-screen report and its CSV export. */
+    private const MAX_REMOTE_SUPPORT_RANGE_DAYS = 366;
 
     public function tasks(Request $request): Response
     {
@@ -103,6 +107,12 @@ class ReportController extends Controller
 
         $from = $request->date('from') ?? now()->subDays(30)->startOfDay();
         $to = ($request->date('to') ?? now())->endOfDay();
+
+        if ($from->diffInDays($to) > self::MAX_REMOTE_SUPPORT_RANGE_DAYS) {
+            throw ValidationException::withMessages([
+                'from' => 'The report range cannot exceed '.self::MAX_REMOTE_SUPPORT_RANGE_DAYS.' days — narrow the date range and try again.',
+            ]);
+        }
 
         $resolved = Ticket::query()
             ->whereNotNull('resolved_at')

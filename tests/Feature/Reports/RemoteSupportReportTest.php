@@ -80,6 +80,15 @@ class RemoteSupportReportTest extends TestCase
         $this->assertStringContainsString(",\"'=cmd", $content);
     }
 
+    public function test_a_range_wider_than_the_configured_maximum_is_rejected()
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)
+            ->get('/reports/remote-support?from='.now()->subDays(400)->toDateString().'&to='.now()->toDateString())
+            ->assertSessionHasErrors('from');
+    }
+
     public function test_department_managers_only_see_their_departments_remote_support_data()
     {
         $ownDepartment = Department::query()->where('slug', 'seo')->firstOrFail();
