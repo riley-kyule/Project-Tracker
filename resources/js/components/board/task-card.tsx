@@ -86,10 +86,19 @@ export function TaskCard({
 
     const open = () => onOpen?.(task);
 
+    // The card's first label doubles as its "cover" — a colored top strip for
+    // at-a-glance categorization, the way Trello/ClickUp use a card cover —
+    // without a redundant color field duplicating what labels already carry.
+    const coverColor = task.labels[0]?.color;
+
     return (
         <div
             ref={setNodeRef}
-            style={{ transform: CSS.Transform.toString(transform), transition }}
+            style={{
+                transform: CSS.Transform.toString(transform),
+                transition,
+                ...(coverColor ? { borderTopColor: coverColor, borderTopWidth: '4px' } : {}),
+            }}
             role="button"
             tabIndex={overlay ? undefined : 0}
             onClick={open}

@@ -104,4 +104,21 @@ describe('TaskCard', () => {
 
         expect(screen.getByRole('checkbox', { name: /select ship the thing/i })).toBeChecked();
     });
+
+    it('uses the first label as a cover color strip', () => {
+        const { container } = renderCard({
+            task: { ...baseTask, labels: [{ id: 1, name: 'Urgent', color: '#ff0000' }] },
+        });
+
+        const card = container.querySelector<HTMLElement>('[role="button"]')!;
+        expect(card.style.borderTopColor).toBe('rgb(255, 0, 0)');
+        expect(card.style.borderTopWidth).toBe('4px');
+    });
+
+    it('has no cover strip when the task has no labels', () => {
+        const { container } = renderCard();
+
+        const card = container.querySelector<HTMLElement>('[role="button"]')!;
+        expect(card.style.borderTopColor).toBe('');
+    });
 });
