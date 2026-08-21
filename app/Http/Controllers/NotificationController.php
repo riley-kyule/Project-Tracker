@@ -25,7 +25,9 @@ class NotificationController extends Controller
 
     public function markAllRead(Request $request): JsonResponse
     {
-        $request->user()->unreadNotifications->markAsRead();
+        // Query builder, not the ->unreadNotifications collection accessor:
+        // one UPDATE instead of one per unread row.
+        $request->user()->unreadNotifications()->update(['read_at' => now()]);
 
         return response()->json(['ok' => true]);
     }

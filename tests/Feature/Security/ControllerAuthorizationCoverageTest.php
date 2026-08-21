@@ -28,7 +28,7 @@ class ControllerAuthorizationCoverageTest extends TestCase
         'profile.update' => 'mutates only $request->user() itself',
         'notifications.update' => 'mutates only $request->user()->notification_preferences',
         'notifications.read' => 'scoped via $request->user()->notifications()->findOrFail() — cannot target another user\'s row',
-        'notifications.read-all' => 'scoped via $request->user()->unreadNotifications',
+        'notifications.read-all' => 'scoped via $request->user()->unreadNotifications()',
         'saved-filters.store' => 'always written with user_id = $request->user()->id, never client-supplied',
         'push.subscribe' => 'mutates only $request->user() itself',
     ];

@@ -98,4 +98,24 @@ class NotificationTest extends TestCase
         $newId = $this->actingAs($assignee)->get('/notifications')->json('notifications.0.id');
         $this->actingAs($admin)->post("/notifications/{$newId}/read")->assertNotFound();
     }
+
+    public function test_mark_all_read_clears_every_unread_notification_in_one_request()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $assignee = User::factory()->create()->assignRole('Employee');
+        $board = Board::factory()->create(['visibility' => Board::VISIBILITY_COMPANY]);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+
+        foreach (range(1, 3) as $i) {
+            $task = Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
+            $this->actingAs($admin)->patch("/tasks/{$task->id}", ['primary_assignee_id' => $assignee->id]);
+        }
+
+        $this->assertSame(3, $this->actingAs($assignee)->get('/notifications')->json('unread_count'));
+
+        $this->actingAs($assignee)->post('/notifications/read-all')->assertOk();
+
+        $this->assertSame(0, $this->actingAs($assignee)->get('/notifications')->json('unread_count'));
+        $this->assertSame(0, $assignee->fresh()->unreadNotifications()->count());
+    }
 }
