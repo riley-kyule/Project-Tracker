@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Integration settings', href: '/settings/integrations' }];
@@ -113,6 +113,17 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                         title="Integrations"
                         description="Configure email delivery, browser push, and backups without touching the server"
                     />
+
+                    <div className="space-y-2 border-b pb-6">
+                        <h3 className="text-sm font-semibold">WordPress</h3>
+                        <p className="text-muted-foreground text-sm">
+                            Manage the domain and Application Password credentials EWMS uses to read and manage staff accounts on each connected
+                            WordPress site.
+                        </p>
+                        <Link href="/settings/integrations/wordpress" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
+                            Manage WordPress site credentials →
+                        </Link>
+                    </div>
 
                     <div className="space-y-4 border-b pb-6">
                         <h3 className="text-sm font-semibold">Backups</h3>

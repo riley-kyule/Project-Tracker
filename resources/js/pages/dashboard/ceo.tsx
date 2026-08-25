@@ -5,6 +5,16 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Star } from 'lucide-react';
 
+type WordPressStaffRow = {
+    id: number;
+    website_id: number;
+    username: string;
+    email: string | null;
+    display_name: string | null;
+    roles: string[];
+    website: { id: number; name: string; domain: string | null };
+};
+
 type Person = { id: number; name: string };
 
 type ExecTask = {
@@ -32,6 +42,57 @@ function StatCard({ label, value, href, alert = false }: { label: string; value:
     );
 
     return href ? <Link href={href}>{inner}</Link> : inner;
+}
+
+function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
+    return (
+        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+            <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">WordPress staff access</h2>
+                <Link href="/admin/wordpress-users" className="text-brand-600 dark:text-brand-400 text-xs hover:underline">
+                    Manage →
+                </Link>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-muted-foreground text-left">
+                            <th className="py-1.5 font-medium">Staff</th>
+                            <th className="py-1.5 font-medium">Website</th>
+                            <th className="py-1.5 font-medium">Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {staff.map((row) => (
+                            <tr key={row.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                                <td className="py-1.5">
+                                    <div className="font-medium">{row.display_name ?? row.username}</div>
+                                    <div className="text-muted-foreground text-xs">{row.email}</div>
+                                </td>
+                                <td className="py-1.5">{row.website.name}</td>
+                                <td className="py-1.5">
+                                    <div className="flex flex-wrap gap-1">
+                                        {row.roles.map((role) => (
+                                            <Badge key={role} variant="secondary" className="capitalize">
+                                                {role}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                        {staff.length === 0 && (
+                            <tr>
+                                <td colSpan={3} className="text-muted-foreground py-1.5">
+                                    No exotic-online.com staff found on any connected site.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
 }
 
 function TaskList({ title, tasks, icon }: { title: string; tasks: ExecTask[]; icon?: React.ReactNode }) {
@@ -64,6 +125,7 @@ export default function CeoDashboard({
     ceoPriorityTasks,
     upcoming,
     recentActivity,
+    wordpressStaff,
 }: {
     counts: {
         due_today: number;
@@ -82,6 +144,7 @@ export default function CeoDashboard({
     ceoPriorityTasks: ExecTask[];
     upcoming: ExecTask[];
     recentActivity: Activity[];
+    wordpressStaff: WordPressStaffRow[];
 }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -167,6 +230,8 @@ export default function CeoDashboard({
                 </div>
 
                 <TrafficDataSection />
+
+                <WordPressStaffCard staff={wordpressStaff} />
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                     <h2 className="mb-2 text-sm font-semibold">Recent activity</h2>

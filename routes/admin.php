@@ -7,6 +7,8 @@ use App\Http\Controllers\Admin\LabelController;
 use App\Http\Controllers\Admin\QueueHealthController;
 use App\Http\Controllers\Admin\ReportDeliveryController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\WordPressUserBulkActionController;
+use App\Http\Controllers\Admin\WordPressUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'throttle:api-writes'])->prefix('admin')->name('admin.')->group(function () {
@@ -33,4 +35,11 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('admin')->name('admin
 
     Route::get('queue-health', [QueueHealthController::class, 'index'])->name('queue-health.index');
     Route::get('report-deliveries', [ReportDeliveryController::class, 'index'])->name('report-deliveries.index');
+
+    Route::get('wordpress-users', [WordPressUserController::class, 'index'])->name('wordpress-users.index');
+    Route::post('wordpress-users/sync', [WordPressUserController::class, 'syncAll'])->name('wordpress-users.sync-all');
+    Route::post('wordpress-users/bulk-add', [WordPressUserBulkActionController::class, 'add'])->name('wordpress-users.bulk-add');
+    Route::post('wordpress-users/bulk-change-role', [WordPressUserBulkActionController::class, 'changeRole'])->name('wordpress-users.bulk-change-role');
+    Route::post('wordpress-users/bulk-update-email', [WordPressUserBulkActionController::class, 'updateEmail'])->name('wordpress-users.bulk-update-email');
+    Route::delete('wordpress-users/bulk-delete', [WordPressUserBulkActionController::class, 'destroy'])->name('wordpress-users.bulk-delete');
 });

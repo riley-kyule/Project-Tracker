@@ -10,3 +10,4 @@ Schedule::command('ewms:send-daily-summaries')->everyFifteenMinutes();
 Schedule::command('ewms:send-weekly-summaries')->hourly();
 Schedule::command('ewms:run-scheduled-backup')->hourly();
 Schedule::command('ewms:reset-recurring-tasks')->hourly();
+Schedule::command('ewms:sync-wordpress-users')->dailyAt('01:00');

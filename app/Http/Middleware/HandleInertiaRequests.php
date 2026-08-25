@@ -61,6 +61,11 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                // Per-row/per-site results from a WordPress bulk action (see
+                // WordPressUserBulkActionController) — partial failure across many
+                // external sites is the expected common case, so it's surfaced
+                // alongside the summary flash string rather than collapsed into it.
+                'bulkResults' => fn () => $request->session()->get('bulkResults'),
             ],
         ];
     }

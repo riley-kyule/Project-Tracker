@@ -1,0 +1,103 @@
+<?php
+
+namespace Tests\Unit\Services\WordPress;
+
+use App\Models\Website;
+use App\Models\WebsiteWordPressCredential;
+use App\Services\WordPress\WordPressUserClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+class WordPressUserClientTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function client(): WordPressUserClient
+    {
+        $website = Website::factory()->create(['domain' => 'https://example-site.test']);
+        $credential = WebsiteWordPressCredential::query()->create([
+            'website_id' => $website->id,
+            'wp_username' => 'admin',
+            'wp_app_password' => 'secret',
+        ]);
+
+        return new WordPressUserClient($credential);
+    }
+
+    public function test_a_full_page_triggers_fetching_the_next_page()
+    {
+        $page1 = array_map(fn ($i) => ['id' => $i, 'username' => "user{$i}", 'roles' => ['subscriber']], range(1, 100));
+        $page2 = [['id' => 101, 'username' => 'user101', 'roles' => ['subscriber']]];
+
+        Http::fake(function ($request) use ($page1, $page2) {
+            parse_str(parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return match ($query['page'] ?? null) {
+                '1' => Http::response($page1, 200),
+                '2' => Http::response($page2, 200),
+                default => Http::response([], 200),
+            };
+        });
+
+        $result = $this->client()->fetchAllUsers();
+
+        $this->assertSame('ok', $result['status']);
+        $this->assertCount(101, $result['users']);
+        Http::assertSentCount(2);
+    }
+
+    public function test_a_short_page_does_not_trigger_another_request()
+    {
+        $page = [['id' => 1, 'username' => 'solo', 'roles' => ['subscriber']]];
+
+        Http::fake(['*/wp-json/wp/v2/users*' => Http::response($page, 200)]);
+
+        $result = $this->client()->fetchAllUsers();
+
+        $this->assertSame('ok', $result['status']);
+        $this->assertCount(1, $result['users']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_a_malformed_200_response_is_treated_as_an_error_not_zero_users()
+    {
+        // A non-JSON 200 body (a WAF interstitial, a misconfigured proxy) must
+        // never be read as "this site has zero users" — that would let
+        // WordPressUserSync wipe out the site's entire cached roster.
+        Http::fake(['*/wp-json/wp/v2/users*' => Http::response('not json', 200, ['Content-Type' => 'text/plain'])]);
+
+        $result = $this->client()->fetchAllUsers();
+
+        $this->assertSame('error', $result['status']);
+    }
+
+    public function test_pagination_stops_at_the_hard_page_ceiling()
+    {
+        // A site that keeps returning full pages forever (misbehaving REST API,
+        // an unexpectedly huge table) must not loop until memory is exhausted.
+        Http::fake(['*/wp-json/wp/v2/users*' => Http::response(
+            array_map(fn ($i) => ['id' => $i, 'username' => "user{$i}", 'roles' => ['subscriber']], range(1, 100)),
+            200,
+        )]);
+
+        $result = $this->client()->fetchAllUsers();
+
+        $this->assertSame('ok', $result['status']);
+        $this->assertCount(200 * 100, $result['users']);
+        Http::assertSentCount(200);
+    }
+
+    public function test_a_connection_failure_returns_a_structured_error_instead_of_throwing()
+    {
+        Http::fake(function () {
+            throw new ConnectionException('Connection refused');
+        });
+
+        $result = $this->client()->fetchAllUsers();
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('Connection refused', $result['error']);
+    }
+}

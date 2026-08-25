@@ -10,6 +10,7 @@ use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Models\WordPressUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -67,6 +68,14 @@ class DashboardController extends Controller
                 ->latest('created_at')
                 ->limit(12)
                 ->get(),
+            // Staff-only summary (already synced/cached in Postgres, no live WP calls
+            // on dashboard load) — the full cross-site management page lives at
+            // /admin/wordpress-users, this is read-only visibility for the CEO.
+            'wordpressStaff' => WordPressUser::query()
+                ->staffOnly()
+                ->with('website:id,name,domain')
+                ->orderBy('email')
+                ->get(['id', 'website_id', 'username', 'email', 'display_name', 'roles']),
         ]);
     }
 
