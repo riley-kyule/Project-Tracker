@@ -82,7 +82,7 @@ class AttachmentController extends Controller
         Gate::authorize('view', $parent);
 
         abort_unless(
-            $attachment->uploaded_by === $request->user()->id || $request->user()->hasRole('Administrator'),
+            $attachment->uploaded_by === $request->user()->id || $request->user()->can('boards.manage'),
             403,
         );
 

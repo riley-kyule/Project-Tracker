@@ -52,7 +52,7 @@ class CommentController extends Controller
         Gate::authorize('view', $parent);
 
         abort_unless(
-            $comment->user_id === $request->user()->id || $request->user()->hasRole('Administrator'),
+            $comment->user_id === $request->user()->id || $request->user()->can('boards.manage'),
             403,
         );
 

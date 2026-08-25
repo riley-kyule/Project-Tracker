@@ -31,6 +31,7 @@ class RoleSeeder extends Seeder
             'registry.manage',
             'system.deploy',
             'view marketing statistics',
+            'wordpress.manage',
         ];
 
         foreach ($permissions as $permission) {
@@ -38,7 +39,13 @@ class RoleSeeder extends Seeder
         }
 
         $rolePermissions = [
-            'CEO' => ['users.view', 'departments.view', 'boards.manage', 'tasks.create', 'tickets.manage', 'reports.view', 'projects.manage', 'system.deploy', 'view marketing statistics'],
+            // CEO holds every permission Administrator holds — an explicit product
+            // decision reversing the prior separation-of-duties split (see
+            // PERMISSIONS_MATRIX.md). Administrator remains a distinct role for
+            // operational/on-call purposes but no longer differs from CEO in
+            // capability, so both point at the same shared array on purpose:
+            // it makes that parity impossible to accidentally drift apart again.
+            'CEO' => $permissions,
             'Administrator' => $permissions,
             'Department Manager' => ['users.view', 'departments.view', 'boards.manage', 'tasks.create', 'reports.view', 'projects.manage'],
             'IT Technician' => ['departments.view', 'tasks.create', 'tickets.manage'],

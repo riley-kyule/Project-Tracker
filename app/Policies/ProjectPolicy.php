@@ -34,6 +34,6 @@ class ProjectPolicy
 
     public function delete(User $user, Project $project): bool
     {
-        return $user->hasRole('Administrator');
+        return $user->can('projects.manage');
     }
 }

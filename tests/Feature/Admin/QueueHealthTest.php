@@ -12,14 +12,15 @@ class QueueHealthTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_only_administrators_can_view_queue_health()
+    /** CEO holds every permission Administrator holds (see RoleSeeder.php / PERMISSIONS_MATRIX.md, reversed 2026-08-25). */
+    public function test_only_ceo_and_administrators_can_view_queue_health()
     {
         $employee = User::factory()->create()->assignRole('Employee');
         $ceo = User::factory()->create()->assignRole('CEO');
         $admin = User::factory()->create()->assignRole('Administrator');
 
         $this->actingAs($employee)->get('/admin/queue-health')->assertForbidden();
-        $this->actingAs($ceo)->get('/admin/queue-health')->assertForbidden();
+        $this->actingAs($ceo)->get('/admin/queue-health')->assertOk();
         $this->actingAs($admin)->get('/admin/queue-health')->assertOk();
     }
 

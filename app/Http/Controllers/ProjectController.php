@@ -30,7 +30,7 @@ class ProjectController extends Controller
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'owners' => User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name']),
             'canManage' => $request->user()->can('projects.manage'),
-            'canDelete' => $request->user()->hasRole('Administrator'),
+            'canDelete' => $request->user()->can('projects.manage'),
         ]);
     }
 

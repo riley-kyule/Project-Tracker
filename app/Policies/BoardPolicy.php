@@ -68,7 +68,7 @@ class BoardPolicy
 
     public function delete(User $user, Board $board): bool
     {
-        return $user->hasRole('Administrator');
+        return $user->can('boards.manage');
     }
 
     private function hasAssignedTask(User $user, Board $board): bool

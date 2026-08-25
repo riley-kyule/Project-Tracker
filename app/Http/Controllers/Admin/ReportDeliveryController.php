@@ -14,7 +14,7 @@ class ReportDeliveryController extends Controller
 
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->hasRole('Administrator'), 403);
+        abort_unless($request->user()->can('system.deploy'), 403);
 
         $status = $request->string('status')->toString();
 

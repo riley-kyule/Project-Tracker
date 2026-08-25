@@ -90,7 +90,7 @@ class BoardController extends Controller
             'boards' => $boards,
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'canCreate' => $request->user()->can('create', Board::class),
-            'canDelete' => $request->user()->hasRole('Administrator'),
+            'canDelete' => $request->user()->can('boards.manage'),
         ]);
     }
 

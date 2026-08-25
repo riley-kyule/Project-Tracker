@@ -18,7 +18,8 @@ class UserManagementTest extends TestCase
         $this->actingAs($user)->get('/admin/users')->assertForbidden();
     }
 
-    public function test_ceo_can_view_the_user_list_but_cannot_update_users()
+    /** CEO holds every permission Administrator holds (see RoleSeeder.php / PERMISSIONS_MATRIX.md, reversed 2026-08-25). */
+    public function test_ceo_can_view_and_update_users()
     {
         $ceo = User::factory()->create()->assignRole('CEO');
         $target = User::factory()->create()->assignRole('Employee');
@@ -26,8 +27,10 @@ class UserManagementTest extends TestCase
         $this->actingAs($ceo)->get('/admin/users')->assertOk();
 
         $this->actingAs($ceo)
-            ->patch("/admin/users/{$target->id}", ['status' => 'active', 'role' => 'Employee'])
-            ->assertForbidden();
+            ->patch("/admin/users/{$target->id}", ['status' => 'active', 'role' => 'IT Technician'])
+            ->assertRedirect();
+
+        $this->assertTrue($target->fresh()->hasRole('IT Technician'));
     }
 
     public function test_administrators_can_update_role_department_and_status()

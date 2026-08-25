@@ -15,7 +15,7 @@ class QueueHealthController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->hasRole('Administrator'), 403);
+        abort_unless($request->user()->can('system.deploy'), 403);
 
         $failedJobs = DB::table('failed_jobs')
             ->orderByDesc('failed_at')

@@ -41,7 +41,7 @@ class UserController extends Controller
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'roles' => Role::query()->orderBy('name')->pluck('name'),
             'canManage' => request()->user()->can('users.manage'),
-            'canDelete' => request()->user()->hasRole('Administrator'),
+            'canDelete' => request()->user()->can('users.manage'),
         ]);
     }
 

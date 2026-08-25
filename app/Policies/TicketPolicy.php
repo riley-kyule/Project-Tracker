@@ -50,9 +50,14 @@ class TicketPolicy
         return $user->can('tickets.manage');
     }
 
-    /** Administrator only, per explicit instruction — not even CEO. */
+    /**
+     * Was Administrator-only, explicitly excluding CEO, as a deliberate
+     * separation of duties. That policy was reversed 2026-08-25 — CEO now
+     * holds every permission Administrator holds — so this follows the same
+     * 'tickets.manage' permission as manage()/viewInternalNotes() above.
+     */
     public function delete(User $user, Ticket $ticket): bool
     {
-        return $user->hasRole('Administrator');
+        return $user->can('tickets.manage');
     }
 }

@@ -20,6 +20,7 @@ import {
     Mail,
     Sliders,
     Tag,
+    UserCog,
     Users,
     UsersRound,
 } from 'lucide-react';
@@ -61,12 +62,13 @@ export function AppSidebar() {
         ...(auth.permissions.includes('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
         ...(auth.permissions.includes('tickets.manage') ? [{ title: 'SLA Policies', url: '/admin/sla-policies', icon: Sliders }] : []),
         ...(auth.permissions.includes('registry.manage') ? [{ title: 'Websites', url: '/admin/websites', icon: Globe }] : []),
+        ...(auth.permissions.includes('wordpress.manage') ? [{ title: 'WordPress Users', url: '/admin/wordpress-users', icon: UserCog }] : []),
         ...(auth.permissions.includes('departments.view') ? [{ title: 'Departments', url: '/admin/departments', icon: Building2 }] : []),
         ...(auth.permissions.includes('labels.manage') ? [{ title: 'Labels', url: '/admin/labels', icon: Tag }] : []),
         ...(auth.permissions.includes('users.view') ? [{ title: 'Users', url: '/admin/users', icon: Users }] : []),
         ...(auth.hasWebsiteAssignments ? [{ title: 'My Reports', url: '/my-reports', icon: FileText }] : []),
-        ...(auth.roles.includes('Administrator') ? [{ title: 'Queue Health', url: '/admin/queue-health', icon: Activity }] : []),
-        ...(auth.roles.includes('Administrator') ? [{ title: 'Report Deliveries', url: '/admin/report-deliveries', icon: Mail }] : []),
+        ...(auth.permissions.includes('system.deploy') ? [{ title: 'Queue Health', url: '/admin/queue-health', icon: Activity }] : []),
+        ...(auth.permissions.includes('system.deploy') ? [{ title: 'Report Deliveries', url: '/admin/report-deliveries', icon: Mail }] : []),
     ];
 
     return (
