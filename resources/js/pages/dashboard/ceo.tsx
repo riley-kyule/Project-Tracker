@@ -1,9 +1,12 @@
 import { TrafficDataSection } from '@/components/dashboard/traffic-data-section';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Star } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 type WordPressStaffRow = {
     id: number;
@@ -44,14 +47,52 @@ function StatCard({ label, value, href, alert = false }: { label: string; value:
     return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
+const ALL_WEBSITES = 'all';
+const PAGE_SIZE = 25;
+
 function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
+    const [siteFilter, setSiteFilter] = useState(ALL_WEBSITES);
+    const [page, setPage] = useState(1);
+
+    const sites = useMemo(() => {
+        const seen = new Map<number, string>();
+        staff.forEach((row) => seen.set(row.site.id, row.site.name));
+        return Array.from(seen, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+    }, [staff]);
+
+    const filtered = siteFilter === ALL_WEBSITES ? staff : staff.filter((row) => row.site.id === Number(siteFilter));
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
+    const pageRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+    const changeSite = (value: string) => {
+        setSiteFilter(value);
+        setPage(1);
+    };
+
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold">WordPress staff access</h2>
-                <Link href="/admin/wordpress-users" className="text-brand-600 dark:text-brand-400 text-xs hover:underline">
-                    Manage →
-                </Link>
+                <div className="flex items-center gap-2">
+                    <Select value={siteFilter} onValueChange={changeSite}>
+                        <SelectTrigger className="h-8 w-48 text-xs">
+                            <SelectValue placeholder="All websites" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={ALL_WEBSITES}>All websites</SelectItem>
+                            {sites.map((site) => (
+                                <SelectItem key={site.id} value={site.id.toString()}>
+                                    {site.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Link href="/admin/wordpress-users" className="text-brand-600 dark:text-brand-400 text-xs hover:underline">
+                        Manage →
+                    </Link>
+                </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -63,7 +104,7 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {staff.map((row) => (
+                        {pageRows.map((row) => (
                             <tr key={row.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                 <td className="py-1.5">
                                     <div className="font-medium">{row.display_name ?? row.username}</div>
@@ -81,16 +122,43 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
                                 </td>
                             </tr>
                         ))}
-                        {staff.length === 0 && (
+                        {pageRows.length === 0 && (
                             <tr>
                                 <td colSpan={3} className="text-muted-foreground py-1.5">
-                                    No exotic-online.com staff found on any connected site.
+                                    {staff.length === 0 ? 'No exotic-online.com staff found on any connected site.' : 'No staff on this website.'}
                                 </td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
+            {totalPages > 1 && (
+                <div className="mt-2 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">
+                        Page {currentPage} of {totalPages} ({filtered.length} staff)
+                    </span>
+                    <div className="flex gap-1">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            disabled={currentPage === 1}
+                            onClick={() => setPage(currentPage - 1)}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            disabled={currentPage === totalPages}
+                            onClick={() => setPage(currentPage + 1)}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
