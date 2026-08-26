@@ -145,9 +145,10 @@ class WordPressUserClient
     private function http(): PendingRequest
     {
         return Http::withBasicAuth($this->credential->wp_username, $this->credential->wp_app_password)
+            ->withUserAgent('EWMS/1.0 (+'.config('app.url').'; WordPress staff-access sync)')
             ->baseUrl("{$this->baseDomain()}/wp-json/wp/v2")
-            ->timeout(15)
-            ->connectTimeout(5);
+            ->timeout(30)
+            ->connectTimeout(10);
     }
 
     /**

@@ -17,7 +17,11 @@ class SyncWordPressUsersForSite implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 60;
+    // Comfortably covers several slow/tarpitted pages (each HTTP call now
+    // allows up to 30s, see WordPressUserClient) plus retries — this is a
+    // background job with no user-facing wait, so a generous ceiling costs
+    // nothing and a sync that's merely slow shouldn't be killed as if hung.
+    public int $timeout = 300;
 
     public int $tries = 3;
 
