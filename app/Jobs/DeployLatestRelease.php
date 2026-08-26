@@ -51,6 +51,14 @@ class DeployLatestRelease implements ShouldQueue
                 ['npm', 'ci'],
                 ['npm', 'run', 'build'],
                 [PHP_BINARY, 'artisan', 'migrate', '--force'],
+                // Re-seeding roles/permissions isn't optional after migrate: unlike a
+                // schema change, a RoleSeeder edit (e.g. granting a role a new
+                // permission) has no migration of its own to apply it — without this
+                // step a deploy updates the code but silently leaves everyone's actual
+                // permissions on whatever they were before. Safe to run every deploy:
+                // RoleSeeder uses findOrCreate()/syncPermissions(), so a deploy with no
+                // permission changes is a no-op here.
+                [PHP_BINARY, 'artisan', 'db:seed', '--class=RoleSeeder', '--force'],
                 [PHP_BINARY, 'artisan', 'optimize'],
             ];
 

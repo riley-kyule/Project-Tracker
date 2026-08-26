@@ -115,6 +115,7 @@ class DeploymentTest extends TestCase
         $this->assertStringContainsString('composer install', $deployment->output);
 
         Process::assertRan(fn ($process) => str_contains(implode(' ', $process->command), 'migrate --force'));
+        Process::assertRan(fn ($process) => str_contains(implode(' ', $process->command), 'db:seed --class=RoleSeeder --force'));
     }
 
     public function test_deploy_job_restarts_app_and_scheduler_when_compose_project_is_configured()

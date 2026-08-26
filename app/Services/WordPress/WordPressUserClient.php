@@ -144,12 +144,27 @@ class WordPressUserClient
 
     private function http(): PendingRequest
     {
-        $domain = rtrim($this->credential->website->domain ?? '', '/');
-
         return Http::withBasicAuth($this->credential->wp_username, $this->credential->wp_app_password)
-            ->baseUrl("{$domain}/wp-json/wp/v2")
+            ->baseUrl("{$this->baseDomain()}/wp-json/wp/v2")
             ->timeout(15)
             ->connectTimeout(5);
+    }
+
+    /**
+     * websites.domain is stored bare (e.g. "example.com", matching how GA4/GSC/BigQuery
+     * key websites elsewhere in this app — see ANALYTICS_INTEGRATIONS.md) rather than as
+     * a full URL. Http::baseUrl() requires a scheme+host or every request fails with
+     * Guzzle's "URI must include a scheme and host" — so one is added here if missing.
+     */
+    private function baseDomain(): string
+    {
+        $domain = rtrim(trim($this->credential->website->domain ?? ''), '/');
+
+        if ($domain !== '' && ! preg_match('#^https?://#i', $domain)) {
+            $domain = "https://{$domain}";
+        }
+
+        return $domain;
     }
 
     private function error(string $method, Response $response): array

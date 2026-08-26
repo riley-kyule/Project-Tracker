@@ -7,13 +7,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, RefreshCw, Users as UsersIcon, X } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Pencil, Plug, Plus, RefreshCw, Trash2, Users as UsersIcon, X } from 'lucide-react';
 import { useState } from 'react';
 
 type Option = { id: number; name: string };
 
 type AssignedUser = Option & { pivot: { id: number; team: string } };
+
+type WordPressCredential = {
+    id: number;
+    wp_username: string;
+    wp_app_password_set: boolean;
+    status: 'unverified' | 'ok' | 'error';
+    last_verified_at: string | null;
+    last_synced_at: string | null;
+    last_error: string | null;
+};
 
 type WebsiteRow = {
     id: number;
@@ -26,6 +36,7 @@ type WebsiteRow = {
     ga4_property_id: string | null;
     gsc_property: string | null;
     assigned_users: AssignedUser[];
+    wordpress_credential: WordPressCredential | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Websites', href: '/admin/websites' }];
@@ -35,6 +46,12 @@ const NONE = 'none';
 const TEAM_LABELS: Record<string, string> = {
     marketing: 'Marketing',
     customer_service: 'Customer Service',
+};
+
+const WP_STATUS_VARIANT: Record<WordPressCredential['status'], 'secondary' | 'default' | 'destructive'> = {
+    unverified: 'secondary',
+    ok: 'default',
+    error: 'destructive',
 };
 
 function AssignmentsDialog({ website, users, teams }: { website: WebsiteRow; users: Option[]; teams: string[] }) {
@@ -130,16 +147,18 @@ function WebsiteDialog({
     countries,
     departments,
     users,
+    canManageWordPress,
     trigger,
 }: {
     website?: WebsiteRow;
     countries: Option[];
     departments: Option[];
     users: Option[];
+    canManageWordPress: boolean;
     trigger: React.ReactNode;
 }) {
     const [open, setOpen] = useState(false);
-    const { data, setData, post, patch, processing, errors, transform } = useForm({
+    const { data, setData, post, patch, processing, errors, transform, reset } = useForm({
         name: website?.name ?? '',
         domain: website?.domain ?? '',
         country_id: website?.country?.id.toString() ?? NONE,
@@ -148,6 +167,8 @@ function WebsiteDialog({
         responsible_user_id: website?.responsible_user?.id.toString() ?? NONE,
         ga4_property_id: website?.ga4_property_id ?? '',
         gsc_property: website?.gsc_property ?? '',
+        wp_username: website?.wordpress_credential?.wp_username ?? '',
+        wp_app_password: '',
     });
 
     const submit = (e: React.FormEvent) => {
@@ -158,7 +179,13 @@ function WebsiteDialog({
             responsible_department_id: form.responsible_department_id === NONE ? null : Number(form.responsible_department_id),
             responsible_user_id: form.responsible_user_id === NONE ? null : Number(form.responsible_user_id),
         }));
-        const options = { preserveScroll: true, onSuccess: () => setOpen(false) };
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => {
+                setOpen(false);
+                reset('wp_app_password');
+            },
+        };
         if (website) {
             patch(`/admin/websites/${website.id}`, options);
         } else {
@@ -169,7 +196,7 @@ function WebsiteDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{website ? `Edit ${website.name}` : 'New website'}</DialogTitle>
                 </DialogHeader>
@@ -181,7 +208,7 @@ function WebsiteDialog({
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="site-domain">Domain</Label>
-                        <Input id="site-domain" value={data.domain} onChange={(e) => setData('domain', e.target.value)} />
+                        <Input id="site-domain" placeholder="example.com" value={data.domain} onChange={(e) => setData('domain', e.target.value)} />
                         <InputError message={errors.domain} />
                     </div>
                     <div className="grid gap-2">
@@ -255,12 +282,95 @@ function WebsiteDialog({
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {canManageWordPress && (
+                        <div className="space-y-4 border-t pt-4">
+                            <h3 className="text-sm font-semibold">WordPress access</h3>
+                            <div className="grid gap-2">
+                                <Label htmlFor="wp-username">WordPress username</Label>
+                                <Input
+                                    id="wp-username"
+                                    value={data.wp_username}
+                                    onChange={(e) => setData('wp_username', e.target.value)}
+                                    autoComplete="off"
+                                />
+                                <InputError message={errors.wp_username} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="wp-app-password">Application password</Label>
+                                <Input
+                                    id="wp-app-password"
+                                    type="password"
+                                    autoComplete="off"
+                                    placeholder={website?.wordpress_credential?.wp_app_password_set ? 'Unchanged (already set)' : ''}
+                                    value={data.wp_app_password}
+                                    onChange={(e) => setData('wp_app_password', e.target.value)}
+                                />
+                                <p className="text-muted-foreground text-xs">
+                                    Generate one from the site's WordPress admin under Users → Profile → Application Passwords, using an account with
+                                    Administrator capabilities. Leave both fields blank to skip WordPress access for this site.
+                                </p>
+                                <InputError message={errors.wp_app_password} />
+                            </div>
+                        </div>
+                    )}
+
                     <Button type="submit" disabled={processing}>
                         {website ? 'Save changes' : 'Add website'}
                     </Button>
                 </form>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function WordPressCell({ website }: { website: WebsiteRow }) {
+    const [busy, setBusy] = useState(false);
+    const credential = website.wordpress_credential;
+
+    const test = () => {
+        setBusy(true);
+        router.post(`/admin/websites/${website.id}/wordpress-credential/test`, {}, { preserveScroll: true, onFinish: () => setBusy(false) });
+    };
+
+    const sync = () => {
+        router.post(`/admin/websites/${website.id}/wordpress-credential/sync`, {}, { preserveScroll: true });
+    };
+
+    const destroy = () => {
+        if (!confirm(`Remove WordPress credentials for ${website.name}? Its synced users will also be cleared from EWMS.`)) return;
+        router.delete(`/admin/websites/${website.id}/wordpress-credential`, { preserveScroll: true });
+    };
+
+    if (!credential) {
+        return <span className="text-muted-foreground">—</span>;
+    }
+
+    return (
+        <div className="flex items-center gap-2">
+            <div>
+                <Badge variant={WP_STATUS_VARIANT[credential.status]}>{credential.status}</Badge>
+                {credential.last_synced_at && (
+                    <div className="text-muted-foreground mt-0.5 text-xs">Synced {new Date(credential.last_synced_at).toLocaleDateString()}</div>
+                )}
+                {credential.last_error && (
+                    <div className="text-destructive mt-0.5 max-w-40 truncate text-xs" title={credential.last_error}>
+                        {credential.last_error}
+                    </div>
+                )}
+            </div>
+            <div className="flex items-center gap-0.5">
+                <Button variant="ghost" size="sm" aria-label={`Test connection for ${website.name}`} onClick={test} disabled={busy}>
+                    <Plug className="size-4" />
+                </Button>
+                <Button variant="ghost" size="sm" aria-label={`Sync now for ${website.name}`} onClick={sync}>
+                    <RefreshCw className="size-4" />
+                </Button>
+                <Button variant="ghost" size="sm" aria-label={`Remove WordPress credentials for ${website.name}`} onClick={destroy}>
+                    <Trash2 className="text-destructive size-4" />
+                </Button>
+            </div>
+        </div>
     );
 }
 
@@ -271,6 +381,7 @@ export default function WebsitesIndex({
     users,
     teams,
     canManage,
+    canManageWordPress,
 }: {
     websites: WebsiteRow[];
     countries: Option[];
@@ -278,44 +389,37 @@ export default function WebsitesIndex({
     users: Option[];
     teams: string[];
     canManage: boolean;
+    canManageWordPress: boolean;
 }) {
-    const [syncing, setSyncing] = useState(false);
-
-    const sync = () => {
-        setSyncing(true);
-        router.post(
-            '/admin/websites/sync',
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => setSyncing(false),
-            },
-        );
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Websites" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-xl font-semibold">Website registry</h1>
+                    <div>
+                        <h1 className="text-xl font-semibold">Website registry</h1>
+                        {canManageWordPress && (
+                            <p className="text-muted-foreground text-sm">
+                                Add each site's domain and an Application Password here to enable staff access management via{' '}
+                                <Link href="/admin/wordpress-users" className="text-brand-600 dark:text-brand-400 hover:underline">
+                                    WordPress Users
+                                </Link>
+                                .
+                            </p>
+                        )}
+                    </div>
                     {canManage && (
-                        <div className="flex items-center gap-2">
-                            <Button size="sm" variant="outline" onClick={sync} disabled={syncing}>
-                                <RefreshCw className={`mr-1 size-4 ${syncing ? 'animate-spin' : ''}`} />
-                                Sync from BigQuery
-                            </Button>
-                            <WebsiteDialog
-                                countries={countries}
-                                departments={departments}
-                                users={users}
-                                trigger={
-                                    <Button size="sm">
-                                        <Plus className="mr-1 size-4" /> New website
-                                    </Button>
-                                }
-                            />
-                        </div>
+                        <WebsiteDialog
+                            countries={countries}
+                            departments={departments}
+                            users={users}
+                            canManageWordPress={canManageWordPress}
+                            trigger={
+                                <Button size="sm">
+                                    <Plus className="mr-1 size-4" /> New website
+                                </Button>
+                            }
+                        />
                     )}
                 </div>
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
@@ -328,13 +432,17 @@ export default function WebsitesIndex({
                                 <th className="p-3 font-medium">GA4 / GSC</th>
                                 <th className="p-3 font-medium">Status</th>
                                 <th className="p-3 font-medium">Members</th>
+                                {canManageWordPress && <th className="p-3 font-medium">WordPress</th>}
                                 {canManage && <th className="p-3" />}
                             </tr>
                         </thead>
                         <tbody>
                             {websites.map((website) => (
                                 <tr key={website.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
-                                    <td className="p-3 font-medium">{website.name}</td>
+                                    <td className="p-3 font-medium">
+                                        {website.name}
+                                        <div className="text-muted-foreground text-xs font-normal">{website.domain}</div>
+                                    </td>
                                     <td className="p-3">{website.country?.name ?? '—'}</td>
                                     <td className="p-3">{website.responsible_user?.name ?? website.responsible_department?.name ?? '—'}</td>
                                     <td className="p-3 text-xs">
@@ -350,6 +458,11 @@ export default function WebsitesIndex({
                                             website.assigned_users.length
                                         )}
                                     </td>
+                                    {canManageWordPress && (
+                                        <td className="p-3">
+                                            <WordPressCell website={website} />
+                                        </td>
+                                    )}
                                     {canManage && (
                                         <td className="p-3 text-right">
                                             <WebsiteDialog
@@ -357,6 +470,7 @@ export default function WebsitesIndex({
                                                 countries={countries}
                                                 departments={departments}
                                                 users={users}
+                                                canManageWordPress={canManageWordPress}
                                                 trigger={
                                                     <Button variant="ghost" size="sm" aria-label={`Edit ${website.name}`}>
                                                         <Pencil className="size-4" />
@@ -369,7 +483,7 @@ export default function WebsitesIndex({
                             ))}
                             {websites.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className="text-muted-foreground p-6 text-center">
+                                    <td colSpan={8} className="text-muted-foreground p-6 text-center">
                                         No websites registered yet.
                                     </td>
                                 </tr>

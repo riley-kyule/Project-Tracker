@@ -16,7 +16,12 @@ class WordPressUserClientTest extends TestCase
 
     private function client(): WordPressUserClient
     {
-        $website = Website::factory()->create(['domain' => 'https://example-site.test']);
+        return $this->clientForDomain('https://example-site.test');
+    }
+
+    private function clientForDomain(string $domain): WordPressUserClient
+    {
+        $website = Website::factory()->create(['domain' => $domain]);
         $credential = WebsiteWordPressCredential::query()->create([
             'website_id' => $website->id,
             'wp_username' => 'admin',
@@ -24,6 +29,24 @@ class WordPressUserClientTest extends TestCase
         ]);
 
         return new WordPressUserClient($credential);
+    }
+
+    /**
+     * Regression test: websites.domain is stored bare (e.g. "example.com", the
+     * WebsiteFactory/registry-entry convention, matching how GA4/GSC/BigQuery key
+     * websites elsewhere in this app) rather than as a full URL. Without a scheme,
+     * Http::baseUrl() throws Guzzle's "URI must include a scheme and host" on every
+     * call — this is exactly the error reported when adding an Application Password
+     * for a normally-entered site.
+     */
+    public function test_a_bare_domain_without_a_scheme_still_works()
+    {
+        Http::fake(['*/wp-json/wp/v2/users*' => Http::response([['id' => 1, 'username' => 'jdoe', 'roles' => ['administrator']]], 200)]);
+
+        $result = $this->clientForDomain('example.com')->fetchAllUsers();
+
+        $this->assertSame('ok', $result['status']);
+        Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://example.com/wp-json/wp/v2/users'));
     }
 
     public function test_a_full_page_triggers_fetching_the_next_page()
