@@ -8,11 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WordPressUser extends Model
 {
-    // See WebsiteWordPressCredential for why this is spelled out explicitly.
+    // Laravel's class->table snake_case inference splits "WordPress" into
+    // "word_press" (capital P reads as a new word boundary), which wouldn't
+    // match the more natural "wordpress_users" table name — spelled out
+    // explicitly instead of renaming the table to match the inferred split.
     protected $table = 'wordpress_users';
 
     protected $fillable = [
-        'website_id',
+        'wordpress_site_id',
         'wp_user_id',
         'username',
         'email',
@@ -31,9 +34,9 @@ class WordPressUser extends Model
         ];
     }
 
-    public function website(): BelongsTo
+    public function site(): BelongsTo
     {
-        return $this->belongsTo(Website::class);
+        return $this->belongsTo(WordPressSite::class, 'wordpress_site_id');
     }
 
     /** Staff, as opposed to customer/other accounts a WordPress site's user table may also hold. */

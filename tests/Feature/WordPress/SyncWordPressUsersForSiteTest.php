@@ -2,24 +2,24 @@
 
 namespace Tests\Feature\WordPress;
 
-use App\Jobs\SyncWordPressUsersForWebsite;
-use App\Models\Website;
-use App\Models\WebsiteWordPressCredential;
+use App\Jobs\SyncWordPressUsersForSite;
+use App\Models\WordPressCredential;
+use App\Models\WordPressSite;
 use App\Models\WordPressUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
-class SyncWordPressUsersForWebsiteTest extends TestCase
+class SyncWordPressUsersForSiteTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function credential(): WebsiteWordPressCredential
+    private function credential(): WordPressCredential
     {
-        $website = Website::factory()->create(['domain' => 'https://example-site.test']);
+        $site = WordPressSite::factory()->create(['domain' => 'https://example-site.test']);
 
-        return WebsiteWordPressCredential::query()->create([
-            'website_id' => $website->id,
+        return WordPressCredential::query()->create([
+            'wordpress_site_id' => $site->id,
             'wp_username' => 'admin',
             'wp_app_password' => 'secret',
         ]);
@@ -36,10 +36,10 @@ class SyncWordPressUsersForWebsiteTest extends TestCase
             ]),
         ]);
 
-        SyncWordPressUsersForWebsite::dispatchSync($credential->id);
+        SyncWordPressUsersForSite::dispatchSync($credential->id);
 
-        $this->assertSame(2, WordPressUser::query()->where('website_id', $credential->website_id)->count());
-        $this->assertSame(WebsiteWordPressCredential::STATUS_OK, $credential->fresh()->status);
+        $this->assertSame(2, WordPressUser::query()->where('wordpress_site_id', $credential->wordpress_site_id)->count());
+        $this->assertSame(WordPressCredential::STATUS_OK, $credential->fresh()->status);
         $this->assertNull($credential->fresh()->last_error);
     }
 
@@ -51,19 +51,19 @@ class SyncWordPressUsersForWebsiteTest extends TestCase
             '*/wp-json/wp/v2/users*' => Http::response(['message' => 'Sorry, you are not allowed to do that.'], 401),
         ]);
 
-        SyncWordPressUsersForWebsite::dispatchSync($credential->id);
+        SyncWordPressUsersForSite::dispatchSync($credential->id);
 
         $credential->refresh();
-        $this->assertSame(WebsiteWordPressCredential::STATUS_ERROR, $credential->status);
+        $this->assertSame(WordPressCredential::STATUS_ERROR, $credential->status);
         $this->assertSame('Sorry, you are not allowed to do that.', $credential->last_error);
-        $this->assertSame(0, WordPressUser::query()->where('website_id', $credential->website_id)->count());
+        $this->assertSame(0, WordPressUser::query()->where('wordpress_site_id', $credential->wordpress_site_id)->count());
     }
 
     public function test_a_user_missing_from_a_re_sync_is_removed_locally()
     {
         $credential = $this->credential();
         WordPressUser::query()->create([
-            'website_id' => $credential->website_id,
+            'wordpress_site_id' => $credential->wordpress_site_id,
             'wp_user_id' => 99,
             'username' => 'stale-user',
             'roles' => ['subscriber'],
@@ -76,10 +76,10 @@ class SyncWordPressUsersForWebsiteTest extends TestCase
             ]),
         ]);
 
-        SyncWordPressUsersForWebsite::dispatchSync($credential->id);
+        SyncWordPressUsersForSite::dispatchSync($credential->id);
 
-        $this->assertDatabaseMissing('wordpress_users', ['website_id' => $credential->website_id, 'wp_user_id' => 99]);
-        $this->assertDatabaseHas('wordpress_users', ['website_id' => $credential->website_id, 'wp_user_id' => 1]);
+        $this->assertDatabaseMissing('wordpress_users', ['wordpress_site_id' => $credential->wordpress_site_id, 'wp_user_id' => 99]);
+        $this->assertDatabaseHas('wordpress_users', ['wordpress_site_id' => $credential->wordpress_site_id, 'wp_user_id' => 1]);
     }
 
     public function test_a_deleted_credential_is_a_no_op()
@@ -87,7 +87,7 @@ class SyncWordPressUsersForWebsiteTest extends TestCase
         Http::fake();
 
         // Should not throw even though the credential id resolves to nothing.
-        SyncWordPressUsersForWebsite::dispatchSync(999999);
+        SyncWordPressUsersForSite::dispatchSync(999999);
 
         Http::assertNothingSent();
         $this->assertTrue(true);

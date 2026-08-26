@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\WebsiteWordPressCredential;
+use App\Models\WordPressCredential;
 use App\Services\WordPress\WordPressUserSync;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,8 +12,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
 use Throwable;
 
-/** One job per website, so a hung or failing site never blocks or retries alongside the other 130+. */
-class SyncWordPressUsersForWebsite implements ShouldQueue
+/** One job per site, so a hung or failing site never blocks or retries alongside the rest. */
+class SyncWordPressUsersForSite implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -27,19 +27,19 @@ class SyncWordPressUsersForWebsite implements ShouldQueue
 
     public function handle(WordPressUserSync $sync): void
     {
-        $credential = WebsiteWordPressCredential::query()->find($this->credentialId);
+        $credential = WordPressCredential::query()->find($this->credentialId);
 
         if (! $credential) {
             return; // Deleted between dispatch and run.
         }
 
-        $sync->syncWebsite($credential);
+        $sync->syncSite($credential);
     }
 
     public function failed(Throwable $exception): void
     {
-        WebsiteWordPressCredential::query()->whereKey($this->credentialId)->update([
-            'status' => WebsiteWordPressCredential::STATUS_ERROR,
+        WordPressCredential::query()->whereKey($this->credentialId)->update([
+            'status' => WordPressCredential::STATUS_ERROR,
             'last_error' => Str::limit($exception->getMessage(), 1000),
             'last_synced_at' => now(),
         ]);

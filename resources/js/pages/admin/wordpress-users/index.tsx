@@ -10,14 +10,24 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { type RequestPayload } from '@inertiajs/core';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Pencil, Plug, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
-type Website = { id: number; name: string; domain: string | null };
+type Credential = {
+    id: number;
+    wp_username: string;
+    wp_app_password_set: boolean;
+    status: 'unverified' | 'ok' | 'error';
+    last_verified_at: string | null;
+    last_synced_at: string | null;
+    last_error: string | null;
+};
+
+type Site = { id: number; name: string; domain: string | null; credential: Credential | null };
 
 type WordPressUserRow = {
     id: number;
-    website: Website;
+    site: { id: number; name: string; domain: string | null };
     username: string;
     email: string | null;
     display_name: string | null;
@@ -37,6 +47,12 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'WordPress Users', href: '/admin
 
 const ALL = 'all';
 
+const STATUS_VARIANT: Record<Credential['status'], 'secondary' | 'default' | 'destructive'> = {
+    unverified: 'secondary',
+    ok: 'default',
+    error: 'destructive',
+};
+
 function RoleCheckboxes({ roles, selected, onChange }: { roles: string[]; selected: string[]; onChange: (roles: string[]) => void }) {
     const toggle = (role: string) => {
         onChange(selected.includes(role) ? selected.filter((r) => r !== role) : [...selected, role]);
@@ -53,10 +69,197 @@ function RoleCheckboxes({ roles, selected, onChange }: { roles: string[]; select
     );
 }
 
-function AddUserDialog({ websites, roles }: { websites: Website[]; roles: string[] }) {
+function SiteDialog({ site, trigger }: { site?: Site; trigger: React.ReactNode }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, post, patch, processing, errors, reset } = useForm({
+        name: site?.name ?? '',
+        domain: site?.domain ?? '',
+        wp_username: site?.credential?.wp_username ?? '',
+        wp_app_password: '',
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => {
+                setOpen(false);
+                reset('wp_app_password');
+            },
+        };
+        if (site) {
+            patch(`/admin/wordpress-users/sites/${site.id}`, options);
+        } else {
+            post('/admin/wordpress-users/sites', options);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>{trigger}</DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{site ? `Edit ${site.name}` : 'Connect a website'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="site-name">Name</Label>
+                        <Input id="site-name" value={data.name} onChange={(e) => setData('name', e.target.value)} required />
+                        <InputError message={errors.name} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="site-domain">Domain</Label>
+                        <Input
+                            id="site-domain"
+                            placeholder="example.com"
+                            value={data.domain}
+                            onChange={(e) => setData('domain', e.target.value)}
+                            required
+                        />
+                        <InputError message={errors.domain} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="wp-username">WordPress username</Label>
+                        <Input
+                            id="wp-username"
+                            value={data.wp_username}
+                            onChange={(e) => setData('wp_username', e.target.value)}
+                            autoComplete="off"
+                            required
+                        />
+                        <InputError message={errors.wp_username} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="wp-app-password">Application password</Label>
+                        <Input
+                            id="wp-app-password"
+                            type="password"
+                            autoComplete="off"
+                            placeholder={site?.credential?.wp_app_password_set ? 'Unchanged (already set)' : ''}
+                            value={data.wp_app_password}
+                            onChange={(e) => setData('wp_app_password', e.target.value)}
+                            required={!site}
+                        />
+                        <p className="text-muted-foreground text-xs">
+                            Generate one from the site's WordPress admin under Users → Profile → Application Passwords, using an account with
+                            Administrator capabilities.
+                        </p>
+                        <InputError message={errors.wp_app_password} />
+                    </div>
+                    <Button type="submit" disabled={processing}>
+                        {site ? 'Save changes' : 'Connect & sync'}
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function SitesPanel({ sites }: { sites: Site[] }) {
+    const [busyId, setBusyId] = useState<number | null>(null);
+
+    const test = (site: Site) => {
+        setBusyId(site.id);
+        router.post(`/admin/wordpress-users/sites/${site.id}/test`, {}, { preserveScroll: true, onFinish: () => setBusyId(null) });
+    };
+
+    const sync = (site: Site) => {
+        router.post(`/admin/wordpress-users/sites/${site.id}/sync`, {}, { preserveScroll: true });
+    };
+
+    const destroy = (site: Site) => {
+        if (!confirm(`Disconnect ${site.name}? This removes its credentials and clears its synced users from EWMS.`)) return;
+        router.delete(`/admin/wordpress-users/sites/${site.id}`, { preserveScroll: true });
+    };
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Connected sites</h2>
+                <SiteDialog
+                    trigger={
+                        <Button size="sm">
+                            <Plus className="mr-1 size-4" /> Connect a website
+                        </Button>
+                    }
+                />
+            </div>
+            <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">
+                            <th className="p-3 font-medium">Site</th>
+                            <th className="p-3 font-medium">WP username</th>
+                            <th className="p-3 font-medium">Status</th>
+                            <th className="p-3 font-medium">Last synced</th>
+                            <th className="p-3 font-medium">Last error</th>
+                            <th className="p-3" />
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sites.map((site) => (
+                            <tr key={site.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
+                                <td className="p-3">
+                                    <div className="font-medium">{site.name}</div>
+                                    <div className="text-muted-foreground text-xs">{site.domain}</div>
+                                </td>
+                                <td className="p-3">{site.credential?.wp_username ?? '—'}</td>
+                                <td className="p-3">
+                                    {site.credential ? <Badge variant={STATUS_VARIANT[site.credential.status]}>{site.credential.status}</Badge> : '—'}
+                                </td>
+                                <td className="p-3 text-xs">
+                                    {site.credential?.last_synced_at ? new Date(site.credential.last_synced_at).toLocaleString() : '—'}
+                                </td>
+                                <td className="max-w-xs truncate p-3 font-mono text-xs" title={site.credential?.last_error ?? undefined}>
+                                    {site.credential?.last_error ?? '—'}
+                                </td>
+                                <td className="p-3">
+                                    <div className="flex items-center justify-end gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            aria-label={`Test connection for ${site.name}`}
+                                            onClick={() => test(site)}
+                                            disabled={busyId === site.id}
+                                        >
+                                            <Plug className="size-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="sm" aria-label={`Sync now for ${site.name}`} onClick={() => sync(site)}>
+                                            <RefreshCw className="size-4" />
+                                        </Button>
+                                        <SiteDialog
+                                            site={site}
+                                            trigger={
+                                                <Button variant="ghost" size="sm" aria-label={`Edit ${site.name}`}>
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                            }
+                                        />
+                                        <Button variant="ghost" size="sm" aria-label={`Disconnect ${site.name}`} onClick={() => destroy(site)}>
+                                            <Trash2 className="text-destructive size-4" />
+                                        </Button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                        {sites.length === 0 && (
+                            <tr>
+                                <td colSpan={6} className="text-muted-foreground p-6 text-center">
+                                    No sites connected yet. Connect a website above to start managing its staff.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function AddUserDialog({ sites, roles }: { sites: Site[]; roles: string[] }) {
     const [open, setOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
-        website_ids: [] as number[],
+        site_ids: [] as number[],
         username: '',
         email: '',
         password: '',
@@ -74,8 +277,8 @@ function AddUserDialog({ websites, roles }: { websites: Website[]; roles: string
         });
     };
 
-    const toggleWebsite = (id: number) => {
-        setData('website_ids', data.website_ids.includes(id) ? data.website_ids.filter((w) => w !== id) : [...data.website_ids, id]);
+    const toggleSite = (id: number) => {
+        setData('site_ids', data.site_ids.includes(id) ? data.site_ids.filter((s) => s !== id) : [...data.site_ids, id]);
     };
 
     return (
@@ -91,16 +294,16 @@ function AddUserDialog({ websites, roles }: { websites: Website[]; roles: string
                 </DialogHeader>
                 <form onSubmit={submit} className="space-y-4">
                     <div className="grid gap-2">
-                        <Label>Websites</Label>
+                        <Label>Sites</Label>
                         <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-md border p-2">
-                            {websites.map((website) => (
-                                <label key={website.id} className="flex items-center gap-1.5 text-sm">
-                                    <Checkbox checked={data.website_ids.includes(website.id)} onCheckedChange={() => toggleWebsite(website.id)} />
-                                    {website.name}
+                            {sites.map((site) => (
+                                <label key={site.id} className="flex items-center gap-1.5 text-sm">
+                                    <Checkbox checked={data.site_ids.includes(site.id)} onCheckedChange={() => toggleSite(site.id)} />
+                                    {site.name}
                                 </label>
                             ))}
                         </div>
-                        <InputError message={errors.website_ids} />
+                        <InputError message={errors.site_ids} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="new-username">Username</Label>
@@ -130,8 +333,8 @@ function AddUserDialog({ websites, roles }: { websites: Website[]; roles: string
                         <RoleCheckboxes roles={roles} selected={data.roles} onChange={(value) => setData('roles', value)} />
                         <InputError message={errors.roles} />
                     </div>
-                    <Button type="submit" disabled={processing || data.website_ids.length === 0}>
-                        Add to {data.website_ids.length || 0} site(s)
+                    <Button type="submit" disabled={processing || data.site_ids.length === 0}>
+                        Add to {data.site_ids.length || 0} site(s)
                     </Button>
                 </form>
             </DialogContent>
@@ -217,7 +420,7 @@ function UpdateEmailDialog({
                     {selectedUsers.map((user) => (
                         <div key={user.id} className="grid gap-1">
                             <Label className="text-xs">
-                                {user.username} · {user.website.name}
+                                {user.username} · {user.site.name}
                             </Label>
                             <Input
                                 type="email"
@@ -275,18 +478,20 @@ function BulkActionBar({
 
 export default function WordPressUsersIndex({
     users,
-    websites,
+    sites,
     roles,
     filters,
 }: {
     users: Paginated<WordPressUserRow>;
-    websites: Website[];
+    sites: Site[];
     roles: string[];
-    filters: { website_id?: string; role?: string; search?: string };
+    filters: { site_id?: string; role?: string; search?: string };
 }) {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [syncing, setSyncing] = useState(false);
     const { flash } = usePage<SharedData>().props;
+
+    const connectedSites = sites.filter((s) => s.credential);
 
     const apply = (params: Record<string, string | undefined>) => {
         setSelectedIds([]);
@@ -317,29 +522,38 @@ export default function WordPressUsersIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="WordPress Users" />
-            <div className="flex flex-col gap-4 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-xl font-semibold">WordPress user management</h1>
-                    <span className="text-muted-foreground text-sm">{users.total} users</span>
+            <div className="flex flex-col gap-6 p-4">
+                <div>
+                    <h1 className="text-xl font-semibold">WordPress Users</h1>
+                    <p className="text-muted-foreground text-sm">
+                        Connect WordPress sites with an Application Password, then list, filter, and manage staff accounts across all of them.
+                    </p>
+                </div>
+
+                <SitesPanel sites={sites} />
+
+                <div className="flex flex-wrap items-center gap-2 border-t pt-6">
+                    <h2 className="text-sm font-semibold">Users</h2>
+                    <span className="text-muted-foreground text-sm">{users.total} total</span>
                     <div className="ml-auto flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" onClick={syncAll} disabled={syncing}>
+                        <Button size="sm" variant="outline" onClick={syncAll} disabled={syncing || connectedSites.length === 0}>
                             <RefreshCw className={`mr-1 size-4 ${syncing ? 'animate-spin' : ''}`} />
                             Sync all sites
                         </Button>
-                        <AddUserDialog websites={websites} roles={roles} />
+                        <AddUserDialog sites={connectedSites} roles={roles} />
                     </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    <Select value={filters.website_id ?? ALL} onValueChange={(value) => apply({ website_id: value })}>
+                    <Select value={filters.site_id ?? ALL} onValueChange={(value) => apply({ site_id: value })}>
                         <SelectTrigger className="w-56">
-                            <SelectValue placeholder="All websites" />
+                            <SelectValue placeholder="All sites" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value={ALL}>All websites</SelectItem>
-                            {websites.map((website) => (
-                                <SelectItem key={website.id} value={website.id.toString()}>
-                                    {website.name}
+                            <SelectItem value={ALL}>All sites</SelectItem>
+                            {sites.map((site) => (
+                                <SelectItem key={site.id} value={site.id.toString()}>
+                                    {site.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -375,7 +589,7 @@ export default function WordPressUsersIndex({
                             .filter((r) => r.status !== 'ok')
                             .map((r, i) => (
                                 <p key={i} className="text-destructive text-xs">
-                                    {r.website ?? `#${r.id}`}: {r.error ?? 'failed'}
+                                    {r.site ?? `#${r.id}`}: {r.error ?? 'failed'}
                                 </p>
                             ))}
                         {flash.bulkResults.every((r) => r.status === 'ok') && <p className="text-muted-foreground text-xs">All succeeded.</p>}
@@ -393,7 +607,7 @@ export default function WordPressUsersIndex({
                                 <th className="w-10 p-3">
                                     <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
                                 </th>
-                                <th className="p-3 font-medium">Website</th>
+                                <th className="p-3 font-medium">Site</th>
                                 <th className="p-3 font-medium">Username</th>
                                 <th className="p-3 font-medium">Email</th>
                                 <th className="p-3 font-medium">Roles</th>
@@ -410,8 +624,8 @@ export default function WordPressUsersIndex({
                                         />
                                     </td>
                                     <td className="p-3">
-                                        <div className="font-medium">{user.website.name}</div>
-                                        <div className="text-muted-foreground text-xs">{user.website.domain}</div>
+                                        <div className="font-medium">{user.site.name}</div>
+                                        <div className="text-muted-foreground text-xs">{user.site.domain}</div>
                                     </td>
                                     <td className="p-3">{user.display_name ?? user.username}</td>
                                     <td className="p-3">{user.email ?? '—'}</td>
@@ -429,7 +643,7 @@ export default function WordPressUsersIndex({
                             {users.data.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="text-muted-foreground p-6 text-center">
-                                        No WordPress users found. Connect a site's credentials and sync to populate this list.
+                                        No WordPress users found. Connect a site above and sync to populate this list.
                                     </td>
                                 </tr>
                             )}

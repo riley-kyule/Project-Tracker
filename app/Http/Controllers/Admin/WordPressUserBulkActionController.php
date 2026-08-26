@@ -23,8 +23,8 @@ class WordPressUserBulkActionController extends Controller
         abort_unless($request->user()->can('wordpress.manage'), 403);
 
         $validated = $request->validate([
-            'website_ids' => ['required', 'array', 'min:1'],
-            'website_ids.*' => ['integer', 'exists:websites,id'],
+            'site_ids' => ['required', 'array', 'min:1'],
+            'site_ids.*' => ['integer', 'exists:wordpress_sites,id'],
             'username' => ['required', 'string', 'max:60'],
             'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:12'],
@@ -32,7 +32,7 @@ class WordPressUserBulkActionController extends Controller
             'roles.*' => ['string'],
         ]);
 
-        $results = $bulkAction->add($validated['website_ids'], $validated['username'], $validated['email'], $validated['password'], $validated['roles']);
+        $results = $bulkAction->add($validated['site_ids'], $validated['username'], $validated['email'], $validated['password'], $validated['roles']);
 
         return back()->with(['success' => $this->summarize($results), 'bulkResults' => $results]);
     }

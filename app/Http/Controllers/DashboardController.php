@@ -73,9 +73,9 @@ class DashboardController extends Controller
             // /admin/wordpress-users, this is read-only visibility for the CEO.
             'wordpressStaff' => WordPressUser::query()
                 ->staffOnly()
-                ->with('website:id,name,domain')
+                ->with('site:id,name,domain')
                 ->orderBy('email')
-                ->get(['id', 'website_id', 'username', 'email', 'display_name', 'roles']),
+                ->get(['id', 'wordpress_site_id', 'username', 'email', 'display_name', 'roles']),
         ]);
     }
 

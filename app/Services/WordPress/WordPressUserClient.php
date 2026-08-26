@@ -2,7 +2,7 @@
 
 namespace App\Services\WordPress;
 
-use App\Models\WebsiteWordPressCredential;
+use App\Models\WordPressCredential;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -29,7 +29,7 @@ class WordPressUserClient
     // staff roster this feature targets.
     private const MAX_PAGES = 200;
 
-    public function __construct(private readonly WebsiteWordPressCredential $credential) {}
+    public function __construct(private readonly WordPressCredential $credential) {}
 
     /** @return array{status: 'ok'|'error', users: array, error?: string} */
     public function fetchAllUsers(): array
@@ -151,14 +151,14 @@ class WordPressUserClient
     }
 
     /**
-     * websites.domain is stored bare (e.g. "example.com", matching how GA4/GSC/BigQuery
-     * key websites elsewhere in this app — see ANALYTICS_INTEGRATIONS.md) rather than as
-     * a full URL. Http::baseUrl() requires a scheme+host or every request fails with
-     * Guzzle's "URI must include a scheme and host" — so one is added here if missing.
+     * wordpress_sites.domain is stored bare (e.g. "example.com") rather than
+     * as a full URL. Http::baseUrl() requires a scheme+host or every request
+     * fails with Guzzle's "URI must include a scheme and host" — so one is
+     * added here if missing.
      */
     private function baseDomain(): string
     {
-        $domain = rtrim(trim($this->credential->website->domain ?? ''), '/');
+        $domain = rtrim(trim($this->credential->site->domain ?? ''), '/');
 
         if ($domain !== '' && ! preg_match('#^https?://#i', $domain)) {
             $domain = "https://{$domain}";
@@ -172,7 +172,7 @@ class WordPressUserClient
         $message = $response->json('message') ?? "HTTP {$response->status()}";
 
         Log::warning('WordPress API call failed', [
-            'website_id' => $this->credential->website_id,
+            'wordpress_site_id' => $this->credential->wordpress_site_id,
             'method' => $method,
             'status' => $response->status(),
             'error' => $message,
@@ -184,7 +184,7 @@ class WordPressUserClient
     private function exceptionError(string $method, Throwable $e): array
     {
         Log::warning('WordPress API call failed', [
-            'website_id' => $this->credential->website_id,
+            'wordpress_site_id' => $this->credential->wordpress_site_id,
             'method' => $method,
             'error' => $e->getMessage(),
         ]);

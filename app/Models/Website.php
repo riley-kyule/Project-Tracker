@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Website extends Model
 {
@@ -69,15 +68,5 @@ class Website extends Model
     public function assignedUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'website_assignments')->withPivot('id', 'team')->withTimestamps();
-    }
-
-    public function wordpressCredential(): HasOne
-    {
-        return $this->hasOne(WebsiteWordPressCredential::class);
-    }
-
-    public function wordpressUsers(): HasMany
-    {
-        return $this->hasMany(WordPressUser::class);
     }
 }

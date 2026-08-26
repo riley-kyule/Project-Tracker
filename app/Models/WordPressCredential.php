@@ -5,22 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class WebsiteWordPressCredential extends Model
+class WordPressCredential extends Model
 {
-    // Laravel's class->table snake_case inference splits "WordPress" into
-    // "word_press" (capital P reads as a new word boundary), which wouldn't
-    // match the more natural "wordpress" table names used here — spelled out
-    // explicitly instead of renaming the tables to match the inferred split.
-    protected $table = 'website_wordpress_credentials';
-
     public const STATUS_UNVERIFIED = 'unverified';
 
     public const STATUS_OK = 'ok';
 
     public const STATUS_ERROR = 'error';
 
+    // See WordPressSite for why this is spelled out explicitly.
+    protected $table = 'wordpress_credentials';
+
     protected $fillable = [
-        'website_id',
+        'wordpress_site_id',
         'wp_username',
         'wp_app_password',
         'status',
@@ -44,8 +41,8 @@ class WebsiteWordPressCredential extends Model
         ];
     }
 
-    public function website(): BelongsTo
+    public function site(): BelongsTo
     {
-        return $this->belongsTo(Website::class);
+        return $this->belongsTo(WordPressSite::class, 'wordpress_site_id');
     }
 }

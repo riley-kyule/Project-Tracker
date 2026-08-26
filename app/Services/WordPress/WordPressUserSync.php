@@ -2,21 +2,21 @@
 
 namespace App\Services\WordPress;
 
-use App\Models\WebsiteWordPressCredential;
+use App\Models\WordPressCredential;
 use App\Models\WordPressUser;
 use Illuminate\Support\Facades\DB;
 
 class WordPressUserSync
 {
     /** @return array{status: 'ok'|'error', count?: int, error?: string} */
-    public function syncWebsite(WebsiteWordPressCredential $credential): array
+    public function syncSite(WordPressCredential $credential): array
     {
         $client = new WordPressUserClient($credential);
         $result = $client->fetchAllUsers();
 
         if ($result['status'] === 'error') {
             $credential->update([
-                'status' => WebsiteWordPressCredential::STATUS_ERROR,
+                'status' => WordPressCredential::STATUS_ERROR,
                 'last_error' => $result['error'],
                 'last_synced_at' => now(),
             ]);
@@ -28,13 +28,13 @@ class WordPressUserSync
             $seenWpUserIds = collect($result['users'])->pluck('id');
 
             WordPressUser::query()
-                ->where('website_id', $credential->website_id)
+                ->where('wordpress_site_id', $credential->wordpress_site_id)
                 ->whereNotIn('wp_user_id', $seenWpUserIds)
                 ->delete();
 
             foreach ($result['users'] as $user) {
                 WordPressUser::query()->updateOrCreate(
-                    ['website_id' => $credential->website_id, 'wp_user_id' => $user['id']],
+                    ['wordpress_site_id' => $credential->wordpress_site_id, 'wp_user_id' => $user['id']],
                     [
                         'username' => $user['username'] ?? $user['slug'],
                         'email' => $user['email'] ?? null,
@@ -48,7 +48,7 @@ class WordPressUserSync
         });
 
         $credential->update([
-            'status' => WebsiteWordPressCredential::STATUS_OK,
+            'status' => WordPressCredential::STATUS_OK,
             'last_error' => null,
             'last_verified_at' => now(),
             'last_synced_at' => now(),

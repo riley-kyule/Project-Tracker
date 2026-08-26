@@ -3,8 +3,8 @@
 namespace Tests\Feature\WordPress;
 
 use App\Models\User;
-use App\Models\Website;
-use App\Models\WebsiteWordPressCredential;
+use App\Models\WordPressCredential;
+use App\Models\WordPressSite;
 use App\Models\WordPressUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -16,14 +16,14 @@ class WordPressUserBulkActionTest extends TestCase
 
     private function credentialWithUser(): array
     {
-        $website = Website::factory()->create(['domain' => 'https://example-site.test']);
-        $credential = WebsiteWordPressCredential::query()->create([
-            'website_id' => $website->id,
+        $site = WordPressSite::factory()->create(['domain' => 'https://example-site.test']);
+        $credential = WordPressCredential::query()->create([
+            'wordpress_site_id' => $site->id,
             'wp_username' => 'admin',
             'wp_app_password' => 'secret',
         ]);
         $wpUser = WordPressUser::query()->create([
-            'website_id' => $website->id,
+            'wordpress_site_id' => $site->id,
             'wp_user_id' => 5,
             'username' => 'jdoe',
             'email' => 'jdoe@exotic-online.com',
@@ -31,7 +31,7 @@ class WordPressUserBulkActionTest extends TestCase
             'synced_at' => now(),
         ]);
 
-        return [$website, $credential, $wpUser];
+        return [$site, $credential, $wpUser];
     }
 
     public function test_employees_cannot_perform_bulk_actions()
@@ -46,14 +46,14 @@ class WordPressUserBulkActionTest extends TestCase
 
     public function test_add_creates_the_user_on_every_selected_site_and_logs_audit_entries()
     {
-        $website = Website::factory()->create();
-        WebsiteWordPressCredential::query()->create(['website_id' => $website->id, 'wp_username' => 'admin', 'wp_app_password' => 'secret']);
+        $site = WordPressSite::factory()->create();
+        WordPressCredential::query()->create(['wordpress_site_id' => $site->id, 'wp_username' => 'admin', 'wp_app_password' => 'secret']);
         $ceo = User::factory()->create()->assignRole('CEO');
 
         Http::fake(['*/wp-json/wp/v2/users' => Http::response(['id' => 42], 201)]);
 
         $this->actingAs($ceo)->post('/admin/wordpress-users/bulk-add', [
-            'website_ids' => [$website->id],
+            'site_ids' => [$site->id],
             'username' => 'newstaff',
             'email' => 'newstaff@exotic-online.com',
             'password' => 'a-long-enough-password',
@@ -61,7 +61,7 @@ class WordPressUserBulkActionTest extends TestCase
         ])->assertRedirect();
 
         Http::assertSent(fn ($request) => $request->method() === 'POST' && str_contains($request->url(), '/wp-json/wp/v2/users'));
-        $this->assertDatabaseHas('wordpress_users', ['website_id' => $website->id, 'wp_user_id' => 42, 'username' => 'newstaff']);
+        $this->assertDatabaseHas('wordpress_users', ['wordpress_site_id' => $site->id, 'wp_user_id' => 42, 'username' => 'newstaff']);
         $this->assertDatabaseHas('audit_logs', ['event' => 'wp_user_created', 'actor_id' => $ceo->id]);
     }
 
@@ -110,12 +110,12 @@ class WordPressUserBulkActionTest extends TestCase
 
     public function test_a_partial_failure_across_sites_is_reported_without_aborting_the_rest()
     {
-        $goodWebsite = Website::factory()->create();
-        $badWebsite = Website::factory()->create();
-        WebsiteWordPressCredential::query()->create(['website_id' => $goodWebsite->id, 'wp_username' => 'admin', 'wp_app_password' => 'secret']);
-        WebsiteWordPressCredential::query()->create(['website_id' => $badWebsite->id, 'wp_username' => 'admin', 'wp_app_password' => 'wrong']);
-        $goodUser = WordPressUser::query()->create(['website_id' => $goodWebsite->id, 'wp_user_id' => 1, 'username' => 'good', 'roles' => ['editor'], 'synced_at' => now()]);
-        $badUser = WordPressUser::query()->create(['website_id' => $badWebsite->id, 'wp_user_id' => 2, 'username' => 'bad', 'roles' => ['editor'], 'synced_at' => now()]);
+        $goodSite = WordPressSite::factory()->create();
+        $badSite = WordPressSite::factory()->create();
+        WordPressCredential::query()->create(['wordpress_site_id' => $goodSite->id, 'wp_username' => 'admin', 'wp_app_password' => 'secret']);
+        WordPressCredential::query()->create(['wordpress_site_id' => $badSite->id, 'wp_username' => 'admin', 'wp_app_password' => 'wrong']);
+        $goodUser = WordPressUser::query()->create(['wordpress_site_id' => $goodSite->id, 'wp_user_id' => 1, 'username' => 'good', 'roles' => ['editor'], 'synced_at' => now()]);
+        $badUser = WordPressUser::query()->create(['wordpress_site_id' => $badSite->id, 'wp_user_id' => 2, 'username' => 'bad', 'roles' => ['editor'], 'synced_at' => now()]);
         $ceo = User::factory()->create()->assignRole('CEO');
 
         Http::fake([

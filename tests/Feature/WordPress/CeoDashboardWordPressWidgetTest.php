@@ -3,7 +3,7 @@
 namespace Tests\Feature\WordPress;
 
 use App\Models\User;
-use App\Models\Website;
+use App\Models\WordPressSite;
 use App\Models\WordPressUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -14,9 +14,9 @@ class CeoDashboardWordPressWidgetTest extends TestCase
 
     public function test_only_staff_domain_users_appear_in_the_dashboard_widget()
     {
-        $website = Website::factory()->create();
+        $site = WordPressSite::factory()->create();
         WordPressUser::query()->create([
-            'website_id' => $website->id,
+            'wordpress_site_id' => $site->id,
             'wp_user_id' => 1,
             'username' => 'staffer',
             'email' => 'staffer@exotic-online.com',
@@ -24,7 +24,7 @@ class CeoDashboardWordPressWidgetTest extends TestCase
             'synced_at' => now(),
         ]);
         WordPressUser::query()->create([
-            'website_id' => $website->id,
+            'wordpress_site_id' => $site->id,
             'wp_user_id' => 2,
             'username' => 'customer',
             'email' => 'customer@example.com',

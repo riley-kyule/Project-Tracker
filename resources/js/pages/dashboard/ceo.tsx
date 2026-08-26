@@ -7,12 +7,12 @@ import { Star } from 'lucide-react';
 
 type WordPressStaffRow = {
     id: number;
-    website_id: number;
+    wordpress_site_id: number;
     username: string;
     email: string | null;
     display_name: string | null;
     roles: string[];
-    website: { id: number; name: string; domain: string | null };
+    site: { id: number; name: string; domain: string | null };
 };
 
 type Person = { id: number; name: string };
@@ -69,7 +69,7 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
                                     <div className="font-medium">{row.display_name ?? row.username}</div>
                                     <div className="text-muted-foreground text-xs">{row.email}</div>
                                 </td>
-                                <td className="py-1.5">{row.website.name}</td>
+                                <td className="py-1.5">{row.site.name}</td>
                                 <td className="py-1.5">
                                     <div className="flex flex-wrap gap-1">
                                         {row.roles.map((role) => (

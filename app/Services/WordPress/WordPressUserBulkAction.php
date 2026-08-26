@@ -2,26 +2,26 @@
 
 namespace App\Services\WordPress;
 
-use App\Models\WebsiteWordPressCredential;
+use App\Models\WordPressCredential;
 use App\Models\WordPressUser;
 use App\Services\AuditLogger;
 use Illuminate\Support\Collection;
 
 /**
  * Mutation-side counterpart to WordPressUserSync: every method groups its
- * targets by website (one WordPressUserClient built per site, reused across
+ * targets by site (one WordPressUserClient built per site, reused across
  * that site's rows) and returns a per-row result array so the controller can
  * report partial failure across many sites rather than a single pass/fail
  * flag — that's the expected common case here, not the exception.
  */
 class WordPressUserBulkAction
 {
-    /** @return array<int, array{website_id: int, website: string, status: string, error?: string}> */
-    public function add(array $websiteIds, string $username, string $email, string $password, array $roles): array
+    /** @return array<int, array{site_id: int, site: string, status: string, error?: string}> */
+    public function add(array $siteIds, string $username, string $email, string $password, array $roles): array
     {
         $results = [];
 
-        $credentials = WebsiteWordPressCredential::query()->with('website')->whereIn('website_id', $websiteIds)->get();
+        $credentials = WordPressCredential::query()->with('site')->whereIn('wordpress_site_id', $siteIds)->get();
 
         foreach ($credentials as $credential) {
             $client = new WordPressUserClient($credential);
@@ -34,7 +34,7 @@ class WordPressUserBulkAction
 
             if ($result['status'] === 'ok') {
                 $wpUser = WordPressUser::query()->create([
-                    'website_id' => $credential->website_id,
+                    'wordpress_site_id' => $credential->wordpress_site_id,
                     'wp_user_id' => $result['wp_user_id'],
                     'username' => $username,
                     'email' => $email,
@@ -47,8 +47,8 @@ class WordPressUserBulkAction
             }
 
             $results[] = [
-                'website_id' => $credential->website_id,
-                'website' => $credential->website->name,
+                'site_id' => $credential->wordpress_site_id,
+                'site' => $credential->site->name,
                 'status' => $result['status'],
                 'error' => $result['error'] ?? null,
             ];
@@ -110,21 +110,21 @@ class WordPressUserBulkAction
     private function perUser(Collection $wordpressUsers, callable $action): array
     {
         $results = [];
-        $clientsByWebsite = [];
+        $clientsBySite = [];
 
-        foreach ($wordpressUsers->groupBy('website_id') as $websiteId => $group) {
-            $credential = WebsiteWordPressCredential::query()->with('website')->where('website_id', $websiteId)->first();
+        foreach ($wordpressUsers->groupBy('wordpress_site_id') as $siteId => $group) {
+            $credential = WordPressCredential::query()->with('site')->where('wordpress_site_id', $siteId)->first();
 
             if (! $credential) {
                 foreach ($group as $wpUser) {
-                    $results[] = ['id' => $wpUser->id, 'status' => 'error', 'error' => 'No WordPress credentials configured for this website.'];
+                    $results[] = ['id' => $wpUser->id, 'status' => 'error', 'error' => 'No WordPress credentials configured for this site.'];
                 }
 
                 continue;
             }
 
-            $clientsByWebsite[$websiteId] ??= new WordPressUserClient($credential);
-            $client = $clientsByWebsite[$websiteId];
+            $clientsBySite[$siteId] ??= new WordPressUserClient($credential);
+            $client = $clientsBySite[$siteId];
 
             foreach ($group as $wpUser) {
                 $result = $action($wpUser, $client);

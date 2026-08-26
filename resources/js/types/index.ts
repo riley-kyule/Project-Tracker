@@ -32,7 +32,7 @@ export interface SharedData {
     flash: {
         success: string | null;
         error: string | null;
-        bulkResults: { id?: number; website_id?: number; website?: string; status: string; error?: string | null }[] | null;
+        bulkResults: { id?: number; site_id?: number; site?: string; status: string; error?: string | null }[] | null;
     };
     [key: string]: unknown;
 }

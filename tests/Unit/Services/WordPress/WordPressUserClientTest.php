@@ -2,8 +2,8 @@
 
 namespace Tests\Unit\Services\WordPress;
 
-use App\Models\Website;
-use App\Models\WebsiteWordPressCredential;
+use App\Models\WordPressCredential;
+use App\Models\WordPressSite;
 use App\Services\WordPress\WordPressUserClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -21,9 +21,9 @@ class WordPressUserClientTest extends TestCase
 
     private function clientForDomain(string $domain): WordPressUserClient
     {
-        $website = Website::factory()->create(['domain' => $domain]);
-        $credential = WebsiteWordPressCredential::query()->create([
-            'website_id' => $website->id,
+        $site = WordPressSite::factory()->create(['domain' => $domain]);
+        $credential = WordPressCredential::query()->create([
+            'wordpress_site_id' => $site->id,
             'wp_username' => 'admin',
             'wp_app_password' => 'secret',
         ]);
@@ -32,12 +32,10 @@ class WordPressUserClientTest extends TestCase
     }
 
     /**
-     * Regression test: websites.domain is stored bare (e.g. "example.com", the
-     * WebsiteFactory/registry-entry convention, matching how GA4/GSC/BigQuery key
-     * websites elsewhere in this app) rather than as a full URL. Without a scheme,
-     * Http::baseUrl() throws Guzzle's "URI must include a scheme and host" on every
-     * call — this is exactly the error reported when adding an Application Password
-     * for a normally-entered site.
+     * Regression test: wordpress_sites.domain is stored bare (e.g. "example.com")
+     * rather than as a full URL. Without a scheme, Http::baseUrl() throws Guzzle's
+     * "URI must include a scheme and host" on every call — this is exactly the
+     * error reported when adding an Application Password for a normally-entered site.
      */
     public function test_a_bare_domain_without_a_scheme_still_works()
     {
