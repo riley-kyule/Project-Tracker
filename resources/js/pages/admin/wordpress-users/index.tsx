@@ -157,6 +157,11 @@ function SiteDialog({ site, trigger }: { site?: Site; trigger: React.ReactNode }
 
 function SitesPanel({ sites }: { sites: Site[] }) {
     const [busyId, setBusyId] = useState<number | null>(null);
+    const [search, setSearch] = useState('');
+
+    const term = search.trim().toLowerCase();
+    const filteredSites =
+        term === '' ? sites : sites.filter((site) => site.name.toLowerCase().includes(term) || (site.domain ?? '').toLowerCase().includes(term));
 
     const test = (site: Site) => {
         setBusyId(site.id);
@@ -174,15 +179,18 @@ function SitesPanel({ sites }: { sites: Site[] }) {
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold">Connected sites</h2>
-                <SiteDialog
-                    trigger={
-                        <Button size="sm">
-                            <Plus className="mr-1 size-4" /> Connect a website
-                        </Button>
-                    }
-                />
+                <div className="flex items-center gap-2">
+                    <Input placeholder="Search sites…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-48 text-xs" />
+                    <SiteDialog
+                        trigger={
+                            <Button size="sm">
+                                <Plus className="mr-1 size-4" /> Connect a website
+                            </Button>
+                        }
+                    />
+                </div>
             </div>
             <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
                 <table className="w-full text-sm">
@@ -197,7 +205,7 @@ function SitesPanel({ sites }: { sites: Site[] }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {sites.map((site) => (
+                        {filteredSites.map((site) => (
                             <tr key={site.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
                                 <td className="p-3">
                                     <div className="font-medium">{site.name}</div>
@@ -242,10 +250,12 @@ function SitesPanel({ sites }: { sites: Site[] }) {
                                 </td>
                             </tr>
                         ))}
-                        {sites.length === 0 && (
+                        {filteredSites.length === 0 && (
                             <tr>
                                 <td colSpan={6} className="text-muted-foreground p-6 text-center">
-                                    No sites connected yet. Connect a website above to start managing its staff.
+                                    {sites.length === 0
+                                        ? 'No sites connected yet. Connect a website above to start managing its staff.'
+                                        : 'No sites match this search.'}
                                 </td>
                             </tr>
                         )}

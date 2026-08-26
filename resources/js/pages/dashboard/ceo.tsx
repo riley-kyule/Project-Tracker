@@ -1,6 +1,7 @@
 import { TrafficDataSection } from '@/components/dashboard/traffic-data-section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -52,6 +53,7 @@ const PAGE_SIZE = 25;
 
 function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
     const [siteFilter, setSiteFilter] = useState(ALL_WEBSITES);
+    const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
 
     const sites = useMemo(() => {
@@ -60,7 +62,18 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
         return Array.from(seen, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
     }, [staff]);
 
-    const filtered = siteFilter === ALL_WEBSITES ? staff : staff.filter((row) => row.site.id === Number(siteFilter));
+    const bySite = siteFilter === ALL_WEBSITES ? staff : staff.filter((row) => row.site.id === Number(siteFilter));
+
+    const term = search.trim().toLowerCase();
+    const filtered =
+        term === ''
+            ? bySite
+            : bySite.filter(
+                  (row) =>
+                      (row.display_name ?? '').toLowerCase().includes(term) ||
+                      row.username.toLowerCase().includes(term) ||
+                      (row.email ?? '').toLowerCase().includes(term),
+              );
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
@@ -71,11 +84,17 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
         setPage(1);
     };
 
+    const changeSearch = (value: string) => {
+        setSearch(value);
+        setPage(1);
+    };
+
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold">WordPress staff access</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    <Input placeholder="Search staff…" value={search} onChange={(e) => changeSearch(e.target.value)} className="h-8 w-40 text-xs" />
                     <Select value={siteFilter} onValueChange={changeSite}>
                         <SelectTrigger className="h-8 w-48 text-xs">
                             <SelectValue placeholder="All websites" />
@@ -125,7 +144,7 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
                         {pageRows.length === 0 && (
                             <tr>
                                 <td colSpan={3} className="text-muted-foreground py-1.5">
-                                    {staff.length === 0 ? 'No exotic-online.com staff found on any connected site.' : 'No staff on this website.'}
+                                    {staff.length === 0 ? 'No exotic-online.com staff found on any connected site.' : 'No staff match this filter.'}
                                 </td>
                             </tr>
                         )}
