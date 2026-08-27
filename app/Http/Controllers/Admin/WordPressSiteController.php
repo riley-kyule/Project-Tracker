@@ -7,6 +7,7 @@ use App\Jobs\SyncWordPressUsersForSite;
 use App\Models\WordPressCredential;
 use App\Models\WordPressSite;
 use App\Services\AuditLogger;
+use App\Services\WordPress\WordPressSiteConnector;
 use App\Services\WordPress\WordPressUserClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ use Illuminate\Http\Request;
  */
 class WordPressSiteController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, WordPressSiteConnector $connector): RedirectResponse
     {
         abort_unless($request->user()->can('wordpress.manage'), 403);
 
@@ -29,21 +30,11 @@ class WordPressSiteController extends Controller
             'wp_app_password' => ['required', 'string', 'max:255'],
         ]);
 
-        $site = WordPressSite::create([
-            'name' => $validated['name'],
-            'domain' => $validated['domain'],
-        ]);
-
-        $credential = $site->credential()->create([
-            'wp_username' => $validated['wp_username'],
-            'wp_app_password' => $validated['wp_app_password'],
-        ]);
-
-        AuditLogger::log($credential, 'created', [], ['wordpress_site_id' => $site->id, 'wp_username' => $credential->wp_username]);
+        $site = $connector->connect($validated['name'], $validated['domain'], $validated['wp_username'], $validated['wp_app_password']);
 
         // "Connect" means pulling in its user roster right away, not waiting
         // for the next scheduled sync or a separate manual click.
-        SyncWordPressUsersForSite::dispatch($credential->id);
+        SyncWordPressUsersForSite::dispatch($site->credential->id);
 
         return back()->with('success', "Connected {$site->name} — syncing its users now.");
     }

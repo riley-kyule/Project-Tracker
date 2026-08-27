@@ -1,0 +1,13 @@
+{
+    "name": "ewms-wordpress-onboarding",
+    "private": true,
+    "version": "1.0.0",
+    "description": "One-off tool: logs into each WordPress site's wp-admin, creates an 'EWMS' Application Password, and writes the results to a local CSV. Never handles input/output files inside the EWMS git repo.",
+    "type": "commonjs",
+    "scripts": {
+        "onboard": "node onboard.js"
+    },
+    "dependencies": {
+        "playwright": "1.48.0"
+    }
+}
