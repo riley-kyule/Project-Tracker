@@ -57,9 +57,13 @@ database/database.sqlite
 /playwright-report/
 /test-results/
 
-# WordPress site onboarding — these carry live admin credentials and
-# generated Application Passwords for every connected site. Never committed,
-# regardless of location; kept here defensively even though the tool also
-# refuses to run inside a git-tracked directory (see onboard.js).
+# WordPress site onboarding — the *.csv/failures rules carry live admin
+# credentials and generated Application Passwords for every connected site.
+# Never committed, regardless of location; kept here defensively even though
+# the tool also refuses to run inside a git-tracked directory (see onboard.js).
+# node_modules here is just the ordinary "don't commit installed packages"
+# rule — the top-level /node_modules above is root-anchored and doesn't
+# reach this nested one.
 ops/wordpress-onboarding/*.csv
 ops/wordpress-onboarding/failures/
+ops/wordpress-onboarding/node_modules/
