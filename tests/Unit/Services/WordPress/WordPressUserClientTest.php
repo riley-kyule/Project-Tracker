@@ -47,6 +47,27 @@ class WordPressUserClientTest extends TestCase
         Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://example.com/wp-json/wp/v2/users'));
     }
 
+    /**
+     * Regression test: fetchAllUsers() must filter server-side rather than
+     * paginating through every account a site has — some connected sites are
+     * membership/customer platforms with thousands of non-staff users, and
+     * pulling all of them (confirmed in production: one site's sync reached
+     * page 10, ~900 users, before timing out) is both wasteful and slow
+     * enough to look like scraping to a site's WAF.
+     */
+    public function test_the_search_param_scopes_the_request_to_the_staff_domain()
+    {
+        Http::fake(['*/wp-json/wp/v2/users*' => Http::response([], 200)]);
+
+        $this->client()->fetchAllUsers();
+
+        Http::assertSent(function ($request) {
+            parse_str(parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return ($query['search'] ?? null) === '@exotic-online.com';
+        });
+    }
+
     public function test_a_full_page_triggers_fetching_the_next_page()
     {
         $page1 = array_map(fn ($i) => ['id' => $i, 'username' => "user{$i}", 'roles' => ['subscriber']], range(1, 100));

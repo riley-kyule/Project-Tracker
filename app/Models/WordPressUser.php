@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WordPressUser extends Model
 {
+    /** Staff, as opposed to the customer/member accounts a site's WordPress user table may also hold — see WordPressUserClient::fetchAllUsers(). */
+    public const STAFF_EMAIL_DOMAIN = 'exotic-online.com';
+
     // Laravel's class->table snake_case inference splits "WordPress" into
     // "word_press" (capital P reads as a new word boundary), which wouldn't
     // match the more natural "wordpress_users" table name — spelled out
@@ -39,9 +42,9 @@ class WordPressUser extends Model
         return $this->belongsTo(WordPressSite::class, 'wordpress_site_id');
     }
 
-    /** Staff, as opposed to customer/other accounts a WordPress site's user table may also hold. */
+    /** Defense-in-depth only — the sync itself already restricts what gets fetched/stored to this domain (see WordPressUserClient::fetchAllUsers()). */
     public function scopeStaffOnly(Builder $query): Builder
     {
-        return $query->where('email', 'like', '%@exotic-online.com');
+        return $query->where('email', 'like', '%@'.self::STAFF_EMAIL_DOMAIN);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\WordPress;
 
 use App\Models\WordPressCredential;
+use App\Models\WordPressUser;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -31,7 +32,17 @@ class WordPressUserClient
 
     public function __construct(private readonly WordPressCredential $credential) {}
 
-    /** @return array{status: 'ok'|'error', users: array, error?: string} */
+    /**
+     * Filters server-side to staff (search matches WP core's default
+     * search_columns, which include user_email) rather than paginating
+     * through every account a site has — some of these are membership/
+     * customer platforms with thousands of non-staff user accounts, and
+     * pulling all of them was both wasteful (most rows are irrelevant,
+     * needlessly stored) and, on at least one site, slow/heavy enough to
+     * look like scraping to its WAF.
+     *
+     * @return array{status: 'ok'|'error', users: array, error?: string}
+     */
     public function fetchAllUsers(): array
     {
         $users = [];
@@ -41,6 +52,7 @@ class WordPressUserClient
             do {
                 $response = $this->http()->get('/users', [
                     'context' => 'edit',
+                    'search' => '@'.WordPressUser::STAFF_EMAIL_DOMAIN,
                     'per_page' => self::PER_PAGE,
                     'page' => $page,
                 ]);
