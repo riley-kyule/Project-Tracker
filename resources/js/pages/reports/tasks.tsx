@@ -255,10 +255,7 @@ export default function TasksReport({
                     <div className="flex flex-wrap items-center gap-2">
                         <Bookmark className="text-muted-foreground size-4" />
                         {savedFilters.map((savedFilter) => (
-                            <span
-                                key={savedFilter.id}
-                                className="border-sidebar-border/70 dark:border-sidebar-border flex items-center gap-1 rounded-full border py-1 pr-1 pl-3 text-sm"
-                            >
+                            <Badge key={savedFilter.id} variant="secondary" className="flex items-center gap-1 py-1 pr-1 pl-3 font-normal">
                                 <button type="button" onClick={() => applySavedFilter(savedFilter)} className="hover:underline">
                                     {savedFilter.name}
                                 </button>
@@ -270,7 +267,7 @@ export default function TasksReport({
                                 >
                                     <X className="size-3" />
                                 </button>
-                            </span>
+                            </Badge>
                         ))}
                     </div>
                 )}

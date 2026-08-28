@@ -4,7 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { Download } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Reports', href: '/reports/tasks' },
@@ -46,12 +47,18 @@ export default function RemoteSupportReport({
     departments: { id: number; name: string }[];
     selected: { from: string; to: string; department_id?: string | number | null };
 }) {
+    const [filtering, setFiltering] = useState(false);
+
     const apply = (params: Record<string, string | undefined>) => {
         const merged = { from: selected.from, to: selected.to, department_id: selected.department_id?.toString(), ...params };
         router.get(
             '/reports/remote-support',
             Object.fromEntries(Object.entries(merged).filter(([, value]) => value && value !== ALL)) as Record<string, string>,
-            { preserveState: true },
+            {
+                preserveState: true,
+                onStart: () => setFiltering(true),
+                onFinish: () => setFiltering(false),
+            },
         );
     };
 
@@ -77,9 +84,26 @@ export default function RemoteSupportReport({
                         Workload →
                     </Link>
                     <div className="ml-auto flex flex-wrap items-center gap-2">
-                        <Input type="date" value={selected.from} onChange={(e) => apply({ from: e.target.value })} className="w-40" />
-                        <Input type="date" value={selected.to} onChange={(e) => apply({ to: e.target.value })} className="w-40" />
-                        <Select value={selected.department_id?.toString() ?? ALL} onValueChange={(value) => apply({ department_id: value })}>
+                        {filtering && <Loader2 className="text-muted-foreground size-4 animate-spin" aria-label="Loading" />}
+                        <Input
+                            type="date"
+                            value={selected.from}
+                            onChange={(e) => apply({ from: e.target.value })}
+                            disabled={filtering}
+                            className="w-40"
+                        />
+                        <Input
+                            type="date"
+                            value={selected.to}
+                            onChange={(e) => apply({ to: e.target.value })}
+                            disabled={filtering}
+                            className="w-40"
+                        />
+                        <Select
+                            value={selected.department_id?.toString() ?? ALL}
+                            onValueChange={(value) => apply({ department_id: value })}
+                            disabled={filtering}
+                        >
                             <SelectTrigger className="w-44" aria-label="Filter by department">
                                 <SelectValue />
                             </SelectTrigger>

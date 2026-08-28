@@ -69,6 +69,9 @@ export default function WorkloadReport({
                     <Link href="/reports/tasks" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
                         Task report →
                     </Link>
+                    <Link href="/reports/remote-support" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
+                        Remote support →
+                    </Link>
                     {canFilterDepartment && (
                         <div className="ml-auto flex flex-wrap gap-2">
                             <Select value={selected.department_id?.toString() ?? ALL} onValueChange={(value) => apply({ department_id: value })}>
@@ -133,9 +136,7 @@ export default function WorkloadReport({
                                     <td className={`p-3 text-right ${person.overdue_tasks > 0 ? 'text-destructive font-semibold' : ''}`}>
                                         <Link
                                             href={`/reports/tasks?assignee_id=${person.id}&filter=overdue`}
-                                            className={
-                                                person.overdue_tasks > 0 ? 'hover:underline' : 'text-brand-600 dark:text-brand-400 hover:underline'
-                                            }
+                                            className={person.overdue_tasks > 0 ? 'underline' : 'text-brand-600 dark:text-brand-400 hover:underline'}
                                         >
                                             {person.overdue_tasks}
                                         </Link>

@@ -1,4 +1,5 @@
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
@@ -61,13 +62,29 @@ export default function MyReports({
     const [selectedIds, setSelectedIds] = useState<number[]>(selected.website_ids);
     const [dateFrom, setDateFrom] = useState(selected.date_from);
     const [dateTo, setDateTo] = useState(selected.date_to);
+    const [generating, setGenerating] = useState(false);
+    const [exporting, setExporting] = useState(false);
 
     const toggle = (id: number) => {
         setSelectedIds((ids) => (ids.includes(id) ? ids.filter((existing) => existing !== id) : [...ids, id]));
     };
 
     const generate = () => {
-        router.get('/my-reports', { website_ids: selectedIds, date_from: dateFrom, date_to: dateTo }, { preserveState: true, preserveScroll: true });
+        router.get(
+            '/my-reports',
+            { website_ids: selectedIds, date_from: dateFrom, date_to: dateTo },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onStart: () => setGenerating(true),
+                onFinish: () => setGenerating(false),
+            },
+        );
+    };
+
+    const handleExportClick = () => {
+        setExporting(true);
+        window.setTimeout(() => setExporting(false), 1500);
     };
 
     const marketingSites = assigned_websites.filter((website) => website.team === 'marketing');
@@ -129,6 +146,7 @@ export default function MyReports({
                                         value={dateFrom}
                                         max={dateTo}
                                         onChange={(e) => setDateFrom(e.target.value)}
+                                        aria-label="Report start date"
                                         className="border-input bg-background h-10 rounded-md border px-2 text-sm"
                                     />
                                     <span className="text-muted-foreground pb-2 text-sm">to</span>
@@ -137,16 +155,17 @@ export default function MyReports({
                                         value={dateTo}
                                         min={dateFrom}
                                         onChange={(e) => setDateTo(e.target.value)}
+                                        aria-label="Report end date"
                                         className="border-input bg-background h-10 rounded-md border px-2 text-sm"
                                     />
                                 </div>
                                 <div className="ml-auto flex gap-2">
-                                    <Button onClick={generate} disabled={selectedIds.length === 0} type="button">
-                                        Generate Report
+                                    <Button onClick={generate} disabled={selectedIds.length === 0 || generating} type="button">
+                                        {generating ? 'Generating…' : 'Generate Report'}
                                     </Button>
-                                    <Button variant="outline" disabled={selectedIds.length === 0} asChild>
-                                        <a href={exportHref(selectedIds, dateFrom, dateTo)}>
-                                            <Download className="mr-1 size-4" /> Export PDF
+                                    <Button variant="outline" disabled={selectedIds.length === 0 || exporting} asChild>
+                                        <a href={exportHref(selectedIds, dateFrom, dateTo)} onClick={handleExportClick}>
+                                            <Download className="mr-1 size-4" /> {exporting ? 'Exporting…' : 'Export PDF'}
                                         </a>
                                     </Button>
                                 </div>
@@ -163,9 +182,9 @@ export default function MyReports({
                             <div className="space-y-3">
                                 <h2 className="text-lg font-semibold">Marketing — {report.marketing.websites.map((w) => w.name).join(', ')}</h2>
                                 {report.marketing.error ? (
-                                    <div className="rounded-md border border-dashed border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                                        {report.marketing.error}
-                                    </div>
+                                    <Alert className="border-dashed border-amber-400/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                                        <AlertDescription>{report.marketing.error}</AlertDescription>
+                                    </Alert>
                                 ) : (
                                     <>
                                         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -230,9 +249,9 @@ export default function MyReports({
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="rounded-md border border-dashed border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                                        CRM data isn't available yet. {report.customer_service.error}
-                                    </div>
+                                    <Alert className="border-dashed border-amber-400/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                                        <AlertDescription>CRM data isn't available yet. {report.customer_service.error}</AlertDescription>
+                                    </Alert>
                                 )}
                             </div>
                         )}
