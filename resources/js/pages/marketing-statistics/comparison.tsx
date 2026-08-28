@@ -19,6 +19,12 @@ function compact(value: number | null | undefined): string {
     return value === null || value === undefined ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
+// NOTE: no Deferred/loading state here, unlike the other Marketing
+// Statistics tabs — MarketingStatisticsController::comparison() resolves
+// `rows`/`sources` synchronously before Inertia::render(), so there's no
+// deferred prop to key a fallback off. Adding one would mean faking a
+// frontend-only skeleton for data that already arrived, or deferring the
+// controller's query (a backend change, out of scope here).
 export default function WebsiteComparison({
     selected,
     websites,
@@ -30,6 +36,13 @@ export default function WebsiteComparison({
     rows: ComparisonRow[];
     sources?: Record<string, SourceStatus>;
 }) {
+    // NOTE: a website with no GA4/GSC data (row.ga4/row.gsc null — source
+    // down or not mapped) renders an identical zero-height bar to a website
+    // that genuinely had zero users/clicks in range. CategoryBarChart has no
+    // "missing" fill today, and giving it one (plus wiring a tri-state value
+    // through) isn't a cheap change, so this is left as a known conflation
+    // rather than half-fixed here. The per-row "—" in the table below (via
+    // compact()) is the accurate signal in the meantime.
     const chartRows = rows.map((row) => ({
         name: row.name,
         ga4_users: row.ga4?.users ?? 0,
@@ -107,6 +120,11 @@ export default function WebsiteComparison({
                         {rows.length === 0 && (
                             <tr>
                                 <td colSpan={5} className="text-muted-foreground py-3 text-center">
+                                    {/* rows is always one entry per `websites` (see
+                                        AnalyticsReportBuilder::websiteComparison) and registry() swallows its
+                                        own fetch failures into the same empty array as "nothing configured" —
+                                        no prop distinguishes the two cases here, so this copy stays generic
+                                        until the backend surfaces the registry's own status. */}
                                     No mapped websites found.
                                 </td>
                             </tr>

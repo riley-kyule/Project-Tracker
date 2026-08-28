@@ -35,10 +35,15 @@ export default function AhrefsReport({
         <MarketingStatisticsShell active="ahrefs" selected={selected} websites={websites} sources={{ ahrefs: source }}>
             {kpis === null ? (
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border border-dashed p-6 text-center">
-                    <p className="text-muted-foreground text-sm">
-                        No Ahrefs data pipeline exists in BigQuery yet — this tab will populate automatically once one is built (see
-                        ANALYTICS_BIGQUERY_FINDINGS.md).
-                    </p>
+                    {source.status === 'failed' ? (
+                        <p className="text-muted-foreground text-sm" title={source.error ?? undefined}>
+                            Ahrefs data couldn&apos;t be loaded right now. Try refreshing, or contact an administrator if this keeps happening.
+                        </p>
+                    ) : (
+                        <p className="text-muted-foreground text-sm">
+                            Ahrefs data isn&apos;t connected yet — contact an administrator to have it set up.
+                        </p>
+                    )}
                 </div>
             ) : (
                 <>

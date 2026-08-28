@@ -46,13 +46,22 @@ function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<
                     <tbody>
                         {rows.map((row, i) => (
                             <tr key={i} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
-                                {columns.map(([key], colIndex) => (
-                                    <td key={key} className={colIndex === 0 ? 'max-w-48 truncate py-1.5' : 'py-1.5 text-right tabular-nums'}>
-                                        {typeof row[key] === 'number' && key.includes('ctr')
+                                {columns.map(([key], colIndex) => {
+                                    const display =
+                                        typeof row[key] === 'number' && key.includes('ctr')
                                             ? `${((row[key] as number) * 100).toFixed(1)}%`
-                                            : String(row[key] ?? '')}
-                                    </td>
-                                ))}
+                                            : String(row[key] ?? '');
+
+                                    return (
+                                        <td
+                                            key={key}
+                                            className={colIndex === 0 ? 'max-w-48 truncate py-1.5' : 'py-1.5 text-right tabular-nums'}
+                                            title={colIndex === 0 ? display : undefined}
+                                        >
+                                            {display}
+                                        </td>
+                                    );
+                                })}
                             </tr>
                         ))}
                         {rows.length === 0 && (
@@ -143,9 +152,15 @@ export default function GscReport({
                 data="breakdowns"
                 fallback={
                     <div className="grid gap-4 lg:grid-cols-2">
-                        <BreakdownCardShell title="Queries" />
-                        <BreakdownCardShell title="Pages" />
-                        <BreakdownCardShell title="Countries" />
+                        <BreakdownCardShell title="Queries">
+                            <Skeleton className="h-[260px] rounded-lg" />
+                        </BreakdownCardShell>
+                        <BreakdownCardShell title="Pages">
+                            <Skeleton className="h-[260px] rounded-lg" />
+                        </BreakdownCardShell>
+                        <BreakdownCardShell title="Countries">
+                            <Skeleton className="h-[260px] rounded-lg" />
+                        </BreakdownCardShell>
                         <BreakdownCardShell title="Devices (clicks)">
                             <Skeleton className="h-[260px] rounded-lg" />
                         </BreakdownCardShell>

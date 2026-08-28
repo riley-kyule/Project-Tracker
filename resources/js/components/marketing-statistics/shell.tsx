@@ -1,9 +1,32 @@
 import { FilterBar } from '@/components/marketing-statistics/filter-bar';
+import { Badge } from '@/components/ui/badge';
 import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { Head, Link } from '@inertiajs/react';
+
+const SOURCE_LABELS: Record<string, string> = { ga4: 'GA4', gsc: 'GSC', ahrefs: 'Ahrefs' };
+
+/**
+ * Persistent counterpart to useSourceStatusToasts' one-shot toast — a toast
+ * disappears, so a source that's still down needs a badge that stays on
+ * screen for anyone who missed it (or opened the page after it fired).
+ */
+function DegradedSourceBadges({ sources }: { sources?: Record<string, SourceStatus> }) {
+    const issues = Object.entries(sources ?? {}).filter(([, source]) => source.status !== 'ok');
+    if (issues.length === 0) return null;
+
+    return (
+        <div className="flex flex-wrap items-center gap-1.5">
+            {issues.map(([key, source]) => (
+                <Badge key={key} variant={source.status === 'failed' ? 'destructive' : 'outline'} title={source.error ?? undefined}>
+                    {SOURCE_LABELS[key] ?? key}: {source.status}
+                </Badge>
+            ))}
+        </div>
+    );
+}
 
 const TABS = [
     { key: 'overview', label: 'Overview', path: '/marketing-statistics' },
@@ -43,12 +66,18 @@ export function MarketingStatisticsShell({
     selected,
     websites,
     sources,
+    showDateRange = true,
+    showComparison = true,
     children,
 }: {
     active: (typeof TABS)[number]['key'];
     selected: MarketingFilters;
     websites: MarketingWebsite[];
     sources?: Record<string, SourceStatus>;
+    /** Forwarded to FilterBar — hide the date-range control on pages it doesn't meaningfully apply to. */
+    showDateRange?: boolean;
+    /** Forwarded to FilterBar — hide the comparison-mode control on pages it doesn't meaningfully apply to. */
+    showComparison?: boolean;
     children: React.ReactNode;
 }) {
     const query = buildFilterQuery(selected);
@@ -60,7 +89,10 @@ export function MarketingStatisticsShell({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Marketing Statistics — ${activeTab.label}`} />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">Marketing Statistics</h1>
+                <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-xl font-semibold">Marketing Statistics</h1>
+                    <DegradedSourceBadges sources={sources} />
+                </div>
 
                 <nav className="flex flex-wrap gap-1 border-b pb-2">
                     {TABS.map((tab) => (
@@ -78,7 +110,13 @@ export function MarketingStatisticsShell({
                     ))}
                 </nav>
 
-                <FilterBar websites={websites} selected={selected} basePath={activeTab.path} />
+                <FilterBar
+                    websites={websites}
+                    selected={selected}
+                    basePath={activeTab.path}
+                    showDateRange={showDateRange}
+                    showComparison={showComparison}
+                />
 
                 {children}
             </div>

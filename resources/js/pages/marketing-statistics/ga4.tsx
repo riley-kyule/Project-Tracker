@@ -49,7 +49,11 @@ function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<
                         {rows.map((row, i) => (
                             <tr key={i} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                 {columns.map(([key], colIndex) => (
-                                    <td key={key} className={colIndex === 0 ? 'max-w-48 truncate py-1.5' : 'py-1.5 text-right tabular-nums'}>
+                                    <td
+                                        key={key}
+                                        className={colIndex === 0 ? 'max-w-48 truncate py-1.5' : 'py-1.5 text-right tabular-nums'}
+                                        title={colIndex === 0 ? String(row[key] ?? '') : undefined}
+                                    >
                                         {String(row[key] ?? '')}
                                     </td>
                                 ))}
@@ -150,8 +154,12 @@ export default function Ga4Report({
                         <BreakdownCardShell title="Devices (users)">
                             <Skeleton className="h-[260px] rounded-lg" />
                         </BreakdownCardShell>
-                        <BreakdownCardShell title="Landing pages" />
-                        <BreakdownCardShell title="Visitor locations" />
+                        <BreakdownCardShell title="Landing pages">
+                            <Skeleton className="h-[260px] rounded-lg" />
+                        </BreakdownCardShell>
+                        <BreakdownCardShell title="Visitor locations">
+                            <Skeleton className="h-[260px] rounded-lg" />
+                        </BreakdownCardShell>
                     </div>
                 }
             >

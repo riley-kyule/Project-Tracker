@@ -35,7 +35,21 @@ function toDateInput(date: Date): string {
     return date.toISOString().slice(0, 10);
 }
 
-export function FilterBar({ websites, selected, basePath }: { websites: MarketingWebsite[]; selected: MarketingFilters; basePath: string }) {
+export function FilterBar({
+    websites,
+    selected,
+    basePath,
+    showDateRange = true,
+    showComparison = true,
+}: {
+    websites: MarketingWebsite[];
+    selected: MarketingFilters;
+    basePath: string;
+    /** Hide the date-range control on pages it doesn't meaningfully apply to (e.g. Data Freshness, which always reports current recency). */
+    showDateRange?: boolean;
+    /** Hide the comparison-mode control on pages it doesn't meaningfully apply to. */
+    showComparison?: boolean;
+}) {
     const [pending, setPending] = useState<MarketingFilters>(selected);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -116,23 +130,25 @@ export function FilterBar({ websites, selected, basePath }: { websites: Marketin
                 </Select>
             </div>
 
-            <div className="grid gap-1">
-                <label className="text-muted-foreground text-xs">Date range</label>
-                <Select value={pending.range} onValueChange={(value) => setPending((p) => ({ ...p, range: value as DateRange }))}>
-                    <SelectTrigger className="w-40">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {RANGE_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+            {showDateRange && (
+                <div className="grid gap-1">
+                    <label className="text-muted-foreground text-xs">Date range</label>
+                    <Select value={pending.range} onValueChange={(value) => setPending((p) => ({ ...p, range: value as DateRange }))}>
+                        <SelectTrigger className="w-40">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {RANGE_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
-            {pending.range === 'custom' && (
+            {showDateRange && pending.range === 'custom' && (
                 <div className="flex items-end gap-1">
                     <input
                         type="date"
@@ -153,23 +169,25 @@ export function FilterBar({ websites, selected, basePath }: { websites: Marketin
                 </div>
             )}
 
-            <div className="grid gap-1">
-                <label className="text-muted-foreground text-xs">Comparison</label>
-                <Select value={pending.comparison} onValueChange={(value) => setPending((p) => ({ ...p, comparison: value as ComparisonMode }))}>
-                    <SelectTrigger className="w-40">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {COMPARISON_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+            {showComparison && (
+                <div className="grid gap-1">
+                    <label className="text-muted-foreground text-xs">Comparison</label>
+                    <Select value={pending.comparison} onValueChange={(value) => setPending((p) => ({ ...p, comparison: value as ComparisonMode }))}>
+                        <SelectTrigger className="w-40">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {COMPARISON_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
-            {pending.comparison === 'custom' && (
+            {showComparison && pending.comparison === 'custom' && (
                 <div className="flex items-end gap-1">
                     <input
                         type="date"
