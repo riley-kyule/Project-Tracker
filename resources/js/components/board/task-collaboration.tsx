@@ -975,7 +975,8 @@ export function TaskCollaboration({
             {/* Recurrence */}
             {(detail.recurrenceRule || detail.canManageRecurrence) && (
                 <section>
-                    <h3 className="mb-2 text-sm font-semibold">Recurrence</h3>
+                    <h3 className="text-sm font-semibold">Recurrence</h3>
+                    <p className="text-muted-foreground mb-2 text-xs">Generates a new task on a schedule — this one stays as a record once done.</p>
                     {detail.recurrenceRule ? (
                         <div className="flex flex-wrap items-center gap-2 text-sm">
                             <span>
@@ -1042,7 +1043,8 @@ export function TaskCollaboration({
                 instead of generating a new task from a template. */}
             {(detail.autoResetFrequency !== null || detail.canManageRecurrence) && (
                 <section>
-                    <h3 className="mb-2 text-sm font-semibold">Auto-reset</h3>
+                    <h3 className="text-sm font-semibold">Auto-reset</h3>
+                    <p className="text-muted-foreground mb-2 text-xs">Resets this same task back to Ready on a schedule — no new task is created.</p>
                     {detail.canManageRecurrence ? (
                         <div className="flex flex-wrap items-center gap-2">
                             <Select
