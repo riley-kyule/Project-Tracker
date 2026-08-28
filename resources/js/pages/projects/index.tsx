@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { AlertTriangle, Plus } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 type ProjectRow = {
@@ -171,7 +171,10 @@ export default function ProjectsIndex({
                                         {project.status.replace('_', ' ')}
                                     </Badge>
                                     {project.deadline && (
-                                        <span className={`ml-auto text-xs ${overdue ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                                        <span
+                                            className={`ml-auto flex items-center gap-1 text-xs ${overdue ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}
+                                        >
+                                            {overdue && <AlertCircle className="size-3" aria-label="Overdue" />}
                                             {new Date(project.deadline).toLocaleDateString()}
                                         </span>
                                     )}

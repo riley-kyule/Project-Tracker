@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useForm } from '@inertiajs/react';
-import { Calendar, GripVertical, Lock, Star } from 'lucide-react';
+import { AlertCircle, Calendar, GripVertical, Lock, Star } from 'lucide-react';
 import { useState } from 'react';
 
 export type Member = { id: number; name: string };
@@ -66,12 +66,14 @@ export function TaskCard({
     overlay = false,
     selected,
     onToggleSelect,
+    pending,
 }: {
     task: BoardTask;
     onOpen?: (task: BoardTask) => void;
     overlay?: boolean;
     selected?: boolean;
     onToggleSelect?: (taskId: number, checked: boolean) => void;
+    pending?: boolean;
 }) {
     // Drag listeners live on the handle, not the whole card: keyboard drag
     // (Space to pick up, arrows to move, Space to drop — see the
@@ -109,7 +111,7 @@ export function TaskCard({
                 }
             }}
             className={`bg-background border-sidebar-border/70 dark:border-sidebar-border focus-visible:ring-ring rounded-lg border p-3 text-left shadow-sm focus-visible:ring-2 focus-visible:outline-none ${
-                isDragging ? 'opacity-40' : ''
+                isDragging ? 'opacity-40' : pending ? 'opacity-60' : ''
             } ${overlay ? 'rotate-2 shadow-lg' : ''}`}
         >
             <div className="flex items-start gap-2">
@@ -156,7 +158,7 @@ export function TaskCard({
                 <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${priorityStyles[task.priority]}`}>{task.priority}</span>
                 {task.due_at && (
                     <span className={`flex items-center gap-1 text-xs ${overdue(task) ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
-                        <Calendar className="size-3" />
+                        {overdue(task) ? <AlertCircle className="size-3" aria-label="Overdue" /> : <Calendar className="size-3" />}
                         {new Date(task.due_at).toLocaleDateString()}
                     </span>
                 )}

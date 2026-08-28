@@ -317,9 +317,13 @@ export default function ProjectShow({
                     <h2 className="mb-2 text-sm font-semibold">Tasks</h2>
                     <ul className="divide-sidebar-border/40 dark:divide-sidebar-border/40 divide-y">
                         {tasks.map((task) => (
-                            <li key={task.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+                            <li
+                                key={task.id}
+                                onClick={() => router.visit(`/boards/${task.board.id}`)}
+                                className="hover:bg-muted/50 -mx-2 flex cursor-pointer flex-wrap items-center gap-2 rounded-md px-2 py-2 text-sm"
+                            >
                                 <span className="text-muted-foreground font-mono text-xs">T-{task.task_number}</span>
-                                <Link href={`/boards/${task.board.id}`} className="font-medium hover:underline">
+                                <Link href={`/boards/${task.board.id}`} onClick={(e) => e.stopPropagation()} className="font-medium hover:underline">
                                     {task.title}
                                 </Link>
                                 <span className="text-muted-foreground text-xs">{task.assignee?.name ?? 'Unassigned'}</span>
@@ -336,7 +340,10 @@ export default function ProjectShow({
                                     <button
                                         type="button"
                                         aria-label={`Unlink ${task.title}`}
-                                        onClick={() => unlinkTask(task.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            unlinkTask(task.id);
+                                        }}
                                         className="text-muted-foreground hover:text-destructive"
                                     >
                                         <X className="size-3.5" />

@@ -410,16 +410,17 @@ export function TaskCollaboration({
                                         />
                                     </form>
                                 ) : (
-                                    <span
-                                        className={`text-sm font-medium ${detail.canEditChecklist ? 'cursor-text' : ''}`}
+                                    <button
+                                        type="button"
+                                        disabled={!detail.canEditChecklist}
+                                        className="text-left text-sm font-medium enabled:cursor-text disabled:cursor-default"
                                         onClick={() => {
-                                            if (!detail.canEditChecklist) return;
                                             setEditingChecklistId(checklist.id);
                                             setEditingChecklistName(checklist.name);
                                         }}
                                     >
                                         {checklist.name}
-                                    </span>
+                                    </button>
                                 )}
                                 <span className="text-muted-foreground flex items-center text-xs">
                                     {done}/{checklist.items.length}
@@ -518,23 +519,24 @@ export function TaskCollaboration({
                                                 />
                                             </form>
                                         ) : (
-                                            <span
-                                                className={`flex-1 ${item.is_completed ? 'text-muted-foreground line-through' : ''} ${detail.canEditChecklist ? 'cursor-text' : ''}`}
+                                            <button
+                                                type="button"
+                                                disabled={!detail.canEditChecklist}
+                                                className={`flex-1 text-left ${item.is_completed ? 'text-muted-foreground line-through' : ''} enabled:cursor-text disabled:cursor-default`}
                                                 onClick={() => {
-                                                    if (!detail.canEditChecklist) return;
                                                     setEditingItemId(item.id);
                                                     setEditingItemTitle(item.title);
                                                 }}
                                             >
                                                 {item.title}
-                                            </span>
+                                            </button>
                                         )}
                                         <button
                                             type="button"
                                             aria-label={`Delete ${item.title}`}
                                             disabled={!detail.canEditChecklist}
                                             onClick={() => destroy(`/checklist-items/${item.id}`)}
-                                            className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-0"
+                                            className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-0"
                                         >
                                             <Trash2 className="size-3.5" />
                                         </button>
@@ -1330,6 +1332,14 @@ export function TaskCollaboration({
                     onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
+                        // Mirrors AttachmentController's File::types(...)->max('25mb') rule —
+                        // catching an oversized file here avoids a wasted upload + round trip.
+                        const maxBytes = 25 * 1024 * 1024;
+                        if (file.size > maxBytes) {
+                            toast.error(`"${file.name}" is too large. Attachments are limited to 25 MB.`);
+                            if (fileInput.current) fileInput.current.value = '';
+                            return;
+                        }
                         router.post(
                             `/tasks/${taskId}/attachments`,
                             { file },

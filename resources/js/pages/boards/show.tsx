@@ -617,6 +617,7 @@ function BoardColumn({
     selectMode,
     selectedIds,
     onToggleSelect,
+    pendingTaskId,
 }: {
     column: Column;
     boardId: number;
@@ -630,9 +631,11 @@ function BoardColumn({
     selectMode: boolean;
     selectedIds?: Set<number>;
     onToggleSelect?: (taskId: number, checked: boolean) => void;
+    pendingTaskId?: number | null;
 }) {
     const { setNodeRef } = useDroppable({ id: `column-${column.id}` });
     const overLimit = column.wip_limit !== null && column.tasks.length > column.wip_limit;
+    const [tooltipOpen, setTooltipOpen] = useState(false);
 
     const destroy = () => {
         if (column.tasks.length > 0 && !confirm(`Delete "${column.name}"? It has no tasks left to lose, so this can't be undone.`)) {
@@ -652,9 +655,14 @@ function BoardColumn({
         >
             <div className="flex shrink-0 items-center justify-between gap-1 p-3 pb-1">
                 <TooltipProvider>
-                    <Tooltip delayDuration={300}>
+                    {/* Controlled so a tap toggles the description on touch/tablet, where
+                        hover never fires — onOpenChange still tracks Radix's own hover/focus
+                        behavior for mouse users, and the click handler layers a toggle on top. */}
+                    <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen} delayDuration={300}>
                         <TooltipTrigger asChild>
-                            <span className="text-sm font-semibold">{column.name}</span>
+                            <button type="button" onClick={() => setTooltipOpen((open) => !open)} className="text-sm font-semibold">
+                                {column.name}
+                            </button>
                         </TooltipTrigger>
                         <TooltipContent>{SEMANTIC_STATUS_DESCRIPTIONS[column.semantic_status] ?? SEMANTIC_STATUS_DESCRIPTIONS.custom}</TooltipContent>
                     </Tooltip>
@@ -712,6 +720,7 @@ function BoardColumn({
                             onOpen={onOpenTask}
                             selected={selectedIds?.has(task.id)}
                             onToggleSelect={canManage && selectMode ? onToggleSelect : undefined}
+                            pending={task.id === pendingTaskId}
                         />
                     ))}
                 </div>
@@ -753,6 +762,10 @@ export default function BoardShow({
     const [priorityFilter, setPriorityFilter] = useState(ALL);
     const [selectMode, setSelectMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    // Tracks the task whose drag-drop move is still in flight, so its card can
+    // show a subtle "saving" state distinct from dnd-kit's own isDragging (which
+    // ends the instant the pointer is released, well before the server responds).
+    const [pendingTaskId, setPendingTaskId] = useState<number | null>(null);
 
     useEffect(() => {
         setColumns(board.columns);
@@ -927,6 +940,7 @@ export default function BoardShow({
 
         const position = index + 1;
 
+        setPendingTaskId(activeId);
         router.post(
             `/tasks/${activeId}/move`,
             { board_column_id: column.id, position },
@@ -938,10 +952,13 @@ export default function BoardShow({
                         setBlockedMove({ taskId: activeId, columnId: column.id, position, message: errors.dependencies });
                     } else if (errors.approval) {
                         setApprovalBlockedMessage(errors.approval);
+                    } else if (Object.keys(errors).length > 0) {
+                        toast.error("Couldn't move that task. It's been moved back.");
                     }
                     // Local optimistic state may now disagree with the server; resync.
                     router.reload({ only: ['board'] });
                 },
+                onFinish: () => setPendingTaskId(null),
             },
         );
     };
@@ -1075,7 +1092,7 @@ export default function BoardShow({
                     onDragOver={filtering ? undefined : handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
+                    <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-12px),transparent)]">
                         {visibleColumns.map((column, index) => (
                             <BoardColumn
                                 key={column.id}
@@ -1091,6 +1108,7 @@ export default function BoardShow({
                                 onOpenTask={setOpenTask}
                                 onEdit={setColumnDialog}
                                 onMove={moveColumn}
+                                pendingTaskId={pendingTaskId}
                             />
                         ))}
                         {can.manage && (
