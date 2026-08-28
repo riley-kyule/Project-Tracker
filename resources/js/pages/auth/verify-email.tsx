@@ -1,14 +1,16 @@
 // Components
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import AuthLayout from '@/layouts/auth-layout';
+import { type SharedData } from '@/types';
 
 export default function VerifyEmail({ status }: { status?: string }) {
     const { post, processing } = useForm({});
+    const { auth } = usePage<SharedData>().props;
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -17,11 +19,14 @@ export default function VerifyEmail({ status }: { status?: string }) {
     };
 
     return (
-        <AuthLayout title="Verify email" description="Please verify your email address by clicking on the link we just emailed to you.">
+        <AuthLayout
+            title="Verify email"
+            description={`We sent a verification link to ${auth.user.email}. Please click the link to verify your email address.`}
+        >
             <Head title="Email verification" />
 
             {status === 'verification-link-sent' && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
+                <div className="mb-4 text-center text-sm font-medium text-green-600 dark:text-green-400">
                     A new verification link has been sent to the email address you provided during registration.
                 </div>
             )}

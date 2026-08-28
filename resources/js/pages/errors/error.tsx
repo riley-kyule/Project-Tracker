@@ -1,5 +1,5 @@
-import AppLogoIcon from '@/components/app-logo-icon';
 import { Button } from '@/components/ui/button';
+import AuthLayout from '@/layouts/auth-layout';
 import { Head, Link } from '@inertiajs/react';
 
 const copy: Record<number, { title: string; message: string }> = {
@@ -15,17 +15,10 @@ export default function ErrorPage({ status }: { status: number }) {
     const { title, message } = copy[status] ?? copy[500];
 
     return (
-        <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
+        <AuthLayout title={title} description={message}>
             <Head title={title} />
-            <div className="bg-brand-600 flex size-14 items-center justify-center rounded-xl text-white">
-                <AppLogoIcon className="size-8 fill-current" />
-            </div>
-            <div className="space-y-2">
-                <p className="text-brand-600 dark:text-brand-400 text-sm font-semibold">Error {status}</p>
-                <h1 className="text-foreground text-2xl font-semibold">{title}</h1>
-                <p className="text-muted-foreground max-w-sm text-sm">{message}</p>
-            </div>
-            <div className="flex gap-3">
+            <p className="text-brand-600 dark:text-brand-400 -mt-4 text-center text-sm font-semibold">Error {status}</p>
+            <div className="flex justify-center gap-3">
                 <Button variant="outline" onClick={() => window.history.back()}>
                     Go back
                 </Button>
@@ -33,6 +26,6 @@ export default function ErrorPage({ status }: { status: number }) {
                     <Link href="/dashboard">Go to dashboard</Link>
                 </Button>
             </div>
-        </div>
+        </AuthLayout>
     );
 }
