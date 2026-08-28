@@ -275,6 +275,7 @@ export default function UsersIndex({
     canDelete: boolean;
 }) {
     const { auth } = usePage<SharedData>().props;
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
     const { sorted, sort, onSort } = useClientSort(users, (user, column) => {
         switch (column) {
@@ -295,7 +296,8 @@ export default function UsersIndex({
 
     const destroy = (user: UserRow) => {
         if (!confirm(`Delete ${user.name}? This cannot be undone from the UI.`)) return;
-        router.delete(`/admin/users/${user.id}`);
+        setDeletingId(user.id);
+        router.delete(`/admin/users/${user.id}`, { onFinish: () => setDeletingId(null) });
     };
 
     return (
@@ -352,6 +354,7 @@ export default function UsersIndex({
                                                         className="text-destructive hover:text-destructive"
                                                         aria-label={`Delete ${user.name}`}
                                                         onClick={() => destroy(user)}
+                                                        disabled={deletingId === user.id}
                                                     >
                                                         <Trash2 className="size-4" />
                                                     </Button>
@@ -361,6 +364,13 @@ export default function UsersIndex({
                                     )}
                                 </tr>
                             ))}
+                            {sorted.length === 0 && (
+                                <tr>
+                                    <td colSpan={canManage || canDelete ? 6 : 5} className="text-muted-foreground p-4 text-center">
+                                        No users yet.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

@@ -288,14 +288,16 @@ function DepartmentMembersDialog({ department, allUsers }: { department: Departm
                     {department.members.map((member) => (
                         <li key={member.id} className="flex items-center gap-2 text-sm">
                             {member.name}
-                            <button
+                            <Button
                                 type="button"
+                                variant="ghost"
+                                size="sm"
                                 aria-label={`Remove ${member.name}`}
                                 onClick={() => removeMember(member.id)}
-                                className="text-muted-foreground hover:text-destructive ml-auto"
+                                className="text-muted-foreground hover:text-destructive ml-auto h-auto px-1.5 py-0.5"
                             >
                                 <X className="size-3.5" />
-                            </button>
+                            </Button>
                         </li>
                     ))}
                     {department.members.length === 0 && <li className="text-muted-foreground text-sm">No additional members yet.</li>}
@@ -476,7 +478,11 @@ export default function DepartmentsIndex({
                             {orderedDepartments.map((department) => (
                                 <tr key={department.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
                                     <td className={`p-3 font-medium ${department.parent_department_id ? 'pl-8 font-normal' : ''}`}>
-                                        {department.parent_department_id && <span className="text-muted-foreground mr-1">↳</span>}
+                                        {department.parent_department_id && (
+                                            <span className="text-muted-foreground mr-1" aria-hidden="true">
+                                                ↳
+                                            </span>
+                                        )}
                                         {department.name}
                                     </td>
                                     <td className="p-3">{department.manager?.name ?? '—'}</td>
@@ -484,7 +490,13 @@ export default function DepartmentsIndex({
                                     <td className="p-3">
                                         {department.users_count}
                                         {department.members.length > 0 && (
-                                            <span className="text-muted-foreground"> (+{department.members.length})</span>
+                                            <span
+                                                className="text-muted-foreground"
+                                                title={`${department.members.length} additional member(s) with visibility into this department who belong to another department`}
+                                            >
+                                                {' '}
+                                                (+{department.members.length})
+                                            </span>
                                         )}
                                     </td>
                                     <td className="p-3">
@@ -509,6 +521,13 @@ export default function DepartmentsIndex({
                                     )}
                                 </tr>
                             ))}
+                            {orderedDepartments.length === 0 && (
+                                <tr>
+                                    <td colSpan={canManage ? 6 : 5} className="text-muted-foreground p-4 text-center">
+                                        No departments yet.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

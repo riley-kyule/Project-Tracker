@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -159,6 +160,7 @@ function SiteDialog({ site, trigger }: { site?: Site; trigger: React.ReactNode }
 
 function SitesPanel({ sites }: { sites: Site[] }) {
     const [busyId, setBusyId] = useState<number | null>(null);
+    const [syncingId, setSyncingId] = useState<number | null>(null);
     const [search, setSearch] = useState('');
 
     const term = search.trim().toLowerCase();
@@ -171,7 +173,8 @@ function SitesPanel({ sites }: { sites: Site[] }) {
     };
 
     const sync = (site: Site) => {
-        router.post(`/admin/wordpress-users/sites/${site.id}/sync`, {}, { preserveScroll: true });
+        setSyncingId(site.id);
+        router.post(`/admin/wordpress-users/sites/${site.id}/sync`, {}, { preserveScroll: true, onFinish: () => setSyncingId(null) });
     };
 
     const destroy = (site: Site) => {
@@ -234,8 +237,14 @@ function SitesPanel({ sites }: { sites: Site[] }) {
                                         >
                                             <Plug className="size-4" />
                                         </Button>
-                                        <Button variant="ghost" size="sm" aria-label={`Sync now for ${site.name}`} onClick={() => sync(site)}>
-                                            <RefreshCw className="size-4" />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            aria-label={`Sync now for ${site.name}`}
+                                            onClick={() => sync(site)}
+                                            disabled={syncingId === site.id}
+                                        >
+                                            <RefreshCw className={`size-4 ${syncingId === site.id ? 'animate-spin' : ''}`} />
                                         </Button>
                                         <SiteDialog
                                             site={site}
@@ -384,7 +393,7 @@ function ChangeRoleDialog({ roles, onApply }: { roles: string[]; onApply: (roles
                 <div className="space-y-4">
                     <RoleCheckboxes roles={roles} selected={selected} onChange={setSelected} />
                     <Button onClick={apply} disabled={processing || selected.length === 0}>
-                        Apply
+                        {processing ? 'Applying…' : 'Apply'}
                     </Button>
                 </div>
             </DialogContent>
@@ -445,7 +454,7 @@ function UpdateEmailDialog({
                         </div>
                     ))}
                     <Button onClick={apply} disabled={processing}>
-                        Save {selectedUsers.length} email(s)
+                        {processing ? 'Saving…' : `Save ${selectedUsers.length} email(s)`}
                     </Button>
                 </div>
             </DialogContent>
@@ -632,17 +641,19 @@ export default function WordPressUsersIndex({
                 </div>
 
                 {flash.bulkResults && flash.bulkResults.length > 0 && (
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border space-y-1 rounded-xl border p-3 text-sm">
-                        <p className="font-medium">Last bulk action results</p>
-                        {flash.bulkResults
-                            .filter((r) => r.status !== 'ok')
-                            .map((r, i) => (
-                                <p key={i} className="text-destructive text-xs">
-                                    {r.site ?? `#${r.id}`}: {r.error ?? 'failed'}
-                                </p>
-                            ))}
-                        {flash.bulkResults.every((r) => r.status === 'ok') && <p className="text-muted-foreground text-xs">All succeeded.</p>}
-                    </div>
+                    <Alert variant={flash.bulkResults.some((r) => r.status !== 'ok') ? 'destructive' : 'default'}>
+                        <AlertTitle>Last bulk action results</AlertTitle>
+                        <AlertDescription className="space-y-1">
+                            {flash.bulkResults
+                                .filter((r) => r.status !== 'ok')
+                                .map((r, i) => (
+                                    <p key={i} className="text-xs">
+                                        {r.site ?? `#${r.id}`}: {r.error ?? 'failed'}
+                                    </p>
+                                ))}
+                            {flash.bulkResults.every((r) => r.status === 'ok') && <p className="text-muted-foreground text-xs">All succeeded.</p>}
+                        </AlertDescription>
+                    </Alert>
                 )}
 
                 {selectedIds.length > 0 && (

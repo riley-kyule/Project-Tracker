@@ -142,6 +142,7 @@ export default function LabelsIndex({ labels, canManage }: { labels: LabelRow[];
                                                     aria-label={`Delete ${label.name}`}
                                                     onClick={() => destroy(label)}
                                                     disabled={label.tasks_count > 0}
+                                                    title={label.tasks_count > 0 ? 'Remove this label from every task before deleting it' : undefined}
                                                 >
                                                     <Trash2 className="size-4" />
                                                 </Button>
