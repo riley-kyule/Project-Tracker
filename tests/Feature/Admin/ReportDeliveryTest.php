@@ -96,4 +96,41 @@ class ReportDeliveryTest extends TestCase
         $this->assertSame(2, $props['deliveries']['last_page']);
         $this->assertNotEmpty($props['deliveries']['links']);
     }
+
+    public function test_report_deliveries_can_be_sorted_by_an_allowed_column()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $recipient = User::factory()->create()->assignRole('CEO');
+
+        $snapshot = ReportSnapshot::query()->create([
+            'report_date' => now()->toDateString(),
+            'report_type' => ReportSnapshot::TYPE_CEO_DAILY,
+            'department_id' => null,
+            'generated_at' => now(),
+            'payload' => [],
+            'status' => ReportSnapshot::STATUS_GENERATED,
+            'version' => 1,
+        ]);
+
+        ReportDelivery::query()->create([
+            'report_snapshot_id' => $snapshot->id,
+            'recipient_user_id' => $recipient->id,
+            'status' => ReportDelivery::STATUS_SENT,
+            'retry_count' => 3,
+        ]);
+        ReportDelivery::query()->create([
+            'report_snapshot_id' => $snapshot->id,
+            'recipient_user_id' => $recipient->id,
+            'status' => ReportDelivery::STATUS_FAILED,
+            'retry_count' => 1,
+        ]);
+
+        $props = $this->actingAs($admin)
+            ->get('/admin/report-deliveries?sort=retry_count&direction=asc')
+            ->assertOk()
+            ->viewData('page')['props'];
+
+        $this->assertSame([1, 3], collect($props['deliveries']['data'])->pluck('retry_count')->all());
+        $this->assertSame('retry_count', $props['sort']);
+    }
 }

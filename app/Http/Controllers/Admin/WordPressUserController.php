@@ -14,6 +14,9 @@ use Inertia\Response;
 
 class WordPressUserController extends Controller
 {
+    /** Direct columns only — Site is a relation and Roles is a JSON array; neither sorts meaningfully with a plain orderBy. */
+    public const SORTABLE_COLUMNS = ['username', 'email'];
+
     public function index(Request $request): Response
     {
         abort_unless($request->user()->can('wordpress.manage'), 403);
@@ -24,6 +27,10 @@ class WordPressUserController extends Controller
             'search' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $sort = $request->string('sort')->toString();
+        $direction = $request->string('direction')->toString() === 'desc' ? 'desc' : 'asc';
+        $sortIsValid = in_array($sort, self::SORTABLE_COLUMNS, true);
+
         $users = WordPressUser::query()
             ->with('site:id,name,domain')
             ->when($filters['site_id'] ?? null, fn ($query, $siteId) => $query->where('wordpress_site_id', $siteId))
@@ -31,13 +38,18 @@ class WordPressUserController extends Controller
             ->when($filters['search'] ?? null, fn ($query, $search) => $query->where(
                 fn ($q) => $q->where('username', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")
             ))
-            ->orderBy('wordpress_site_id')
-            ->orderBy('username')
+            ->when(
+                $sortIsValid,
+                fn ($query) => $query->orderBy($sort, $direction),
+                fn ($query) => $query->orderBy('wordpress_site_id')->orderBy('username'),
+            )
             ->paginate(50)
             ->withQueryString();
 
         return Inertia::render('admin/wordpress-users/index', [
             'users' => $users,
+            'sort' => $sortIsValid ? $sort : null,
+            'direction' => $direction,
             'sites' => WordPressSite::query()
                 ->with('credential')
                 ->orderBy('name')

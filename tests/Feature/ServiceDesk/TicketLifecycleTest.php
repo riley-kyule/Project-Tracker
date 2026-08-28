@@ -62,6 +62,31 @@ class TicketLifecycleTest extends TestCase
         $this->assertNotEmpty($props['tickets']['links']);
     }
 
+    public function test_ticket_index_can_be_sorted_by_an_allowed_column()
+    {
+        $manager = User::factory()->create()->assignRole('Administrator');
+
+        Ticket::factory()->create(['category_id' => $this->category()->id, 'title' => 'Charlie']);
+        Ticket::factory()->create(['category_id' => $this->category()->id, 'title' => 'Alice']);
+        Ticket::factory()->create(['category_id' => $this->category()->id, 'title' => 'Bob']);
+
+        $props = $this->actingAs($manager)->get('/tickets?sort=title&direction=asc')->assertOk()->viewData('page')['props'];
+
+        $this->assertSame(['Alice', 'Bob', 'Charlie'], collect($props['tickets']['data'])->pluck('title')->all());
+        $this->assertSame('title', $props['sort']);
+        $this->assertSame('asc', $props['direction']);
+    }
+
+    public function test_ticket_index_ignores_a_sort_column_not_on_the_allow_list()
+    {
+        $manager = User::factory()->create()->assignRole('Administrator');
+        Ticket::factory()->create(['category_id' => $this->category()->id]);
+
+        $props = $this->actingAs($manager)->get('/tickets?sort=description&direction=asc')->assertOk()->viewData('page')['props'];
+
+        $this->assertNull($props['sort']);
+    }
+
     public function test_requesters_see_only_their_own_tickets()
     {
         $alice = User::factory()->create()->assignRole('Employee');

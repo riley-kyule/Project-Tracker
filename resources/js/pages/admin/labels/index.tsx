@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -76,6 +77,8 @@ function LabelDialog({ label, trigger }: { label?: LabelRow; trigger: React.Reac
 }
 
 export default function LabelsIndex({ labels, canManage }: { labels: LabelRow[]; canManage: boolean }) {
+    const { sorted, sort, onSort } = useClientSort(labels, (label, column) => (column === 'name' ? label.name : label.tasks_count));
+
     const destroy = (label: LabelRow) => {
         if (!confirm(`Delete the "${label.name}" label?`)) {
             return;
@@ -103,13 +106,17 @@ export default function LabelsIndex({ labels, canManage }: { labels: LabelRow[];
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-sidebar-border/70 text-muted-foreground dark:border-sidebar-border border-b text-left">
-                                <th className="p-3 font-medium">Label</th>
-                                <th className="p-3 font-medium">Tasks</th>
+                                <SortableHeader column="name" sort={sort} onSort={onSort} className="p-3">
+                                    Label
+                                </SortableHeader>
+                                <SortableHeader column="tasks_count" sort={sort} onSort={onSort} className="p-3">
+                                    Tasks
+                                </SortableHeader>
                                 {canManage && <th className="p-3" />}
                             </tr>
                         </thead>
                         <tbody>
-                            {labels.map((label) => (
+                            {sorted.map((label) => (
                                 <tr key={label.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
                                     <td className="p-3 font-medium">
                                         <span className="inline-flex items-center gap-2">

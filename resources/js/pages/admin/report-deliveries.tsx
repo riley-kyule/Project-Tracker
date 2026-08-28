@@ -1,4 +1,5 @@
 import { Pagination, type Paginated } from '@/components/pagination';
+import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
@@ -44,13 +45,32 @@ export default function ReportDeliveries({
     deliveries,
     statuses,
     selected,
+    sort: sortColumn,
+    direction,
 }: {
     deliveries: Paginated<Delivery>;
     statuses: string[];
     selected: { status?: string };
+    sort: string | null;
+    direction: 'asc' | 'desc';
 }) {
+    const sort: SortState = { column: sortColumn, direction };
+
     const applyStatus = (status: string) => {
-        router.get('/admin/report-deliveries', status === ALL ? {} : { status }, { preserveState: true, preserveScroll: true });
+        router.get(
+            '/admin/report-deliveries',
+            { status: status === ALL ? undefined : status, sort: sortColumn ?? undefined, direction },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const onSort = (column: string) => {
+        const nextDirection = sort.column === column && sort.direction === 'asc' ? 'desc' : 'asc';
+        router.get(
+            '/admin/report-deliveries',
+            { status: selected.status, sort: column, direction: nextDirection },
+            { preserveState: true, preserveScroll: true },
+        );
     };
 
     return (
@@ -82,9 +102,15 @@ export default function ReportDeliveries({
                                 <th className="p-3 font-medium">Report</th>
                                 <th className="p-3 font-medium">Date</th>
                                 <th className="p-3 font-medium">Recipient</th>
-                                <th className="p-3 font-medium">Status</th>
-                                <th className="p-3 font-medium">Sent</th>
-                                <th className="p-3 font-medium">Retries</th>
+                                <SortableHeader column="status" sort={sort} onSort={onSort} className="p-3">
+                                    Status
+                                </SortableHeader>
+                                <SortableHeader column="sent_at" sort={sort} onSort={onSort} className="p-3">
+                                    Sent
+                                </SortableHeader>
+                                <SortableHeader column="retry_count" sort={sort} onSort={onSort} className="p-3">
+                                    Retries
+                                </SortableHeader>
                                 <th className="p-3 font-medium">Failure reason</th>
                             </tr>
                         </thead>

@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { Pagination, type Paginated } from '@/components/pagination';
+import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -139,6 +140,8 @@ export default function TasksReport({
     people,
     selected,
     savedFilters,
+    sort: sortColumn,
+    direction,
 }: {
     tasks: Paginated<ReportTask>;
     filter: string;
@@ -147,13 +150,15 @@ export default function TasksReport({
     people: Person[];
     selected: { department_id?: string; assignee_id?: string };
     savedFilters: SavedFilter[];
+    sort: string | null;
+    direction: 'asc' | 'desc';
 }) {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const sort: SortState = { column: sortColumn, direction };
 
-    const currentFilters = Object.fromEntries(Object.entries({ filter, ...selected }).filter(([, value]) => value && value !== ALL)) as Record<
-        string,
-        string
-    >;
+    const currentFilters = Object.fromEntries(
+        Object.entries({ filter, ...selected, sort: sortColumn, direction }).filter(([, value]) => value && value !== ALL),
+    ) as Record<string, string>;
 
     const apply = (params: Record<string, string | undefined>) => {
         setSelectedIds([]);
@@ -165,6 +170,10 @@ export default function TasksReport({
             >,
             { preserveState: true, preserveScroll: true },
         );
+    };
+
+    const onSort = (column: string) => {
+        apply({ sort: column, direction: sort.column === column && sort.direction === 'asc' ? 'desc' : 'asc' });
     };
 
     const applySavedFilter = (savedFilter: SavedFilter) => {
@@ -275,14 +284,22 @@ export default function TasksReport({
                                 <th className="w-10 p-3">
                                     <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all on this page" />
                                 </th>
-                                <th className="p-3 font-medium">#</th>
-                                <th className="p-3 font-medium">Task</th>
+                                <SortableHeader column="task_number" sort={sort} onSort={onSort} className="p-3">
+                                    #
+                                </SortableHeader>
+                                <SortableHeader column="title" sort={sort} onSort={onSort} className="p-3">
+                                    Task
+                                </SortableHeader>
                                 <th className="p-3 font-medium">Board</th>
                                 <th className="p-3 font-medium">Column</th>
                                 <th className="p-3 font-medium">Assignee</th>
                                 <th className="p-3 font-medium">Department</th>
-                                <th className="p-3 font-medium">Priority</th>
-                                <th className="p-3 font-medium">Due</th>
+                                <SortableHeader column="priority" sort={sort} onSort={onSort} className="p-3">
+                                    Priority
+                                </SortableHeader>
+                                <SortableHeader column="due_at" sort={sort} onSort={onSort} className="p-3">
+                                    Due
+                                </SortableHeader>
                             </tr>
                         </thead>
                         <tbody>

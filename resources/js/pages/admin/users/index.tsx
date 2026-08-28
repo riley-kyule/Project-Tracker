@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -275,6 +276,23 @@ export default function UsersIndex({
 }) {
     const { auth } = usePage<SharedData>().props;
 
+    const { sorted, sort, onSort } = useClientSort(users, (user, column) => {
+        switch (column) {
+            case 'name':
+                return user.name;
+            case 'role':
+                return user.role;
+            case 'department':
+                return user.department?.name ?? null;
+            case 'job_title':
+                return user.job_title;
+            case 'status':
+                return user.status;
+            default:
+                return null;
+        }
+    });
+
     const destroy = (user: UserRow) => {
         if (!confirm(`Delete ${user.name}? This cannot be undone from the UI.`)) return;
         router.delete(`/admin/users/${user.id}`);
@@ -292,16 +310,26 @@ export default function UsersIndex({
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-sidebar-border/70 text-muted-foreground dark:border-sidebar-border border-b text-left">
-                                <th className="p-3 font-medium">Name</th>
-                                <th className="p-3 font-medium">Role</th>
-                                <th className="p-3 font-medium">Department</th>
-                                <th className="p-3 font-medium">Job title</th>
-                                <th className="p-3 font-medium">Status</th>
+                                <SortableHeader column="name" sort={sort} onSort={onSort} className="p-3">
+                                    Name
+                                </SortableHeader>
+                                <SortableHeader column="role" sort={sort} onSort={onSort} className="p-3">
+                                    Role
+                                </SortableHeader>
+                                <SortableHeader column="department" sort={sort} onSort={onSort} className="p-3">
+                                    Department
+                                </SortableHeader>
+                                <SortableHeader column="job_title" sort={sort} onSort={onSort} className="p-3">
+                                    Job title
+                                </SortableHeader>
+                                <SortableHeader column="status" sort={sort} onSort={onSort} className="p-3">
+                                    Status
+                                </SortableHeader>
                                 {(canManage || canDelete) && <th className="p-3" />}
                             </tr>
                         </thead>
                         <tbody>
-                            {users.map((user) => (
+                            {sorted.map((user) => (
                                 <tr key={user.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
                                     <td className="p-3">
                                         <div className="font-medium">{user.name}</div>

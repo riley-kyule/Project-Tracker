@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, toggleSort, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -381,11 +382,50 @@ export default function DepartmentsIndex({
     canManage: boolean;
     companySettings: { ceo_summary_time: string | null; ceo_weekly_summary_time: string | null };
 }) {
-    // Group children directly beneath their parent so a division and its teams read as one unit.
-    const topLevel = departments.filter((department) => !department.parent_department_id);
+    // Sorting can't be a plain flat sort here without destroying the
+    // parent/child grouping every row depends on — instead each level sorts
+    // independently (parents among parents, then each parent's children
+    // among themselves) and the hierarchy stays intact either way. Name
+    // itself stays unsortable: it *is* the hierarchy, so "sorting" it would
+    // just be the grouping again.
+    const [sort, setSort] = useState<SortState>({ column: null, direction: 'asc' });
+    const onSort = (column: string) => setSort((current) => toggleSort(current, column));
+
+    const sortValue = (department: Department, column: string): string | number | null => {
+        switch (column) {
+            case 'manager':
+                return department.manager?.name ?? null;
+            case 'assistant_manager':
+                return department.assistant_manager?.name ?? null;
+            case 'members':
+                return department.users_count;
+            case 'is_active':
+                return department.is_active ? 1 : 0;
+            default:
+                return null;
+        }
+    };
+
+    const sortGroup = (group: Department[]): Department[] => {
+        if (sort.column === null) {
+            return group;
+        }
+        const column = sort.column;
+        const factor = sort.direction === 'asc' ? 1 : -1;
+        return [...group].sort((a, b) => {
+            const left = sortValue(a, column);
+            const right = sortValue(b, column);
+            if (left === null) return right === null ? 0 : 1;
+            if (right === null) return -1;
+            if (typeof left === 'string' && typeof right === 'string') return left.localeCompare(right) * factor;
+            return ((left as number) - (right as number)) * factor;
+        });
+    };
+
+    const topLevel = sortGroup(departments.filter((department) => !department.parent_department_id));
     const orderedDepartments = topLevel.flatMap((parent) => [
         parent,
-        ...departments.filter((department) => department.parent_department_id === parent.id),
+        ...sortGroup(departments.filter((department) => department.parent_department_id === parent.id)),
     ]);
 
     return (
@@ -417,10 +457,18 @@ export default function DepartmentsIndex({
                         <thead>
                             <tr className="border-sidebar-border/70 text-muted-foreground dark:border-sidebar-border border-b text-left">
                                 <th className="p-3 font-medium">Name</th>
-                                <th className="p-3 font-medium">Head</th>
-                                <th className="p-3 font-medium">Assistant</th>
-                                <th className="p-3 font-medium">Members</th>
-                                <th className="p-3 font-medium">Status</th>
+                                <SortableHeader column="manager" sort={sort} onSort={onSort} className="p-3">
+                                    Head
+                                </SortableHeader>
+                                <SortableHeader column="assistant_manager" sort={sort} onSort={onSort} className="p-3">
+                                    Assistant
+                                </SortableHeader>
+                                <SortableHeader column="members" sort={sort} onSort={onSort} className="p-3">
+                                    Members
+                                </SortableHeader>
+                                <SortableHeader column="is_active" sort={sort} onSort={onSort} className="p-3">
+                                    Status
+                                </SortableHeader>
                                 {canManage && <th className="p-3" />}
                             </tr>
                         </thead>

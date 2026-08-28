@@ -19,6 +19,9 @@ class ReportController extends Controller
 {
     public const TASK_FILTERS = ['all', 'due_today', 'overdue', 'blocked', 'awaiting_review', 'ceo_priority', 'completed_week', 'unassigned'];
 
+    /** Direct columns only — Board/Column/Assignee/Department are relations and would need a join to sort by. */
+    public const TASK_SORTABLE_COLUMNS = ['task_number', 'title', 'priority', 'due_at'];
+
     /** Widest range remoteSupport() will materialize into memory in one request, for both the on-screen report and its CSV export. */
     private const MAX_REMOTE_SUPPORT_RANGE_DAYS = 366;
 
@@ -28,6 +31,10 @@ class ReportController extends Controller
 
         $filter = $request->string('filter', 'all')->toString();
         abort_unless(in_array($filter, self::TASK_FILTERS, true), 404);
+
+        $sort = $request->string('sort')->toString();
+        $direction = $request->string('direction')->toString() === 'desc' ? 'desc' : 'asc';
+        $sortIsValid = in_array($sort, self::TASK_SORTABLE_COLUMNS, true);
 
         $query = Task::query()
             ->with(['board:id,name', 'column:id,name,semantic_status', 'assignee:id,name', 'department:id,name'])
@@ -49,13 +56,21 @@ class ReportController extends Controller
             $query->where('department_id', $request->user()->department_id)->visibleTo($request->user());
         }
 
+        $query->when(
+            $sortIsValid,
+            fn ($q) => $q->orderBy($sort, $direction),
+            fn ($q) => $q->orderByRaw('due_at nulls last'),
+        );
+
         return Inertia::render('reports/tasks', [
-            'tasks' => $query->orderByRaw('due_at nulls last')->paginate(50)->withQueryString(),
+            'tasks' => $query->paginate(50)->withQueryString(),
             'filter' => $filter,
             'filters' => self::TASK_FILTERS,
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'people' => User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name']),
             'selected' => $request->only(['department_id', 'assignee_id']),
+            'sort' => $sortIsValid ? $sort : null,
+            'direction' => $direction,
             'savedFilters' => SavedFilter::query()
                 ->where('user_id', $request->user()->id)
                 ->where('scope', SavedFilter::SCOPE_REPORTS_TASKS)

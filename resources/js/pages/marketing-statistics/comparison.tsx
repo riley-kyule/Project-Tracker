@@ -1,5 +1,6 @@
 import { CategoryBarChart } from '@/components/marketing-statistics/category-bar-chart';
 import { buildFilterQuery, MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { Link } from '@inertiajs/react';
 
@@ -35,6 +36,23 @@ export default function WebsiteComparison({
         gsc_clicks: row.gsc?.clicks ?? 0,
     }));
 
+    const { sorted, sort, onSort } = useClientSort(rows, (row, column) => {
+        switch (column) {
+            case 'name':
+                return row.name;
+            case 'ga4_users':
+                return row.ga4?.users ?? null;
+            case 'ga4_sessions':
+                return row.ga4?.sessions ?? null;
+            case 'gsc_clicks':
+                return row.gsc?.clicks ?? null;
+            case 'gsc_impressions':
+                return row.gsc?.impressions ?? null;
+            default:
+                return null;
+        }
+    });
+
     return (
         <MarketingStatisticsShell active="comparison" selected={selected} websites={websites} sources={sources}>
             <div className="grid gap-4 lg:grid-cols-2">
@@ -52,15 +70,25 @@ export default function WebsiteComparison({
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-muted-foreground text-left">
-                            <th className="py-1.5 font-medium">Website</th>
-                            <th className="py-1.5 text-right font-medium">GA4 users</th>
-                            <th className="py-1.5 text-right font-medium">GA4 sessions</th>
-                            <th className="py-1.5 text-right font-medium">GSC clicks</th>
-                            <th className="py-1.5 text-right font-medium">GSC impressions</th>
+                            <SortableHeader column="name" sort={sort} onSort={onSort} className="py-1.5">
+                                Website
+                            </SortableHeader>
+                            <SortableHeader column="ga4_users" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                                GA4 users
+                            </SortableHeader>
+                            <SortableHeader column="ga4_sessions" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                                GA4 sessions
+                            </SortableHeader>
+                            <SortableHeader column="gsc_clicks" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                                GSC clicks
+                            </SortableHeader>
+                            <SortableHeader column="gsc_impressions" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                                GSC impressions
+                            </SortableHeader>
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map((row) => (
+                        {sorted.map((row) => (
                             <tr key={row.website_id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                 <td className="py-1.5">
                                     <Link

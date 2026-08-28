@@ -19,10 +19,16 @@ use Inertia\Response;
 
 class TicketController extends Controller
 {
+    /** Direct columns only — Requester/Assignee/Category are relations and would need a join to sort by. */
+    public const SORTABLE_COLUMNS = ['ticket_number', 'title', 'status', 'priority'];
+
     public function index(Request $request): Response
     {
         $manager = $request->user()->can('tickets.manage');
         $canCreateForOthers = Gate::allows('createForOthers', Ticket::class);
+
+        $sort = $request->string('sort')->toString();
+        $direction = $request->string('direction')->toString() === 'desc' ? 'desc' : 'asc';
 
         $tickets = Ticket::query()
             ->with(['requester:id,name', 'assignee:id,name', 'category:id,name'])
@@ -32,7 +38,11 @@ class TicketController extends Controller
             ->when($request->filled('assigned'), fn ($query) => $request->string('assigned')->toString() === 'unassigned'
                 ? $query->whereNull('assigned_to')
                 : $query->where('assigned_to', $request->integer('assigned')))
-            ->latest()
+            ->when(
+                in_array($sort, self::SORTABLE_COLUMNS, true),
+                fn ($query) => $query->orderBy($sort, $direction),
+                fn ($query) => $query->latest(),
+            )
             ->paginate(25)
             ->withQueryString();
 
@@ -45,6 +55,8 @@ class TicketController extends Controller
                 ? User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])
                 : [],
             'filters' => $request->only(['status', 'priority', 'assigned']),
+            'sort' => in_array($sort, self::SORTABLE_COLUMNS, true) ? $sort : null,
+            'direction' => $direction,
         ]);
     }
 

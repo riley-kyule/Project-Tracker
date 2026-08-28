@@ -205,4 +205,20 @@ class ManagementDashboardTest extends TestCase
         $this->assertSame(2, $props['tasks']['last_page']);
         $this->assertNotEmpty($props['tasks']['links']);
     }
+
+    public function test_task_report_can_be_sorted_by_an_allowed_column()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $board = Board::factory()->create();
+        $column = BoardColumn::factory()->create(['board_id' => $board->id, 'semantic_status' => 'backlog']);
+
+        Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'title' => 'Charlie']);
+        Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'title' => 'Alice']);
+        Task::factory()->create(['board_id' => $board->id, 'board_column_id' => $column->id, 'title' => 'Bob']);
+
+        $props = $this->actingAs($admin)->get('/reports/tasks?sort=title&direction=asc')->assertOk()->viewData('page')['props'];
+
+        $this->assertSame(['Alice', 'Bob', 'Charlie'], collect($props['tasks']['data'])->pluck('title')->all());
+        $this->assertSame('title', $props['sort']);
+    }
 }

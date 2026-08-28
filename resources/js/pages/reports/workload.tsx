@@ -1,3 +1,4 @@
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -32,6 +33,22 @@ export default function WorkloadReport({
     selected: { department_id?: number | string | null };
     canFilterDepartment: boolean;
 }) {
+    const { sorted, sort, onSort } = useClientSort(people, (person, column) => {
+        switch (column) {
+            case 'name':
+                return person.name;
+            case 'department':
+                return person.department?.name ?? null;
+            case 'open_tasks':
+            case 'overdue_tasks':
+            case 'blocked_tasks':
+            case 'awaiting_review_tasks':
+                return person[column];
+            default:
+                return null;
+        }
+    });
+
     const apply = (params: Record<string, string | undefined>) => {
         router.get(
             '/reports/workload',
@@ -75,16 +92,28 @@ export default function WorkloadReport({
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">
-                                <th className="p-3 font-medium">Employee</th>
-                                <th className="p-3 font-medium">Department</th>
-                                <th className="p-3 text-right font-medium">Open</th>
-                                <th className="p-3 text-right font-medium">Overdue</th>
-                                <th className="p-3 text-right font-medium">Blocked</th>
-                                <th className="p-3 text-right font-medium">Awaiting review</th>
+                                <SortableHeader column="name" sort={sort} onSort={onSort}>
+                                    Employee
+                                </SortableHeader>
+                                <SortableHeader column="department" sort={sort} onSort={onSort}>
+                                    Department
+                                </SortableHeader>
+                                <SortableHeader column="open_tasks" sort={sort} onSort={onSort} className="p-3 text-right">
+                                    Open
+                                </SortableHeader>
+                                <SortableHeader column="overdue_tasks" sort={sort} onSort={onSort} className="p-3 text-right">
+                                    Overdue
+                                </SortableHeader>
+                                <SortableHeader column="blocked_tasks" sort={sort} onSort={onSort} className="p-3 text-right">
+                                    Blocked
+                                </SortableHeader>
+                                <SortableHeader column="awaiting_review_tasks" sort={sort} onSort={onSort} className="p-3 text-right">
+                                    Awaiting review
+                                </SortableHeader>
                             </tr>
                         </thead>
                         <tbody>
-                            {people.map((person) => (
+                            {sorted.map((person) => (
                                 <tr key={person.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
                                     <td className="p-3 font-medium">
                                         {person.name}

@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { Pagination, type Paginated } from '@/components/pagination';
+import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -204,6 +205,8 @@ export default function TicketsIndex({
     canCreateForOthers,
     users,
     filters,
+    sort: sortColumn,
+    direction,
 }: {
     tickets: Paginated<TicketRow>;
     categories: Category[];
@@ -211,10 +214,19 @@ export default function TicketsIndex({
     canCreateForOthers: boolean;
     users: Person[];
     filters: { status?: string; priority?: string; assigned?: string };
+    sort: string | null;
+    direction: 'asc' | 'desc';
 }) {
+    const sort: SortState = { column: sortColumn, direction };
+
     const applyFilter = (key: string, value: string) => {
-        const next = { ...filters, [key]: value === ALL ? undefined : value };
+        const next = { ...filters, sort: sortColumn ?? undefined, direction, [key]: value === ALL ? undefined : value };
         router.get('/tickets', next as Record<string, string>, { preserveState: true, preserveScroll: true });
+    };
+
+    const onSort = (column: string) => {
+        const nextDirection = sort.column === column && sort.direction === 'asc' ? 'desc' : 'asc';
+        router.get('/tickets', { ...filters, sort: column, direction: nextDirection }, { preserveState: true, preserveScroll: true });
     };
 
     return (
@@ -269,10 +281,18 @@ export default function TicketsIndex({
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-sidebar-border/70 text-muted-foreground dark:border-sidebar-border border-b text-left">
-                                <th className="p-3 font-medium">#</th>
-                                <th className="p-3 font-medium">Title</th>
-                                <th className="p-3 font-medium">Status</th>
-                                <th className="p-3 font-medium">Priority</th>
+                                <SortableHeader column="ticket_number" sort={sort} onSort={onSort} className="p-3">
+                                    #
+                                </SortableHeader>
+                                <SortableHeader column="title" sort={sort} onSort={onSort} className="p-3">
+                                    Title
+                                </SortableHeader>
+                                <SortableHeader column="status" sort={sort} onSort={onSort} className="p-3">
+                                    Status
+                                </SortableHeader>
+                                <SortableHeader column="priority" sort={sort} onSort={onSort} className="p-3">
+                                    Priority
+                                </SortableHeader>
                                 {isManager && <th className="p-3 font-medium">Requester</th>}
                                 <th className="p-3 font-medium">Assignee</th>
                                 <th className="p-3 font-medium">Category</th>

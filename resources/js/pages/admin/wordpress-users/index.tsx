@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -491,15 +492,20 @@ export default function WordPressUsersIndex({
     sites,
     roles,
     filters,
+    sort: sortColumn,
+    direction,
 }: {
     users: Paginated<WordPressUserRow>;
     sites: Site[];
     roles: string[];
     filters: { site_id?: string; role?: string; search?: string };
+    sort: string | null;
+    direction: 'asc' | 'desc';
 }) {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [syncing, setSyncing] = useState(false);
     const { flash } = usePage<SharedData>().props;
+    const sort: SortState = { column: sortColumn, direction };
 
     const connectedSites = sites.filter((s) => s.credential);
 
@@ -507,9 +513,15 @@ export default function WordPressUsersIndex({
         setSelectedIds([]);
         router.get(
             '/admin/wordpress-users',
-            Object.fromEntries(Object.entries({ ...filters, ...params }).filter(([, value]) => value && value !== ALL)) as Record<string, string>,
+            Object.fromEntries(
+                Object.entries({ ...filters, sort: sortColumn ?? undefined, direction, ...params }).filter(([, value]) => value && value !== ALL),
+            ) as Record<string, string>,
             { preserveState: true, preserveScroll: true },
         );
+    };
+
+    const onSort = (column: string) => {
+        apply({ sort: column, direction: sort.column === column && sort.direction === 'asc' ? 'desc' : 'asc' });
     };
 
     const syncAll = () => {
@@ -618,8 +630,12 @@ export default function WordPressUsersIndex({
                                     <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
                                 </th>
                                 <th className="p-3 font-medium">Site</th>
-                                <th className="p-3 font-medium">Username</th>
-                                <th className="p-3 font-medium">Email</th>
+                                <SortableHeader column="username" sort={sort} onSort={onSort} className="p-3">
+                                    Username
+                                </SortableHeader>
+                                <SortableHeader column="email" sort={sort} onSort={onSort} className="p-3">
+                                    Email
+                                </SortableHeader>
                                 <th className="p-3 font-medium">Roles</th>
                             </tr>
                         </thead>
