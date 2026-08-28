@@ -6,6 +6,7 @@ use App\Models\Board;
 use App\Models\BoardColumn;
 use App\Models\Comment;
 use App\Models\Task;
+use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -141,5 +142,42 @@ class EmployeeDashboardTest extends TestCase
 
         $task = Task::query()->where('title', 'Quick captured task')->firstOrFail();
         $this->assertSame($user->id, $task->primary_assignee_id);
+    }
+
+    /**
+     * An agent (e.g. IT) working the ticket queue is almost never the
+     * requester of their own open tickets — they're the assignee. Scoping
+     * "My open tickets" to requester_id alone left an agent's entire queue
+     * invisible on their own dashboard.
+     */
+    public function test_my_open_tickets_includes_tickets_assigned_to_me_not_just_ones_i_raised()
+    {
+        $agent = User::factory()->create()->assignRole('Employee');
+
+        $assignedToMe = Ticket::factory()->create([
+            'status' => Ticket::STATUS_ASSIGNED,
+            'assigned_to' => $agent->id,
+        ]);
+
+        $raisedByMe = Ticket::factory()->create([
+            'status' => Ticket::STATUS_NEW,
+            'requester_id' => $agent->id,
+        ]);
+
+        // Someone else's ticket, neither raised by nor assigned to this agent.
+        Ticket::factory()->create(['status' => Ticket::STATUS_NEW]);
+
+        // Closed tickets, even if assigned to this agent, aren't "open".
+        Ticket::factory()->create([
+            'status' => Ticket::STATUS_CLOSED,
+            'assigned_to' => $agent->id,
+        ]);
+
+        $props = $this->actingAs($agent)->get('/dashboard')->assertOk()->viewData('page')['props'];
+        $ticketIds = collect($props['myTickets'])->pluck('id');
+
+        $this->assertTrue($ticketIds->contains($assignedToMe->id));
+        $this->assertTrue($ticketIds->contains($raisedByMe->id));
+        $this->assertCount(2, $ticketIds);
     }
 }

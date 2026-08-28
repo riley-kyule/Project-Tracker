@@ -220,13 +220,17 @@ class DashboardController extends Controller
                 ->latest('updated_at')
                 ->limit(5)
                 ->get(['id', 'task_number', 'title', 'board_id', 'due_at', 'priority']),
+            // Tickets the user raised themselves and tickets assigned to them to
+            // work — an agent (e.g. IT) rarely files tickets against themselves,
+            // so scoping this to requester_id alone left their entire open queue
+            // invisible on their own dashboard.
             'myTickets' => Ticket::query()
-                ->where('requester_id', $user->id)
+                ->where(fn ($q) => $q->where('requester_id', $user->id)->orWhere('assigned_to', $user->id))
                 ->whereIn('status', Ticket::OPEN_STATUSES)
                 ->with('category:id,name')
                 ->latest()
                 ->limit(5)
-                ->get(['id', 'ticket_number', 'title', 'status', 'category_id', 'created_at']),
+                ->get(['id', 'ticket_number', 'title', 'status', 'category_id', 'created_at', 'requester_id', 'assigned_to']),
             // Tasks someone else is waiting on this user to review/approve —
             // distinct from "awaiting_review" above, which is this user's own
             // work sitting in a review column regardless of who the reviewer is.

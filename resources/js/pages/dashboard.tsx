@@ -29,6 +29,8 @@ type DashTicket = {
     title: string;
     status: TicketStatus;
     category: { name: string };
+    requester_id: number;
+    assigned_to: number | null;
 };
 
 type WaitingOnMeTask = {
@@ -271,10 +273,13 @@ export default function Dashboard({
                             <h2 className="mb-2 text-sm font-semibold">My open tickets</h2>
                             <ul className="space-y-1.5">
                                 {myTickets.map((ticket) => (
-                                    <li key={ticket.id} className="flex items-center gap-2 text-sm">
+                                    <li key={ticket.id} className="flex flex-wrap items-center gap-2 text-sm">
                                         <Link href={`/tickets/${ticket.id}`} className="hover:underline">
                                             TK-{ticket.ticket_number} {ticket.title}
                                         </Link>
+                                        {ticket.assigned_to === auth.user.id && (
+                                            <span className="text-muted-foreground text-xs">assigned to you</span>
+                                        )}
                                         <Badge variant={statusVariants[ticket.status]} className="ml-auto">
                                             {statusLabels[ticket.status]}
                                         </Badge>
