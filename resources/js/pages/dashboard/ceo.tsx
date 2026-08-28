@@ -37,6 +37,32 @@ type Activity = { id: number; event: string; auditable_type: string; actor: Pers
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'CEO Dashboard', href: '/dashboards/ceo' }];
 
+const QUICK_LINKS = [
+    { href: '#department-performance', label: 'Department performance' },
+    { href: '#employee-workload', label: 'Employee workload' },
+    { href: '#ceo-priority', label: 'CEO priority' },
+    { href: '#upcoming-deadlines', label: 'Upcoming deadlines' },
+    { href: '#traffic-data', label: 'Traffic & marketing' },
+    { href: '#wordpress-staff', label: 'WordPress staff' },
+    { href: '#recent-activity', label: 'Recent activity' },
+];
+
+function QuickLinks() {
+    return (
+        <nav aria-label="Jump to section" className="flex flex-wrap gap-2">
+            {QUICK_LINKS.map((link) => (
+                <a
+                    key={link.href}
+                    href={link.href}
+                    className="border-sidebar-border/70 dark:border-sidebar-border hover:border-brand-500 hover:text-brand-600 dark:hover:text-brand-400 rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+                >
+                    {link.label}
+                </a>
+            ))}
+        </nav>
+    );
+}
+
 function StatCard({ label, value, href, alert = false }: { label: string; value: number; href?: string; alert?: boolean }) {
     const inner = (
         <div className="border-sidebar-border/70 dark:border-sidebar-border hover:border-brand-500 h-full rounded-xl border p-4 transition-colors">
@@ -182,9 +208,9 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
     );
 }
 
-function TaskList({ title, tasks, icon }: { title: string; tasks: ExecTask[]; icon?: React.ReactNode }) {
+function TaskList({ id, title, tasks, icon }: { id?: string; title: string; tasks: ExecTask[]; icon?: React.ReactNode }) {
     return (
-        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+        <div id={id} className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4">
             <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
                 {icon}
                 {title}
@@ -255,8 +281,13 @@ export default function CeoDashboard({
                     <StatCard label="Overdue tickets" value={counts.overdue_tickets} href="/dashboards/it" alert />
                 </div>
 
+                <QuickLinks />
+
                 <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
+                    <div
+                        id="department-performance"
+                        className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 overflow-x-auto rounded-xl border p-4"
+                    >
                         <h2 className="mb-2 text-sm font-semibold">Department performance</h2>
                         <table className="w-full text-sm">
                             <thead>
@@ -291,7 +322,7 @@ export default function CeoDashboard({
                         </table>
                     </div>
 
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                    <div id="employee-workload" className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4">
                         <h2 className="mb-2 text-sm font-semibold">Employee workload (open tasks)</h2>
                         <ul className="space-y-1.5">
                             {workload.map((person) => (
@@ -312,15 +343,24 @@ export default function CeoDashboard({
                         </ul>
                     </div>
 
-                    <TaskList title="CEO priority" tasks={ceoPriorityTasks} icon={<Star className="size-4 fill-amber-400 text-amber-400" />} />
-                    <TaskList title="Upcoming deadlines (7 days)" tasks={upcoming} />
+                    <TaskList
+                        id="ceo-priority"
+                        title="CEO priority"
+                        tasks={ceoPriorityTasks}
+                        icon={<Star className="size-4 fill-amber-400 text-amber-400" />}
+                    />
+                    <TaskList id="upcoming-deadlines" title="Upcoming deadlines (7 days)" tasks={upcoming} />
                 </div>
 
-                <TrafficDataSection />
+                <div id="traffic-data" className="scroll-mt-4">
+                    <TrafficDataSection />
+                </div>
 
-                <WordPressStaffCard staff={wordpressStaff} />
+                <div id="wordpress-staff" className="scroll-mt-4">
+                    <WordPressStaffCard staff={wordpressStaff} />
+                </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div id="recent-activity" className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4">
                     <h2 className="mb-2 text-sm font-semibold">Recent activity</h2>
                     <ul className="space-y-1">
                         {recentActivity.map((entry) => (
