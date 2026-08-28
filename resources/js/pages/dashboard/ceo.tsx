@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { Star } from 'lucide-react';
+import { LayoutDashboard, Star } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 type WordPressStaffRow = {
@@ -303,12 +303,22 @@ export default function CeoDashboard({
                                 {departmentPerformance.map((department) => (
                                     <tr key={department.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                         <td className="py-1.5">
-                                            <Link
-                                                href={`/reports/tasks?department_id=${department.id}`}
-                                                className="text-brand-600 dark:text-brand-400 hover:underline"
-                                            >
-                                                {department.name}
-                                            </Link>
+                                            <div className="flex items-center gap-1.5">
+                                                <Link
+                                                    href={`/reports/tasks?department_id=${department.id}`}
+                                                    className="text-brand-600 dark:text-brand-400 hover:underline"
+                                                >
+                                                    {department.name}
+                                                </Link>
+                                                <Link
+                                                    href={`/dashboards/department?department_id=${department.id}`}
+                                                    className="text-muted-foreground hover:text-brand-600 dark:hover:text-brand-400"
+                                                    aria-label={`Open ${department.name} dashboard`}
+                                                    title={`Open ${department.name} dashboard`}
+                                                >
+                                                    <LayoutDashboard className="size-3.5" />
+                                                </Link>
+                                            </div>
                                         </td>
                                         <td className="py-1.5 text-right">{department.open}</td>
                                         <td className={`py-1.5 text-right ${department.overdue > 0 ? 'text-destructive font-semibold' : ''}`}>

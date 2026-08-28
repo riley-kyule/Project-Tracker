@@ -1,6 +1,7 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 
 type Person = { id: number; name: string; job_title?: string | null };
 
@@ -82,6 +83,8 @@ function SubDepartmentBreakdown({ rows }: { rows: SubDepartmentRow[] }) {
     );
 }
 
+type DepartmentOption = { id: number; name: string };
+
 export default function DepartmentDashboard({
     department,
     subDepartments,
@@ -90,6 +93,8 @@ export default function DepartmentDashboard({
     unassigned,
     upcoming,
     recentlyCompleted,
+    canSwitchDepartment,
+    allDepartments,
 }: {
     department: { id: number; name: string };
     subDepartments: SubDepartmentRow[] | null;
@@ -98,14 +103,36 @@ export default function DepartmentDashboard({
     unassigned: DeptTask[];
     upcoming: DeptTask[];
     recentlyCompleted: DeptTask[];
+    canSwitchDepartment: boolean;
+    allDepartments: DepartmentOption[];
 }) {
-    const breadcrumbs: BreadcrumbItem[] = [{ title: `${department.name} Dashboard`, href: '/dashboards/department' }];
+    const breadcrumbs: BreadcrumbItem[] = [{ title: `${department.name} Dashboard`, href: `/dashboards/department?department_id=${department.id}` }];
+
+    const switchDepartment = (value: string) => {
+        router.get('/dashboards/department', { department_id: value }, { preserveState: true });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${department.name} Dashboard`} />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">{department.name}</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-xl font-semibold">{department.name}</h1>
+                    {canSwitchDepartment && (
+                        <Select value={department.id.toString()} onValueChange={switchDepartment}>
+                            <SelectTrigger className="ml-auto w-56" aria-label="Switch department">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {allDepartments.map((option) => (
+                                    <SelectItem key={option.id} value={option.id.toString()}>
+                                        {option.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                </div>
                 {subDepartments && <p className="text-muted-foreground -mt-2 text-sm">Combined view across {subDepartments.length} teams.</p>}
 
                 <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">

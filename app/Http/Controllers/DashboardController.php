@@ -131,6 +131,7 @@ class DashboardController extends Controller
 
         $children = $department->children()->orderBy('name')->get(['id', 'name']);
         $departmentIds = $department->descendantIds();
+        $canSwitchDepartment = $user->hasAnyRole(['CEO', 'Administrator']);
 
         // visibleTo($user) keeps this dashboard from leaking tasks on boards the
         // viewer can't actually open (a restricted board they aren't a member of,
@@ -145,6 +146,10 @@ class DashboardController extends Controller
         return Inertia::render('dashboard/department', [
             'department' => $department->only(['id', 'name']),
             'subDepartments' => $children->isNotEmpty() ? $this->departmentPerformance($children, $user) : null,
+            'canSwitchDepartment' => $canSwitchDepartment,
+            'allDepartments' => $canSwitchDepartment
+                ? Department::query()->active()->orderBy('name')->get(['id', 'name'])
+                : [],
             'counts' => [
                 'open' => $deptTasks()->count(),
                 'unassigned' => $deptTasks()->whereNull('primary_assignee_id')->count(),

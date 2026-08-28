@@ -1,9 +1,11 @@
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { Search } from 'lucide-react';
 import { useState } from 'react';
 
 type Person = { id: number; name: string };
@@ -50,15 +52,25 @@ export default function SearchPage({ query, results }: { query: string; results:
                         e.preventDefault();
                         router.get('/search', { q: term }, { preserveState: true });
                     }}
+                    className="flex items-center gap-2"
                 >
+                    <label htmlFor="search-query" className="sr-only">
+                        Search
+                    </label>
                     <Input
+                        id="search-query"
                         autoFocus
                         value={term}
                         onChange={(e) => setTerm(e.target.value)}
                         placeholder="Search tasks, tickets, boards, people… (e.g. T-42 or TK-7)"
                         className="h-11 text-base"
                     />
+                    <Button type="submit" size="icon" className="h-11 w-11 shrink-0" aria-label="Search">
+                        <Search className="size-4" />
+                    </Button>
                 </form>
+
+                {query.length === 1 && <p className="text-muted-foreground text-sm">Type at least 2 characters to search.</p>}
 
                 {query.length >= 2 && total === 0 && <p className="text-muted-foreground text-sm">No results for “{query}”.</p>}
 

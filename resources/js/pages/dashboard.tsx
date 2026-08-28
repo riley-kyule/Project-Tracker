@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { AlertCircle, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 type DashTask = {
@@ -217,7 +217,10 @@ export default function Dashboard({
                                             {task.priority}
                                         </span>
                                         {task.due_at && (
-                                            <span className={`text-xs ${isOverdue ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                                            <span
+                                                className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}
+                                            >
+                                                {isOverdue && <AlertCircle className="size-3.5" />}
                                                 {new Date(task.due_at).toLocaleDateString()}
                                             </span>
                                         )}
@@ -255,6 +258,7 @@ export default function Dashboard({
                                 ))}
                                 {mentions.length === 0 && <li className="text-muted-foreground text-sm">No recent mentions.</li>}
                             </ul>
+                            {mentions.length >= 10 && <p className="text-muted-foreground mt-2 text-xs">Showing the 10 most recent mentions.</p>}
                         </div>
                         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                             <h2 className="mb-2 text-sm font-semibold">Recently assigned</h2>
@@ -268,6 +272,11 @@ export default function Dashboard({
                                 ))}
                                 {recentlyAssigned.length === 0 && <li className="text-muted-foreground text-sm">None yet.</li>}
                             </ul>
+                            {recentlyAssigned.length > 0 && (
+                                <Link href="/reports/tasks" className="text-brand-600 dark:text-brand-400 mt-2 inline-block text-xs hover:underline">
+                                    View all →
+                                </Link>
+                            )}
                         </div>
                         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                             <h2 className="mb-2 text-sm font-semibold">My open tickets</h2>

@@ -27,6 +27,13 @@ function StatCard({ label, value, alert = false }: { label: string; value: numbe
     );
 }
 
+const priorityColors: Record<string, string> = {
+    critical: 'text-red-600 dark:text-red-400',
+    high: 'text-orange-600 dark:text-orange-400',
+    medium: 'text-brand-600 dark:text-brand-400',
+    low: 'text-muted-foreground',
+};
+
 function formatMinutes(minutes: number | null) {
     if (minutes === null) return '—';
     if (minutes >= 1440) return `${(minutes / 1440).toFixed(1)} d`;
@@ -120,8 +127,11 @@ export default function ItDashboard({
                 </div>
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
-                    <div className="p-4 pb-0">
+                    <div className="flex items-center justify-between p-4 pb-0">
                         <h2 className="text-sm font-semibold">Priority queue</h2>
+                        <Link href="/tickets" className="text-brand-600 dark:text-brand-400 text-xs hover:underline">
+                            View all tickets →
+                        </Link>
                     </div>
                     <table className="w-full text-sm">
                         <thead>
@@ -146,7 +156,7 @@ export default function ItDashboard({
                                     <td className="p-3">
                                         <Badge variant={statusVariants[ticket.status]}>{statusLabels[ticket.status]}</Badge>
                                     </td>
-                                    <td className="p-3 capitalize">{ticket.priority}</td>
+                                    <td className={`p-3 font-medium capitalize ${priorityColors[ticket.priority] ?? ''}`}>{ticket.priority}</td>
                                     <td className="p-3">{ticket.assignee?.name ?? '—'}</td>
                                     <td className="p-3">{ticket.due_at ? new Date(ticket.due_at).toLocaleString() : '—'}</td>
                                 </tr>
@@ -154,7 +164,7 @@ export default function ItDashboard({
                             {queue.length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="text-muted-foreground border-t p-6 text-center">
-                                        Queue is clear. 🎉
+                                        Queue is clear.
                                     </td>
                                 </tr>
                             )}
