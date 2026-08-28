@@ -82,9 +82,9 @@ function NewProjectDialog({ departments, owners }: { departments: Option[]; owne
                         <InputError message={errors.name} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Owner</Label>
+                        <Label htmlFor="project-owner">Owner</Label>
                         <Select value={data.owner_id} onValueChange={(value) => setData('owner_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="project-owner">
                                 <SelectValue placeholder="Choose an owner" />
                             </SelectTrigger>
                             <SelectContent>
@@ -98,9 +98,9 @@ function NewProjectDialog({ departments, owners }: { departments: Option[]; owne
                         <InputError message={errors.owner_id} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Department</Label>
+                        <Label htmlFor="project-department">Department</Label>
                         <Select value={data.department_id} onValueChange={(value) => setData('department_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="project-department">
                                 <SelectValue placeholder="Company-wide" />
                             </SelectTrigger>
                             <SelectContent>

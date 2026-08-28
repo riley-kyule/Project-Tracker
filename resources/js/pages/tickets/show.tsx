@@ -100,9 +100,9 @@ function ResolveDialog({ ticketId }: { ticketId: number }) {
                     className="space-y-4"
                 >
                     <div className="grid gap-2">
-                        <Label>How was it handled?</Label>
+                        <Label htmlFor="resolution-method">How was it handled?</Label>
                         <Select value={data.resolution_method} onValueChange={(value) => setData('resolution_method', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="resolution-method">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -170,12 +170,12 @@ function ConvertDialog({ ticketId, boards }: { ticketId: number; boards: BoardOp
                     className="space-y-4"
                 >
                     <div className="grid gap-2">
-                        <Label>Board</Label>
+                        <Label htmlFor="convert-board">Board</Label>
                         <Select
                             value={data.board_id}
                             onValueChange={(value) => setData((current) => ({ ...current, board_id: value, board_column_id: '' }))}
                         >
-                            <SelectTrigger>
+                            <SelectTrigger id="convert-board">
                                 <SelectValue placeholder="Choose a board" />
                             </SelectTrigger>
                             <SelectContent>
@@ -189,9 +189,9 @@ function ConvertDialog({ ticketId, boards }: { ticketId: number; boards: BoardOp
                         <InputError message={errors.board_id} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Column</Label>
+                        <Label htmlFor="convert-column">Column</Label>
                         <Select value={data.board_column_id} onValueChange={(value) => setData('board_column_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="convert-column">
                                 <SelectValue placeholder="Choose a column" />
                             </SelectTrigger>
                             <SelectContent>
@@ -319,7 +319,7 @@ export default function TicketShow({
                                 router.post(`/tickets/${ticket.id}/assign`, { assigned_to: Number(value) }, { preserveScroll: true })
                             }
                         >
-                            <SelectTrigger className="w-56">
+                            <SelectTrigger className="w-56" aria-label="Assign technician">
                                 <SelectValue placeholder="Assign technician…" />
                             </SelectTrigger>
                             <SelectContent>

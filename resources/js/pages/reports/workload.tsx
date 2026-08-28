@@ -72,7 +72,7 @@ export default function WorkloadReport({
                     {canFilterDepartment && (
                         <div className="ml-auto flex flex-wrap gap-2">
                             <Select value={selected.department_id?.toString() ?? ALL} onValueChange={(value) => apply({ department_id: value })}>
-                                <SelectTrigger className="w-48">
+                                <SelectTrigger className="w-48" aria-label="Filter by department">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>

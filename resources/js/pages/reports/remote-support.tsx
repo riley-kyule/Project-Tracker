@@ -80,7 +80,7 @@ export default function RemoteSupportReport({
                         <Input type="date" value={selected.from} onChange={(e) => apply({ from: e.target.value })} className="w-40" />
                         <Input type="date" value={selected.to} onChange={(e) => apply({ to: e.target.value })} className="w-40" />
                         <Select value={selected.department_id?.toString() ?? ALL} onValueChange={(value) => apply({ department_id: value })}>
-                            <SelectTrigger className="w-44">
+                            <SelectTrigger className="w-44" aria-label="Filter by department">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

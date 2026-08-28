@@ -254,9 +254,9 @@ export function TaskDialog({
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
-                            <Label>Assignee</Label>
+                            <Label htmlFor="task-assignee">Assignee</Label>
                             <Select value={data.primary_assignee_id} onValueChange={(value) => setData('primary_assignee_id', value)}>
-                                <SelectTrigger>
+                                <SelectTrigger id="task-assignee">
                                     <SelectValue placeholder="Unassigned" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -273,9 +273,9 @@ export function TaskDialog({
                             <InputError message={errors.primary_assignee_id} />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Priority</Label>
+                            <Label htmlFor="task-priority">Priority</Label>
                             <Select value={data.priority} onValueChange={(value) => setData('priority', value as BoardTask['priority'])}>
-                                <SelectTrigger>
+                                <SelectTrigger id="task-priority">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -303,9 +303,9 @@ export function TaskDialog({
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Column</Label>
+                            <Label htmlFor="task-column">Column</Label>
                             <Select value={task.board_column_id.toString()} onValueChange={(value) => onMove(task.id, Number(value))}>
-                                <SelectTrigger>
+                                <SelectTrigger id="task-column">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>

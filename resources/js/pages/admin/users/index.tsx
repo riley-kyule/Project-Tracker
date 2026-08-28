@@ -100,9 +100,9 @@ function NewUserDialog({ departments, roles }: { departments: DepartmentOption[]
                         <InputError message={errors.email} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Role</Label>
+                        <Label htmlFor="new-role">Role</Label>
                         <Select value={data.role} onValueChange={(value) => setData('role', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="new-role">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -116,9 +116,9 @@ function NewUserDialog({ departments, roles }: { departments: DepartmentOption[]
                         <InputError message={errors.role} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Department</Label>
+                        <Label htmlFor="new-department_id">Department</Label>
                         <Select value={data.department_id} onValueChange={(value) => setData('department_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="new-department_id">
                                 <SelectValue placeholder="No department" />
                             </SelectTrigger>
                             <SelectContent>
@@ -182,9 +182,9 @@ function EditUserDialog({ user, users, departments, roles }: { user: UserRow; us
                 </DialogHeader>
                 <form onSubmit={submit} className="space-y-4">
                     <div className="grid gap-2">
-                        <Label>Role</Label>
+                        <Label htmlFor={`edit-role-${user.id}`}>Role</Label>
                         <Select value={data.role} onValueChange={(value) => setData('role', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id={`edit-role-${user.id}`}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -198,9 +198,9 @@ function EditUserDialog({ user, users, departments, roles }: { user: UserRow; us
                         <InputError message={errors.role} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Department</Label>
+                        <Label htmlFor={`edit-department_id-${user.id}`}>Department</Label>
                         <Select value={data.department_id} onValueChange={(value) => setData('department_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id={`edit-department_id-${user.id}`}>
                                 <SelectValue placeholder="No department" />
                             </SelectTrigger>
                             <SelectContent>
@@ -215,9 +215,9 @@ function EditUserDialog({ user, users, departments, roles }: { user: UserRow; us
                         <InputError message={errors.department_id} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Manager</Label>
+                        <Label htmlFor={`edit-manager_id-${user.id}`}>Manager</Label>
                         <Select value={data.manager_id} onValueChange={(value) => setData('manager_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id={`edit-manager_id-${user.id}`}>
                                 <SelectValue placeholder="No manager" />
                             </SelectTrigger>
                             <SelectContent>
@@ -239,9 +239,9 @@ function EditUserDialog({ user, users, departments, roles }: { user: UserRow; us
                         <InputError message={errors.job_title} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Status</Label>
+                        <Label htmlFor={`edit-status-${user.id}`}>Status</Label>
                         <Select value={data.status} onValueChange={(value) => setData('status', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id={`edit-status-${user.id}`}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

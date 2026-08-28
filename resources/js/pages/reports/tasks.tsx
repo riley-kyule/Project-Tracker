@@ -110,7 +110,7 @@ function BulkReassignBar({ selectedIds, people, onDone }: { selectedIds: number[
         <div className="bg-muted/50 border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-center gap-2 rounded-xl border p-3">
             <span className="text-sm font-medium">{selectedIds.length} selected</span>
             <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-48" aria-label="Reassign to">
                     <SelectValue placeholder="Reassign to…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -210,7 +210,7 @@ export default function TasksReport({
                     </Link>
                     <div className="ml-auto flex flex-wrap gap-2">
                         <Select value={filter} onValueChange={(value) => apply({ filter: value })}>
-                            <SelectTrigger className="w-48">
+                            <SelectTrigger className="w-48" aria-label="Filter by status">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -222,7 +222,7 @@ export default function TasksReport({
                             </SelectContent>
                         </Select>
                         <Select value={selected.department_id ?? ALL} onValueChange={(value) => apply({ department_id: value })}>
-                            <SelectTrigger className="w-48">
+                            <SelectTrigger className="w-48" aria-label="Filter by department">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -235,7 +235,7 @@ export default function TasksReport({
                             </SelectContent>
                         </Select>
                         <Select value={selected.assignee_id ?? ALL} onValueChange={(value) => apply({ assignee_id: value })}>
-                            <SelectTrigger className="w-44">
+                            <SelectTrigger className="w-44" aria-label="Filter by assignee">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

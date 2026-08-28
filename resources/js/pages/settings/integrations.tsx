@@ -142,9 +142,9 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                             <>
                                 <div className="grid gap-4 sm:grid-cols-3">
                                     <div className="grid gap-2">
-                                        <Label>Frequency</Label>
+                                        <Label htmlFor="backup-frequency">Frequency</Label>
                                         <Select value={data.backup_frequency} onValueChange={(value) => setData('backup_frequency', value)}>
-                                            <SelectTrigger>
+                                            <SelectTrigger id="backup-frequency">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -194,9 +194,9 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                 Leave on Log to keep writing emails to the server log instead of actually sending them.
                             </p>
                             <div className="grid gap-2">
-                                <Label>Mailer</Label>
+                                <Label htmlFor="mail-mailer">Mailer</Label>
                                 <Select value={data.mail_mailer} onValueChange={(value) => setData('mail_mailer', value)}>
-                                    <SelectTrigger className="w-48">
+                                    <SelectTrigger className="w-48" id="mail-mailer">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -245,9 +245,9 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                         </p>
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>Encryption</Label>
+                                        <Label htmlFor="mail-encryption">Encryption</Label>
                                         <Select value={data.mail_encryption} onValueChange={(value) => setData('mail_encryption', value)}>
-                                            <SelectTrigger>
+                                            <SelectTrigger id="mail-encryption">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>

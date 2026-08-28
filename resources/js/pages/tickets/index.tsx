@@ -124,9 +124,9 @@ function NewTicketDialog({ categories, canCreateForOthers, users }: { categories
                             </label>
                             {onBehalf && (
                                 <div className="grid gap-2">
-                                    <Label>Requester</Label>
+                                    <Label htmlFor="ticket-requester">Requester</Label>
                                     <Select value={data.requester_id} onValueChange={(value) => setData('requester_id', value)}>
-                                        <SelectTrigger>
+                                        <SelectTrigger id="ticket-requester">
                                             <SelectValue placeholder="Who is this ticket for?" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -143,9 +143,9 @@ function NewTicketDialog({ categories, canCreateForOthers, users }: { categories
                         </div>
                     )}
                     <div className="grid gap-2">
-                        <Label>Category</Label>
+                        <Label htmlFor="ticket-category">Category</Label>
                         <Select value={data.category_id} onValueChange={(value) => setData('category_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="ticket-category">
                                 <SelectValue placeholder="What is this about?" />
                             </SelectTrigger>
                             <SelectContent>
@@ -176,9 +176,9 @@ function NewTicketDialog({ categories, canCreateForOthers, users }: { categories
                         <InputError message={errors.description} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>How badly does this affect your work?</Label>
+                        <Label htmlFor="ticket-impact">How badly does this affect your work?</Label>
                         <Select value={data.impact} onValueChange={(value) => setData('impact', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="ticket-impact">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -239,7 +239,7 @@ export default function TicketsIndex({
                         {isManager && (
                             <>
                                 <Select value={filters.status ?? ALL} onValueChange={(value) => applyFilter('status', value)}>
-                                    <SelectTrigger className="w-44">
+                                    <SelectTrigger className="w-44" aria-label="Filter by status">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -252,7 +252,7 @@ export default function TicketsIndex({
                                     </SelectContent>
                                 </Select>
                                 <Select value={filters.priority ?? ALL} onValueChange={(value) => applyFilter('priority', value)}>
-                                    <SelectTrigger className="w-36">
+                                    <SelectTrigger className="w-36" aria-label="Filter by priority">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -264,7 +264,7 @@ export default function TicketsIndex({
                                     </SelectContent>
                                 </Select>
                                 <Select value={filters.assigned ?? ALL} onValueChange={(value) => applyFilter('assigned', value)}>
-                                    <SelectTrigger className="w-36">
+                                    <SelectTrigger className="w-36" aria-label="Filter by assignment">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>

@@ -185,9 +185,9 @@ function ColumnDialog({ boardId, column, onClose }: { boardId: number; column?: 
                         <InputError message={errors.name} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Column type</Label>
+                        <Label htmlFor="column-type">Column type</Label>
                         <Select value={data.semantic_status} onValueChange={(value) => setData('semantic_status', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="column-type">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -310,7 +310,7 @@ function BulkAssignDialog({
                 </DialogHeader>
                 <div className="space-y-4">
                     <Select value={assigneeId} onValueChange={setAssigneeId}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full" aria-label="Assignee">
                             <SelectValue placeholder="Assignee" />
                         </SelectTrigger>
                         <SelectContent>
@@ -372,7 +372,7 @@ function BulkCollaboratorDialog({
                 </DialogHeader>
                 <div className="space-y-4">
                     <Select value={userId} onValueChange={setUserId}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full" aria-label="Person">
                             <SelectValue placeholder="Person" />
                         </SelectTrigger>
                         <SelectContent>
@@ -384,7 +384,7 @@ function BulkCollaboratorDialog({
                         </SelectContent>
                     </Select>
                     <Select value={assignmentType} onValueChange={(value) => setAssignmentType(value as typeof assignmentType)}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full" aria-label="Collaboration type">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -442,7 +442,7 @@ function BulkApprovalDialog({
                 </DialogHeader>
                 <div className="space-y-4">
                     <Select value={reviewerId} onValueChange={setReviewerId}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full" aria-label="Reviewer">
                             <SelectValue placeholder="Reviewer" />
                         </SelectTrigger>
                         <SelectContent>
@@ -491,7 +491,7 @@ function BulkAutoRenewDialog({ selectedIds, onClose, onDone }: { selectedIds: nu
                 </DialogHeader>
                 <div className="space-y-4">
                     <Select value={frequency} onValueChange={(value) => setFrequency(value as typeof frequency)}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full" aria-label="Auto-renew frequency">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -555,7 +555,7 @@ function BulkActionsBar({
         <div className="bg-muted/50 border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-center gap-2 rounded-xl border p-3">
             <span className="text-sm font-medium">{selectedIds.length} selected</span>
             <Select value={columnId} onValueChange={setColumnId}>
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-44" aria-label="Move to column">
                     <SelectValue placeholder="Move to…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -997,7 +997,7 @@ export default function BoardShow({
                             className="w-full sm:w-48"
                         />
                         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-40" aria-label="Filter by assignee">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1010,7 +1010,7 @@ export default function BoardShow({
                             </SelectContent>
                         </Select>
                         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                            <SelectTrigger className="w-36">
+                            <SelectTrigger className="w-36" aria-label="Filter by priority">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

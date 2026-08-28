@@ -73,9 +73,9 @@ function CreateBoardDialog({ departments }: { departments: DepartmentOption[] })
                         <InputError message={errors.description} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Department</Label>
+                        <Label htmlFor="board-department">Department</Label>
                         <Select value={data.department_id} onValueChange={(value) => setData('department_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="board-department">
                                 <SelectValue placeholder="Company-wide" />
                             </SelectTrigger>
                             <SelectContent>
@@ -90,9 +90,9 @@ function CreateBoardDialog({ departments }: { departments: DepartmentOption[] })
                         <InputError message={errors.department_id} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Visibility</Label>
+                        <Label htmlFor="board-visibility">Visibility</Label>
                         <Select value={data.visibility} onValueChange={(value) => setData('visibility', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="board-visibility">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

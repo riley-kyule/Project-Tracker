@@ -122,7 +122,7 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
                 <div className="flex flex-wrap items-center gap-2">
                     <Input placeholder="Search staff…" value={search} onChange={(e) => changeSearch(e.target.value)} className="h-8 w-40 text-xs" />
                     <Select value={siteFilter} onValueChange={changeSite}>
-                        <SelectTrigger className="h-8 w-48 text-xs">
+                        <SelectTrigger className="h-8 w-48 text-xs" aria-label="Filter by website">
                             <SelectValue placeholder="All websites" />
                         </SelectTrigger>
                         <SelectContent>

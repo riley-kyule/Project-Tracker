@@ -568,7 +568,7 @@ export default function WordPressUsersIndex({
 
                 <div className="flex flex-wrap gap-2">
                     <Select value={filters.site_id ?? ALL} onValueChange={(value) => apply({ site_id: value })}>
-                        <SelectTrigger className="w-56">
+                        <SelectTrigger className="w-56" aria-label="Filter by site">
                             <SelectValue placeholder="All sites" />
                         </SelectTrigger>
                         <SelectContent>
@@ -581,7 +581,7 @@ export default function WordPressUsersIndex({
                         </SelectContent>
                     </Select>
                     <Select value={filters.role ?? ALL} onValueChange={(value) => apply({ role: value })}>
-                        <SelectTrigger className="w-44">
+                        <SelectTrigger className="w-44" aria-label="Filter by role">
                             <SelectValue placeholder="All roles" />
                         </SelectTrigger>
                         <SelectContent>

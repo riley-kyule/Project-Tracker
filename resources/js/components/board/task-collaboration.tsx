@@ -671,7 +671,7 @@ export function TaskCollaboration({
                 </ul>
                 <div className="flex flex-wrap gap-2">
                     <Select value={newCollaboratorId} onValueChange={setNewCollaboratorId}>
-                        <SelectTrigger className="h-8 flex-1 text-sm">
+                        <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a collaborator">
                             <SelectValue placeholder="Add a person…" />
                         </SelectTrigger>
                         <SelectContent>
@@ -685,7 +685,7 @@ export function TaskCollaboration({
                         </SelectContent>
                     </Select>
                     <Select value={newCollaboratorType} onValueChange={(value) => setNewCollaboratorType(value as typeof newCollaboratorType)}>
-                        <SelectTrigger className="h-8 w-32 text-sm">
+                        <SelectTrigger className="h-8 w-32 text-sm" aria-label="Collaboration type">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -727,7 +727,7 @@ export function TaskCollaboration({
                                 )
                             }
                         >
-                            <SelectTrigger className="h-8 w-44 text-sm">
+                            <SelectTrigger className="h-8 w-44 text-sm" aria-label="Confidentiality">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -764,7 +764,7 @@ export function TaskCollaboration({
                             </ul>
                             <div className="flex gap-2">
                                 <Select value={newGranteeId} onValueChange={setNewGranteeId}>
-                                    <SelectTrigger className="h-8 flex-1 text-sm">
+                                    <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Grant confidential access to">
                                         <SelectValue placeholder="Grant access to…" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -834,7 +834,7 @@ export function TaskCollaboration({
                 )}
                 <div className="mt-2 flex gap-2">
                     <Select value={newDependencyId} onValueChange={setNewDependencyId}>
-                        <SelectTrigger className="h-8 flex-1 text-sm">
+                        <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a prerequisite task">
                             <SelectValue placeholder="Add a prerequisite task…" />
                         </SelectTrigger>
                         <SelectContent>
@@ -887,7 +887,7 @@ export function TaskCollaboration({
                 </ul>
                 <div className="mt-2 flex gap-2">
                     <Select value={newRelationId} onValueChange={setNewRelationId}>
-                        <SelectTrigger className="h-8 flex-1 text-sm">
+                        <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Link a related task">
                             <SelectValue placeholder="Link a related task…" />
                         </SelectTrigger>
                         <SelectContent>
@@ -955,7 +955,7 @@ export function TaskCollaboration({
                                 )
                             }
                         >
-                            <SelectTrigger className="h-8 flex-1 text-sm">
+                            <SelectTrigger className="h-8 flex-1 text-sm" aria-label={detail.project ? 'Change project' : 'Link a project'}>
                                 <SelectValue placeholder={detail.project ? 'Change project…' : 'Link a project…'} />
                             </SelectTrigger>
                             <SelectContent>
@@ -1003,7 +1003,7 @@ export function TaskCollaboration({
                     ) : (
                         <div className="flex flex-wrap items-center gap-2">
                             <Select value={newFrequency} onValueChange={setNewFrequency}>
-                                <SelectTrigger className="h-8 w-44 text-sm">
+                                <SelectTrigger className="h-8 w-44 text-sm" aria-label="Recurrence frequency">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1049,7 +1049,7 @@ export function TaskCollaboration({
                                 value={detail.autoResetFrequency ?? NO_DEPENDENCY}
                                 onValueChange={(value) => patch(`/tasks/${taskId}`, { auto_reset_frequency: value === NO_DEPENDENCY ? null : value })}
                             >
-                                <SelectTrigger className="h-8 w-44 text-sm">
+                                <SelectTrigger className="h-8 w-44 text-sm" aria-label="Auto-reset frequency">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1083,7 +1083,7 @@ export function TaskCollaboration({
                 {detail.approval.status === null && (
                     <div className="flex flex-wrap gap-2">
                         <Select value={reviewerId} onValueChange={setReviewerId}>
-                            <SelectTrigger className="h-8 w-48 text-sm">
+                            <SelectTrigger className="h-8 w-48 text-sm" aria-label="Choose a reviewer">
                                 <SelectValue placeholder="Choose a reviewer…" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1156,7 +1156,7 @@ export function TaskCollaboration({
                             Sent back by {detail.approval.approver?.name}: {detail.approval.note}
                         </p>
                         <Select value={reviewerId} onValueChange={setReviewerId}>
-                            <SelectTrigger className="mt-2 h-8 w-48 text-sm">
+                            <SelectTrigger className="mt-2 h-8 w-48 text-sm" aria-label="Re-request approval from">
                                 <SelectValue placeholder="Re-request from…" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1272,7 +1272,7 @@ export function TaskCollaboration({
                                 className="h-8 w-24 text-sm"
                             />
                             <Select value={manualLocation} onValueChange={setManualLocation}>
-                                <SelectTrigger className="h-8 flex-1 text-sm">
+                                <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Work location">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>

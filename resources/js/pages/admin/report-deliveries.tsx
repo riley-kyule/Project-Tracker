@@ -81,7 +81,7 @@ export default function ReportDeliveries({
                     <h1 className="text-xl font-semibold">Report Deliveries</h1>
                     <span className="text-muted-foreground text-sm">{deliveries.total} total</span>
                     <Select value={selected.status ?? ALL} onValueChange={applyStatus}>
-                        <SelectTrigger className="ml-auto w-40">
+                        <SelectTrigger className="ml-auto w-40" aria-label="Filter by status">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

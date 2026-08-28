@@ -133,9 +133,9 @@ function DepartmentDialog({
                         <InputError message={errors.description} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Parent department</Label>
+                        <Label htmlFor="parent_department_id">Parent department</Label>
                         <Select value={data.parent_department_id} onValueChange={(value) => setData('parent_department_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="parent_department_id">
                                 <SelectValue placeholder="Top-level department" />
                             </SelectTrigger>
                             <SelectContent>
@@ -150,9 +150,9 @@ function DepartmentDialog({
                         <InputError message={errors.parent_department_id} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Head of department</Label>
+                        <Label htmlFor="manager_id">Head of department</Label>
                         <Select value={data.manager_id} onValueChange={(value) => setData('manager_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="manager_id">
                                 <SelectValue placeholder="No manager" />
                             </SelectTrigger>
                             <SelectContent>
@@ -167,9 +167,9 @@ function DepartmentDialog({
                         <InputError message={errors.manager_id} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Assistant manager</Label>
+                        <Label htmlFor="assistant_manager_id">Assistant manager</Label>
                         <Select value={data.assistant_manager_id} onValueChange={(value) => setData('assistant_manager_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="assistant_manager_id">
                                 <SelectValue placeholder="No assistant" />
                             </SelectTrigger>
                             <SelectContent>
@@ -184,9 +184,9 @@ function DepartmentDialog({
                         <InputError message={errors.assistant_manager_id} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Board workflow template</Label>
+                        <Label htmlFor="workflow_template">Board workflow template</Label>
                         <Select value={data.workflow_template} onValueChange={(value) => setData('workflow_template', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="workflow_template">
                                 <SelectValue placeholder="Generic default columns" />
                             </SelectTrigger>
                             <SelectContent>
@@ -302,7 +302,7 @@ function DepartmentMembersDialog({ department, allUsers }: { department: Departm
                 </ul>
                 <div className="flex gap-2">
                     <Select value={newMemberId} onValueChange={setNewMemberId}>
-                        <SelectTrigger className="h-8 flex-1 text-sm">
+                        <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a department member">
                             <SelectValue placeholder="Add a person…" />
                         </SelectTrigger>
                         <SelectContent>

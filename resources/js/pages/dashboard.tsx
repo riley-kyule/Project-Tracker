@@ -106,9 +106,9 @@ function QuickCaptureDialog({ boards, currentUserId }: { boards: QuickCaptureBoa
                         <InputError message={errors.title} />
                     </div>
                     <div className="grid gap-2">
-                        <Label>Board</Label>
+                        <Label htmlFor="quick-board">Board</Label>
                         <Select value={data.board_id} onValueChange={(value) => setData('board_id', value)}>
-                            <SelectTrigger>
+                            <SelectTrigger id="quick-board">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

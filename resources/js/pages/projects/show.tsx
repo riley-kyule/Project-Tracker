@@ -155,7 +155,7 @@ export default function ProjectShow({
                 {canManage && (
                     <div className="flex flex-wrap items-center gap-2">
                         <Select value={project.status} onValueChange={(value) => updateField('status', value)}>
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-40" aria-label="Project status">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -167,7 +167,7 @@ export default function ProjectShow({
                             </SelectContent>
                         </Select>
                         <Select value={project.health_status} onValueChange={(value) => updateField('health_status', value)}>
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-40" aria-label="Project health status">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -249,7 +249,7 @@ export default function ProjectShow({
                     {canManage && (
                         <div className="flex gap-2">
                             <Select value={newMemberId} onValueChange={setNewMemberId}>
-                                <SelectTrigger className="h-8 flex-1 text-sm">
+                                <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a person to this project">
                                     <SelectValue placeholder="Add a person…" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -293,7 +293,7 @@ export default function ProjectShow({
                     {canManage && (
                         <div className="flex gap-2">
                             <Select value={newDepartmentId} onValueChange={setNewDepartmentId}>
-                                <SelectTrigger className="h-8 flex-1 text-sm">
+                                <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a department to this project">
                                     <SelectValue placeholder="Add a department…" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -349,7 +349,7 @@ export default function ProjectShow({
                     {canManage && (
                         <div className="mt-2 flex gap-2">
                             <Select value={taskToLinkId} onValueChange={setTaskToLinkId}>
-                                <SelectTrigger className="h-8 flex-1 text-sm">
+                                <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Link an existing task to this project">
                                     <SelectValue placeholder="Link an existing task…" />
                                 </SelectTrigger>
                                 <SelectContent>
