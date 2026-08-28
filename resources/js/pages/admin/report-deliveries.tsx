@@ -31,6 +31,12 @@ const statusVariant: Record<Delivery['status'], 'default' | 'destructive' | 'sec
     failed: 'destructive',
 };
 
+const statusLabels: Record<Delivery['status'], string> = {
+    pending: 'Pending',
+    sent: 'Sent',
+    failed: 'Failed',
+};
+
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Report Deliveries', href: '/admin/report-deliveries' }];
 
 function reportLabel(snapshot: Delivery['snapshot']): string {
@@ -121,7 +127,7 @@ export default function ReportDeliveries({
                                     <td className="p-3">{delivery.snapshot?.report_date}</td>
                                     <td className="p-3">{delivery.recipient?.name ?? '—'}</td>
                                     <td className="p-3">
-                                        <Badge variant={statusVariant[delivery.status]}>{delivery.status}</Badge>
+                                        <Badge variant={statusVariant[delivery.status]}>{statusLabels[delivery.status]}</Badge>
                                     </td>
                                     <td className="p-3">{delivery.sent_at ? new Date(delivery.sent_at).toLocaleString() : '—'}</td>
                                     <td className="p-3">{delivery.retry_count}</td>

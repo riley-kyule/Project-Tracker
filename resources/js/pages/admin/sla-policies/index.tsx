@@ -4,8 +4,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { priorityColors } from '@/pages/tickets/index';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 type SlaPolicy = {
     id: number;
@@ -124,7 +125,7 @@ function SlaPolicyRow({ policy }: { policy: SlaPolicy }) {
 
     return (
         <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border space-y-4 rounded-xl border p-4">
-            <h2 className="text-sm font-semibold capitalize">{policy.priority}</h2>
+            <h2 className={`text-sm font-semibold capitalize ${priorityColors[policy.priority]}`}>{policy.priority}</h2>
             <div className="grid gap-4 sm:grid-cols-3">
                 <div className="grid gap-2">
                     <Label htmlFor={`first-response-${policy.id}`}>First response SLA (minutes)</Label>
@@ -197,11 +198,16 @@ export default function SlaPoliciesIndex({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="SLA policies" />
             <div className="flex flex-col gap-4 p-4">
-                <div>
-                    <h1 className="text-xl font-semibold">SLA policies</h1>
-                    <p className="text-muted-foreground text-sm">
-                        Thresholds used by the Service Desk to flag breaches and auto-close inactive tickets.
-                    </p>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                        <h1 className="text-xl font-semibold">SLA policies</h1>
+                        <p className="text-muted-foreground text-sm">
+                            Thresholds used by the Service Desk to flag breaches and auto-close inactive tickets.
+                        </p>
+                    </div>
+                    <Link href="/tickets" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
+                        View tickets →
+                    </Link>
                 </div>
                 {canEditBusinessHours && <BusinessHoursCard businessHours={businessHours} />}
                 <div className="flex flex-col gap-4">

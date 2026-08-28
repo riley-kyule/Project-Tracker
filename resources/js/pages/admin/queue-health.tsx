@@ -1,7 +1,9 @@
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, router, usePoll } from '@inertiajs/react';
+import { useState } from 'react';
 
 type FailedJob = {
     id: number;
@@ -20,6 +22,28 @@ type PendingQueue = {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Queue Health', href: '/admin/queue-health' }];
 
+const EXCEPTION_PREVIEW_LENGTH = 280;
+
+function FailedJobException({ exception }: { exception: string }) {
+    const [expanded, setExpanded] = useState(false);
+    const isLong = exception.length > EXCEPTION_PREVIEW_LENGTH;
+
+    return (
+        <div>
+            <p className={`text-muted-foreground mt-1 font-mono text-xs break-all ${expanded ? '' : 'line-clamp-3'}`}>{exception}</p>
+            {isLong && (
+                <button
+                    type="button"
+                    onClick={() => setExpanded((current) => !current)}
+                    className="text-brand-600 dark:text-brand-400 mt-1 text-xs hover:underline"
+                >
+                    {expanded ? 'Show less' : 'Show more'}
+                </button>
+            )}
+        </div>
+    );
+}
+
 export default function QueueHealth({
     failedJobs,
     failedJobsTotal,
@@ -29,35 +53,45 @@ export default function QueueHealth({
     failedJobsTotal: number;
     pendingByQueue: PendingQueue[];
 }) {
+    // Keep this operational-health page reasonably fresh without requiring a manual refresh.
+    usePoll(30000);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Queue Health" />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">Queue Health</h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-semibold">Queue Health</h1>
+                    <Button size="sm" variant="outline" className="ml-auto" onClick={() => router.reload()}>
+                        Refresh
+                    </Button>
+                </div>
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                     <h2 className="mb-2 text-sm font-semibold">Pending jobs by queue</h2>
                     {pendingByQueue.length === 0 ? (
                         <p className="text-muted-foreground text-sm">Nothing waiting — the queue is empty.</p>
                     ) : (
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-muted-foreground text-left">
-                                    <th className="p-2 font-medium">Queue</th>
-                                    <th className="p-2 font-medium">Pending</th>
-                                    <th className="p-2 font-medium">Oldest waiting since</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {pendingByQueue.map((row) => (
-                                    <tr key={row.queue} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
-                                        <td className="p-2 font-mono text-xs">{row.queue}</td>
-                                        <td className="p-2">{row.total}</td>
-                                        <td className="p-2">{new Date(row.oldest_available_at).toLocaleString()}</td>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-muted-foreground text-left">
+                                        <th className="p-2 font-medium">Queue</th>
+                                        <th className="p-2 font-medium">Pending</th>
+                                        <th className="p-2 font-medium">Oldest waiting since</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {pendingByQueue.map((row) => (
+                                        <tr key={row.queue} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                                            <td className="p-2 font-mono text-xs">{row.queue}</td>
+                                            <td className="p-2">{row.total}</td>
+                                            <td className="p-2">{new Date(row.oldest_available_at).toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </div>
 
@@ -77,7 +111,7 @@ export default function QueueHealth({
                                         <span className="text-muted-foreground text-xs">{job.connection}</span>
                                         <span className="text-muted-foreground ml-auto text-xs">{new Date(job.failed_at).toLocaleString()}</span>
                                     </div>
-                                    <p className="text-muted-foreground mt-1 font-mono text-xs break-all">{job.exception}</p>
+                                    <FailedJobException exception={job.exception} />
                                 </li>
                             ))}
                         </ul>

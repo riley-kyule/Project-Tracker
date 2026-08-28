@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 export type TicketStatus =
@@ -65,7 +65,7 @@ export const statusVariants: Record<TicketStatus, 'default' | 'secondary' | 'des
     reopened: 'destructive',
 };
 
-const priorityColors: Record<TicketRow['priority'], string> = {
+export const priorityColors: Record<TicketRow['priority'], string> = {
     critical: 'text-red-600 dark:text-red-400',
     high: 'text-orange-600 dark:text-orange-400',
     medium: 'text-brand-600 dark:text-brand-400',
@@ -218,10 +218,16 @@ export default function TicketsIndex({
     direction: 'asc' | 'desc';
 }) {
     const sort: SortState = { column: sortColumn, direction };
+    const [filtering, setFiltering] = useState(false);
 
     const applyFilter = (key: string, value: string) => {
         const next = { ...filters, sort: sortColumn ?? undefined, direction, [key]: value === ALL ? undefined : value };
-        router.get('/tickets', next as Record<string, string>, { preserveState: true, preserveScroll: true });
+        router.get('/tickets', next as Record<string, string>, {
+            preserveState: true,
+            preserveScroll: true,
+            onStart: () => setFiltering(true),
+            onFinish: () => setFiltering(false),
+        });
     };
 
     const onSort = (column: string) => {
@@ -238,7 +244,8 @@ export default function TicketsIndex({
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                         {isManager && (
                             <>
-                                <Select value={filters.status ?? ALL} onValueChange={(value) => applyFilter('status', value)}>
+                                {filtering && <Loader2 className="text-muted-foreground size-4 animate-spin" aria-label="Loading" />}
+                                <Select value={filters.status ?? ALL} onValueChange={(value) => applyFilter('status', value)} disabled={filtering}>
                                     <SelectTrigger className="w-44" aria-label="Filter by status">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -251,7 +258,11 @@ export default function TicketsIndex({
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <Select value={filters.priority ?? ALL} onValueChange={(value) => applyFilter('priority', value)}>
+                                <Select
+                                    value={filters.priority ?? ALL}
+                                    onValueChange={(value) => applyFilter('priority', value)}
+                                    disabled={filtering}
+                                >
                                     <SelectTrigger className="w-36" aria-label="Filter by priority">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -263,7 +274,11 @@ export default function TicketsIndex({
                                         <SelectItem value="low">Low</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <Select value={filters.assigned ?? ALL} onValueChange={(value) => applyFilter('assigned', value)}>
+                                <Select
+                                    value={filters.assigned ?? ALL}
+                                    onValueChange={(value) => applyFilter('assigned', value)}
+                                    disabled={filtering}
+                                >
                                     <SelectTrigger className="w-36" aria-label="Filter by assignment">
                                         <SelectValue />
                                     </SelectTrigger>

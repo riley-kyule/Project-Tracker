@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
+import { priorityColors, statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage, usePoll } from '@inertiajs/react';
 import { Lock, Paperclip } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 type Person = { id: number; name: string };
 
@@ -95,7 +96,11 @@ function ResolveDialog({ ticketId }: { ticketId: number }) {
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
-                        post(`/tickets/${ticketId}/resolve`, { preserveScroll: true, onSuccess: () => setOpen(false) });
+                        post(`/tickets/${ticketId}/resolve`, {
+                            preserveScroll: true,
+                            onSuccess: () => setOpen(false),
+                            onError: () => toast.error('Could not resolve the ticket. Please check the form and try again.'),
+                        });
                     }}
                     className="space-y-4"
                 >
@@ -237,6 +242,10 @@ export default function TicketShow({
     const { auth } = usePage<SharedData>().props;
     const fileInput = useRef<HTMLInputElement>(null);
     const commentForm = useForm<{ body: string; is_internal: boolean }>({ body: '', is_internal: false });
+    const [assigning, setAssigning] = useState(false);
+    const [confirmingResolved, setConfirmingResolved] = useState(false);
+    const [reopening, setReopening] = useState(false);
+    const [transitioningTo, setTransitioningTo] = useState<TicketStatus | null>(null);
 
     // No WebSocket transport exists yet, so new responses/status changes surface via polling
     // rather than a push — see the live-updates plan. Reload-style requests preserve scroll/state by default.
@@ -257,10 +266,63 @@ export default function TicketShow({
 
     const canReopen = (ticket.status === 'resolved' || ticket.status === 'closed') && (isManager || auth.user.id === ticket.requester.id);
     const canConfirmResolvedNow = canConfirmResolved && (isManager || auth.user.id === ticket.requester.id);
+    const isOverdue = ticket.due_at !== null && new Date(ticket.due_at) < new Date() && ticket.status !== 'resolved' && ticket.status !== 'closed';
 
     const destroy = () => {
         if (!confirm(`Delete ticket TK-${ticket.ticket_number}? This cannot be undone from the UI.`)) return;
         router.delete(`/tickets/${ticket.id}`);
+    };
+
+    const confirmResolved = () => {
+        setConfirmingResolved(true);
+        router.post(
+            `/tickets/${ticket.id}/confirm-resolved`,
+            {},
+            {
+                preserveScroll: true,
+                onError: () => toast.error('Could not confirm resolution. Please try again.'),
+                onFinish: () => setConfirmingResolved(false),
+            },
+        );
+    };
+
+    const reopen = () => {
+        setReopening(true);
+        router.post(
+            `/tickets/${ticket.id}/reopen`,
+            {},
+            {
+                preserveScroll: true,
+                onError: () => toast.error('Could not reopen the ticket. Please try again.'),
+                onFinish: () => setReopening(false),
+            },
+        );
+    };
+
+    const assign = (assignedTo: number) => {
+        setAssigning(true);
+        router.post(
+            `/tickets/${ticket.id}/assign`,
+            { assigned_to: assignedTo },
+            {
+                preserveScroll: true,
+                onError: () => toast.error('Could not assign the technician. Please try again.'),
+                onFinish: () => setAssigning(false),
+            },
+        );
+    };
+
+    const transition = (status: TicketStatus) => {
+        setTransitioningTo(status);
+        router.post(
+            `/tickets/${ticket.id}/transition`,
+            { status },
+            {
+                preserveScroll: true,
+                onError: () => toast.error('Could not update the ticket status. Please try again.'),
+                onFinish: () => setTransitioningTo(null),
+            },
+        );
     };
 
     return (
@@ -273,7 +335,7 @@ export default function TicketShow({
                         {ticket.title}
                     </h1>
                     <Badge variant={statusVariants[ticket.status]}>{statusLabels[ticket.status]}</Badge>
-                    <Badge variant="secondary" className="capitalize">
+                    <Badge variant="secondary" className={`capitalize ${priorityColors[ticket.priority]}`}>
                         {ticket.priority}
                     </Badge>
                     {canDelete && (
@@ -294,16 +356,12 @@ export default function TicketShow({
                         <p className="mb-2">This ticket was closed automatically — no reply was received in time.</p>
                         <div className="flex gap-2">
                             {canConfirmResolvedNow && (
-                                <Button size="sm" onClick={() => router.post(`/tickets/${ticket.id}/confirm-resolved`, {}, { preserveScroll: true })}>
+                                <Button size="sm" disabled={confirmingResolved} onClick={confirmResolved}>
                                     Confirm resolved
                                 </Button>
                             )}
                             {canReopen && (
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => router.post(`/tickets/${ticket.id}/reopen`, {}, { preserveScroll: true })}
-                                >
+                                <Button size="sm" variant="outline" disabled={reopening} onClick={reopen}>
                                     Reopen — needs more work
                                 </Button>
                             )}
@@ -313,12 +371,7 @@ export default function TicketShow({
 
                 {isManager && (
                     <div className="flex flex-wrap items-center gap-2">
-                        <Select
-                            value={ticket.assignee?.id.toString() ?? ''}
-                            onValueChange={(value) =>
-                                router.post(`/tickets/${ticket.id}/assign`, { assigned_to: Number(value) }, { preserveScroll: true })
-                            }
-                        >
+                        <Select value={ticket.assignee?.id.toString() ?? ''} disabled={assigning} onValueChange={(value) => assign(Number(value))}>
                             <SelectTrigger className="w-56" aria-label="Assign technician">
                                 <SelectValue placeholder="Assign technician…" />
                             </SelectTrigger>
@@ -337,7 +390,8 @@ export default function TicketShow({
                                     key={status}
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => router.post(`/tickets/${ticket.id}/transition`, { status }, { preserveScroll: true })}
+                                    disabled={transitioningTo !== null}
+                                    onClick={() => transition(status)}
                                 >
                                     {statusLabels[status]}
                                 </Button>
@@ -349,7 +403,7 @@ export default function TicketShow({
 
                 {canReopen && ticket.closed_reason !== 'inactivity' && (
                     <div>
-                        <Button size="sm" variant="outline" onClick={() => router.post(`/tickets/${ticket.id}/reopen`, {}, { preserveScroll: true })}>
+                        <Button size="sm" variant="outline" disabled={reopening} onClick={reopen}>
                             Reopen ticket
                         </Button>
                     </div>
@@ -369,7 +423,11 @@ export default function TicketShow({
                         <span className="text-muted-foreground">Assignee:</span> {ticket.assignee?.name ?? 'Unassigned'}
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Due:</span> {ticket.due_at ? new Date(ticket.due_at).toLocaleString() : '—'}
+                        <span className="text-muted-foreground">Due:</span>{' '}
+                        <span className={isOverdue ? 'font-semibold text-red-600 dark:text-red-400' : ''}>
+                            {ticket.due_at ? new Date(ticket.due_at).toLocaleString() : '—'}
+                            {isOverdue && ' (overdue)'}
+                        </span>
                     </div>
                     <div>
                         <span className="text-muted-foreground">First response:</span>{' '}
@@ -492,6 +550,7 @@ export default function TicketShow({
                                 {new Date(entry.created_at).toLocaleString()}
                             </li>
                         ))}
+                        {ticket.status_history.length === 0 && <li className="text-muted-foreground text-sm">No status changes yet.</li>}
                     </ul>
                 </div>
             </div>
