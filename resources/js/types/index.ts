@@ -34,6 +34,10 @@ export interface SharedData {
         error: string | null;
         bulkResults: { id?: number; site_id?: number; site?: string; status: string; error?: string | null }[] | null;
     };
+    // Shared on every response by Inertia's base middleware (validation
+    // errors, or a manual withErrors() redirect like Google SSO failures) —
+    // not something each controller passes explicitly.
+    errors: Record<string, string>;
     [key: string]: unknown;
 }
 

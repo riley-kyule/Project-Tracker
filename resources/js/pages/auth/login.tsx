@@ -1,7 +1,9 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import AuthLayout from '@/layouts/auth-layout';
+import { type SharedData } from '@/types';
 
 function GoogleIcon({ className }: { className?: string }) {
     return (
@@ -32,9 +34,17 @@ interface LoginProps {
 }
 
 export default function Login({ status, canGoogleSso }: LoginProps) {
+    const { errors } = usePage<SharedData>().props;
+
     return (
         <AuthLayout title="Log in to your account" description="Sign in with your company Google account">
             <Head title="Log in" />
+
+            {errors.email && (
+                <Alert variant="destructive" className="mb-4">
+                    <AlertDescription>{errors.email}</AlertDescription>
+                </Alert>
+            )}
 
             {canGoogleSso ? (
                 <Button variant="outline" className="w-full" asChild>
@@ -49,7 +59,7 @@ export default function Login({ status, canGoogleSso }: LoginProps) {
                 </p>
             )}
 
-            {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
+            {status && <div className="mb-4 text-center text-sm font-medium text-green-600 dark:text-green-400">{status}</div>}
         </AuthLayout>
     );
 }
