@@ -12,10 +12,18 @@
  *
  * Usage:
  *   node onboard.js --input=/path/to/sites.csv --output-dir=/path/to/out [--limit=2] [--start-at=0]
+ *     [--no-header] [--columns=domain,wp_admin_username,wp_admin_password]
  *
- * Input CSV columns (header row required): name,domain,wp_admin_username,wp_admin_password
+ * Input CSV columns: by default a header row named
+ * name,domain,wp_admin_username,wp_admin_password (name is optional — derived
+ * from the domain if absent). If your file has no header row and/or a
+ * different column order, pass --no-header and --columns to describe it,
+ * e.g. a plain "url,username,password" export:
+ *   --no-header --columns=domain,wp_admin_username,wp_admin_password
+ *
  * Output CSV columns: name,domain,wp_username,wp_app_password,status,error
- *   status is one of: ok | login_failed | two_factor_required | app_password_failed | error
+ *   status is one of: ok | already_has_app_password | login_failed |
+ *   two_factor_required | app_password_failed | error
  *
  * Recommended: run with --limit=2 first against a couple of real sites and
  * check the output before running the full batch — WordPress core's
@@ -27,17 +35,26 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
+const DEFAULT_COLUMNS = ['name', 'domain', 'wp_admin_username', 'wp_admin_password'];
+
 function parseArgs(argv) {
-    const args = { limit: Infinity, startAt: 0 };
+    const args = { limit: Infinity, startAt: 0, hasHeader: true, columns: null, onlyDomains: null };
     for (const raw of argv.slice(2)) {
         const [key, value] = raw.replace(/^--/, '').split(/=(.*)/s);
         if (key === 'input') args.input = value;
         else if (key === 'output-dir') args.outputDir = value;
         else if (key === 'limit') args.limit = parseInt(value, 10);
         else if (key === 'start-at') args.startAt = parseInt(value, 10);
+        else if (key === 'no-header') args.hasHeader = false;
+        else if (key === 'columns') args.columns = value.split(',').map((c) => c.trim());
+        else if (key === 'only-domains-file') args.onlyDomains = new Set(fs.readFileSync(value, 'utf8').split('\n').map((d) => d.trim()).filter(Boolean));
     }
     if (!args.input || !args.outputDir) {
-        console.error('Usage: node onboard.js --input=sites.csv --output-dir=./out [--limit=N] [--start-at=N]');
+        console.error('Usage: node onboard.js --input=sites.csv --output-dir=./out [--limit=N] [--start-at=N] [--no-header] [--columns=a,b,c] [--only-domains-file=path]');
+        process.exit(1);
+    }
+    if (!args.hasHeader && !args.columns) {
+        console.error('--no-header requires --columns=... to describe the column order.');
         process.exit(1);
     }
     return args;
@@ -60,7 +77,9 @@ function assertNotInsideGitRepo(targetDir) {
 
 // --- Minimal RFC4180-ish CSV parsing/writing (no external dependency) ---
 
-function parseCsv(text) {
+function parseCsv(text, { hasHeader = true, columns = null } = {}) {
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // strip a UTF-8 BOM if the file was saved from Excel/Numbers
+
     const rows = [];
     let row = [];
     let field = '';
@@ -97,8 +116,17 @@ function parseCsv(text) {
         rows.push(row);
     }
 
-    const [header, ...data] = rows;
-    return data.map((r) => Object.fromEntries(header.map((h, idx) => [h.trim(), (r[idx] ?? '').trim()])));
+    const header = hasHeader ? rows[0].map((h) => h.trim()) : columns;
+    const data = hasHeader ? rows.slice(1) : rows;
+
+    return data.map((r) => {
+        const record = Object.fromEntries(header.map((h, idx) => [h, (r[idx] ?? '').trim()]));
+        if (!record.name) {
+            record.name = record.domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '');
+        }
+
+        return record;
+    });
 }
 
 function csvEscape(value) {
@@ -143,6 +171,16 @@ async function onboardSite(browser, site) {
             return { status: 'login_failed', error: message.replace(/\s+/g, ' ') };
         }
 
+        // WP core periodically forces an "is your admin email still correct?"
+        // interstitial after a successful login, before the normal wp-admin
+        // redirect happens. The login itself succeeded here — click through it.
+        if (page.url().includes('action=confirm_admin_email')) {
+            const confirmButton = page.locator('#correct-admin-email');
+            if (await confirmButton.count()) {
+                await Promise.all([page.waitForLoadState('domcontentloaded'), confirmButton.click()]);
+            }
+        }
+
         if (!page.url().includes('/wp-admin/')) {
             return { status: 'login_failed', error: `Unexpected post-login URL: ${page.url()}` };
         }
@@ -152,6 +190,15 @@ async function onboardSite(browser, site) {
         const nameField = page.locator('#new_application_password_name');
         if (!(await nameField.count())) {
             return { status: 'app_password_failed', error: 'Application Passwords section not found on profile.php (feature may be disabled on this site).' };
+        }
+
+        // Don't create a second "EWMS" password if one already exists — WP
+        // never shows a password's value again after creation, so we can't
+        // recover it here, but we also shouldn't silently pile up unused
+        // duplicates. Flag it for a human instead of guessing.
+        const existingRow = page.locator('.application-password-name-value, td.name-column').filter({ hasText: /^EWMS$/ });
+        if (await existingRow.count()) {
+            return { status: 'already_has_app_password', error: 'An "EWMS" Application Password already exists on this site — skipped rather than creating a duplicate.' };
         }
 
         await nameField.fill('EWMS');
@@ -179,8 +226,12 @@ async function main() {
     const args = parseArgs(process.argv);
     assertNotInsideGitRepo(args.outputDir);
 
-    const sites = parseCsv(fs.readFileSync(args.input, 'utf8'));
-    const batch = sites.slice(args.startAt, args.startAt + args.limit);
+    const sites = parseCsv(fs.readFileSync(args.input, 'utf8'), {
+        hasHeader: args.hasHeader,
+        columns: args.columns ?? DEFAULT_COLUMNS,
+    });
+    const filtered = args.onlyDomains ? sites.filter((s) => args.onlyDomains.has(s.domain)) : sites;
+    const batch = filtered.slice(args.startAt, args.startAt + args.limit);
 
     fs.mkdirSync(args.outputDir, { recursive: true });
     const failureDir = path.join(args.outputDir, 'failures');
@@ -190,7 +241,7 @@ async function main() {
     const out = fs.createWriteStream(outPath, { flags: 'w' });
     out.write(OUTPUT_COLUMNS.join(',') + '\n');
 
-    console.log(`Onboarding ${batch.length} site(s) (of ${sites.length} total in the input file)…`);
+    console.log(`Onboarding ${batch.length} site(s) (of ${filtered.length} matching, ${sites.length} total in the input file)…`);
     console.log(`Writing results to ${outPath}\n`);
 
     const browser = await chromium.launch({ headless: true });
@@ -209,6 +260,9 @@ async function main() {
         } else if (result.status === 'two_factor_required') {
             skipped++;
             console.log('skipped (2FA)');
+        } else if (result.status === 'already_has_app_password') {
+            skipped++;
+            console.log('skipped (already has one)');
         } else {
             failed++;
             console.log(`FAILED — ${result.status}: ${result.error}`);
