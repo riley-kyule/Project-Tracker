@@ -1,3 +1,4 @@
+import { Pagination, type Paginated } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
@@ -44,7 +45,7 @@ export default function ReportDeliveries({
     statuses,
     selected,
 }: {
-    deliveries: { data: Delivery[]; total: number };
+    deliveries: Paginated<Delivery>;
     statuses: string[];
     selected: { status?: string };
 }) {
@@ -111,6 +112,7 @@ export default function ReportDeliveries({
                         </tbody>
                     </table>
                 </div>
+                <Pagination meta={deliveries} />
             </div>
         </AppLayout>
     );

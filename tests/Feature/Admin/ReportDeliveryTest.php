@@ -62,4 +62,38 @@ class ReportDeliveryTest extends TestCase
         $this->assertSame('failed', $filtered['deliveries']['data'][0]['status']);
         $this->assertSame('SMTP timeout', $filtered['deliveries']['data'][0]['failure_reason']);
     }
+
+    /**
+     * Paginates 50/page; the frontend Pagination component needs the full
+     * paginator shape or page 2+ becomes unreachable with no error.
+     */
+    public function test_report_deliveries_expose_full_pagination_metadata()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $recipient = User::factory()->create()->assignRole('CEO');
+
+        $snapshot = ReportSnapshot::query()->create([
+            'report_date' => now()->toDateString(),
+            'report_type' => ReportSnapshot::TYPE_CEO_DAILY,
+            'department_id' => null,
+            'generated_at' => now(),
+            'payload' => [],
+            'status' => ReportSnapshot::STATUS_GENERATED,
+            'version' => 1,
+        ]);
+
+        collect(range(1, 60))->each(fn () => ReportDelivery::query()->create([
+            'report_snapshot_id' => $snapshot->id,
+            'recipient_user_id' => $recipient->id,
+            'status' => ReportDelivery::STATUS_SENT,
+            'sent_at' => now(),
+        ]));
+
+        $props = $this->actingAs($admin)->get('/admin/report-deliveries')->assertOk()->viewData('page')['props'];
+
+        $this->assertSame(50, count($props['deliveries']['data']));
+        $this->assertSame(60, $props['deliveries']['total']);
+        $this->assertSame(2, $props['deliveries']['last_page']);
+        $this->assertNotEmpty($props['deliveries']['links']);
+    }
 }

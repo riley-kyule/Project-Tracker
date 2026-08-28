@@ -891,6 +891,21 @@ export default function BoardShow({
         const column = findColumn(activeId);
         if (!column) return;
 
+        // While filtered, onDragOver never reparents tasks between columns
+        // (hidden tasks sharing a column would throw off the reorder math) —
+        // so a cross-column drop can't actually be carried out. Without this
+        // check the task silently re-posts into its own original column and
+        // the card just snaps back with no explanation.
+        if (filtering) {
+            const target = String(over.id).startsWith('column-')
+                ? columns.find((c) => `column-${c.id}` === String(over.id))
+                : findColumn(Number(over.id));
+            if (target && target.id !== column.id) {
+                toast.error('Clear filters to move a task between columns.');
+                return;
+            }
+        }
+
         let index = column.tasks.findIndex((task) => task.id === activeId);
         const overId = Number(over.id);
 

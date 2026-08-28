@@ -185,4 +185,24 @@ class ManagementDashboardTest extends TestCase
         $this->assertTrue($titles->contains('Stuck task'));
         $this->assertFalse($titles->contains('Normal task'));
     }
+
+    /**
+     * Paginates 50/page; the frontend Pagination component needs the full
+     * paginator shape or page 2+ becomes unreachable with no error.
+     */
+    public function test_task_report_exposes_full_pagination_metadata()
+    {
+        $admin = User::factory()->create()->assignRole('Administrator');
+        $board = Board::factory()->create();
+        $column = BoardColumn::factory()->create(['board_id' => $board->id, 'semantic_status' => 'backlog']);
+
+        Task::factory()->count(55)->create(['board_id' => $board->id, 'board_column_id' => $column->id]);
+
+        $props = $this->actingAs($admin)->get('/reports/tasks')->assertOk()->viewData('page')['props'];
+
+        $this->assertSame(50, count($props['tasks']['data']));
+        $this->assertSame(55, $props['tasks']['total']);
+        $this->assertSame(2, $props['tasks']['last_page']);
+        $this->assertNotEmpty($props['tasks']['links']);
+    }
 }

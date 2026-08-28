@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { Pagination, type Paginated } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -139,7 +140,7 @@ export default function TasksReport({
     selected,
     savedFilters,
 }: {
-    tasks: { data: ReportTask[]; total: number };
+    tasks: Paginated<ReportTask>;
     filter: string;
     filters: string[];
     departments: Person[];
@@ -272,7 +273,7 @@ export default function TasksReport({
                         <thead>
                             <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">
                                 <th className="w-10 p-3">
-                                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
+                                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all on this page" />
                                 </th>
                                 <th className="p-3 font-medium">#</th>
                                 <th className="p-3 font-medium">Task</th>
@@ -330,6 +331,7 @@ export default function TasksReport({
                         </tbody>
                     </table>
                 </div>
+                <Pagination meta={tasks} />
             </div>
         </AppLayout>
     );

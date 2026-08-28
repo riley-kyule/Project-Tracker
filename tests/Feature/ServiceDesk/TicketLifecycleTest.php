@@ -43,6 +43,25 @@ class TicketLifecycleTest extends TestCase
         Notification::assertSentTo($employee, TicketSubmitted::class);
     }
 
+    /**
+     * The index page paginates 25/page; the frontend Pagination component
+     * needs the full paginator shape (links/current_page/last_page), not
+     * just data/total, or page 2+ becomes unreachable with no error.
+     */
+    public function test_ticket_index_exposes_full_pagination_metadata()
+    {
+        $manager = User::factory()->create()->assignRole('Administrator');
+        Ticket::factory()->count(30)->create(['category_id' => $this->category()->id]);
+
+        $props = $this->actingAs($manager)->get('/tickets')->assertOk()->viewData('page')['props'];
+
+        $this->assertSame(25, count($props['tickets']['data']));
+        $this->assertSame(30, $props['tickets']['total']);
+        $this->assertSame(1, $props['tickets']['current_page']);
+        $this->assertSame(2, $props['tickets']['last_page']);
+        $this->assertNotEmpty($props['tickets']['links']);
+    }
+
     public function test_requesters_see_only_their_own_tickets()
     {
         $alice = User::factory()->create()->assignRole('Employee');

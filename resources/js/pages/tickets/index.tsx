@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { Pagination, type Paginated } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -204,7 +205,7 @@ export default function TicketsIndex({
     users,
     filters,
 }: {
-    tickets: { data: TicketRow[]; links: { url: string | null; label: string; active: boolean }[] };
+    tickets: Paginated<TicketRow>;
     categories: Category[];
     isManager: boolean;
     canCreateForOthers: boolean;
@@ -300,7 +301,7 @@ export default function TicketsIndex({
                             ))}
                             {tickets.data.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className="text-muted-foreground p-6 text-center text-sm">
+                                    <td colSpan={isManager ? 7 : 6} className="text-muted-foreground p-6 text-center text-sm">
                                         No tickets yet. Submit one with “New ticket”.
                                     </td>
                                 </tr>
@@ -308,6 +309,7 @@ export default function TicketsIndex({
                         </tbody>
                     </table>
                 </div>
+                <Pagination meta={tickets} />
             </div>
         </AppLayout>
     );
