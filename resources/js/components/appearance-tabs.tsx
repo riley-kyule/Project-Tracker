@@ -18,6 +18,7 @@ export default function AppearanceToggleTab({ className = '', ...props }: HTMLAt
                 <button
                     key={value}
                     onClick={() => updateAppearance(value)}
+                    aria-pressed={appearance === value}
                     className={cn(
                         'flex items-center rounded-md px-3.5 py-1.5 transition-colors',
                         appearance === value

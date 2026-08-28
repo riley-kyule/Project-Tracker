@@ -211,7 +211,7 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                     <div className="grid gap-2">
                                         <Label htmlFor="mail-host">Host</Label>
                                         <Input id="mail-host" value={data.mail_host} onChange={(e) => setData('mail_host', e.target.value)} />
-                                        {errors.mail_host && <p className="text-destructive text-sm">{errors.mail_host}</p>}
+                                        <InputError message={errors.mail_host} />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="mail-port">Port</Label>
@@ -221,7 +221,7 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                             value={data.mail_port}
                                             onChange={(e) => setData('mail_port', e.target.value)}
                                         />
-                                        {errors.mail_port && <p className="text-destructive text-sm">{errors.mail_port}</p>}
+                                        <InputError message={errors.mail_port} />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="mail-username">Username</Label>
@@ -230,6 +230,7 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                             value={data.mail_username}
                                             onChange={(e) => setData('mail_username', e.target.value)}
                                         />
+                                        <InputError message={errors.mail_username} />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="mail-password">Password</Label>
@@ -239,10 +240,12 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                             placeholder={settings.mail_password_set ? 'Unchanged (already set)' : ''}
                                             value={data.mail_password}
                                             onChange={(e) => setData('mail_password', e.target.value)}
+                                            aria-describedby="mail-password-hint"
                                         />
-                                        <p className="text-muted-foreground text-xs">
+                                        <p id="mail-password-hint" className="text-muted-foreground text-xs">
                                             {settings.mail_password_set ? 'Leave blank to keep the current password.' : 'No password stored yet.'}
                                         </p>
+                                        <InputError message={errors.mail_password} />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="mail-encryption">Encryption</Label>
@@ -265,7 +268,7 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                             value={data.mail_from_address}
                                             onChange={(e) => setData('mail_from_address', e.target.value)}
                                         />
-                                        {errors.mail_from_address && <p className="text-destructive text-sm">{errors.mail_from_address}</p>}
+                                        <InputError message={errors.mail_from_address} />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="mail-from-name">From name</Label>
@@ -274,6 +277,7 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                             value={data.mail_from_name}
                                             onChange={(e) => setData('mail_from_name', e.target.value)}
                                         />
+                                        <InputError message={errors.mail_from_name} />
                                     </div>
                                 </div>
                             )}
@@ -291,11 +295,12 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                         value={data.epe_api_url}
                                         onChange={(e) => setData('epe_api_url', e.target.value)}
                                     />
-                                    {errors.epe_api_url && <p className="text-destructive text-sm">{errors.epe_api_url}</p>}
+                                    <InputError message={errors.epe_api_url} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="epe-site-key">Site key</Label>
                                     <Input id="epe-site-key" value={data.epe_site_key} onChange={(e) => setData('epe_site_key', e.target.value)} />
+                                    <InputError message={errors.epe_site_key} />
                                 </div>
                             </div>
                         </div>
@@ -309,7 +314,7 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                 leave="transition ease-in-out"
                                 leaveTo="opacity-0"
                             >
-                                <p className="text-sm text-neutral-600">Saved</p>
+                                <p className="text-muted-foreground text-sm">Saved</p>
                             </Transition>
                         </div>
                     </form>

@@ -78,17 +78,23 @@ export default function NotificationSettings({ preferences }: { preferences: Rec
                             <div key={group.title} className="space-y-3">
                                 <h3 className="text-sm font-semibold">{group.title}</h3>
                                 <div className="space-y-2">
-                                    {group.types.map(([type, description]) => (
-                                        <label key={type} className="flex items-start gap-2 text-sm">
-                                            <Checkbox
-                                                checked={data.preferences[type] ?? true}
-                                                onCheckedChange={(checked) =>
-                                                    setData('preferences', { ...data.preferences, [type]: checked === true })
-                                                }
-                                            />
-                                            <Label className="font-normal">{description}</Label>
-                                        </label>
-                                    ))}
+                                    {group.types.map(([type, description]) => {
+                                        const checkboxId = `notification-${type}`;
+                                        return (
+                                            <div key={type} className="flex items-start gap-2 text-sm">
+                                                <Checkbox
+                                                    id={checkboxId}
+                                                    checked={data.preferences[type] ?? true}
+                                                    onCheckedChange={(checked) =>
+                                                        setData('preferences', { ...data.preferences, [type]: checked === true })
+                                                    }
+                                                />
+                                                <Label htmlFor={checkboxId} className="font-normal">
+                                                    {description}
+                                                </Label>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}
@@ -102,7 +108,7 @@ export default function NotificationSettings({ preferences }: { preferences: Rec
                                 leave="transition ease-in-out"
                                 leaveTo="opacity-0"
                             >
-                                <p className="text-sm text-neutral-600">Saved</p>
+                                <p className="text-muted-foreground text-sm">Saved</p>
                             </Transition>
                         </div>
                     </form>
