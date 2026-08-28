@@ -4,6 +4,7 @@ namespace Tests\Feature\Boards;
 
 use App\Models\Board;
 use App\Models\BoardColumn;
+use App\Models\Department;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -242,6 +243,59 @@ class TaskManagementTest extends TestCase
         $admin = User::factory()->create()->assignRole('Administrator');
         $this->actingAs($admin)->patch("/tasks/{$task->id}", ['auto_reset_frequency' => 'daily']);
         $this->assertSame('daily', $task->refresh()->auto_reset_frequency);
+    }
+
+    /**
+     * A manager of a parent department (Department::manager_id, not the plain
+     * user.department_id equality TaskPolicy::manageRecurrence() used to check
+     * on its own) must still manage auto-reset on a child department's tasks —
+     * matching the hierarchy view()/managedDepartmentIds() already grant them
+     * everywhere else. Same for an assistant manager on their own department.
+     */
+    public function test_a_manager_of_a_parent_department_can_manage_auto_reset_on_a_child_departments_task()
+    {
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+        $seo = Department::query()->where('slug', 'seo')->firstOrFail();
+
+        $head = User::factory()->create(['department_id' => $marketing->id])->assignRole('Department Manager');
+        $marketing->update(['manager_id' => $head->id]);
+
+        $board = Board::factory()->create(['department_id' => $seo->id]);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+            'department_id' => $seo->id,
+        ]);
+
+        $props = $this->actingAs($head)->getJson("/tasks/{$task->id}/detail")->assertOk()->json();
+        $this->assertTrue($props['canManageRecurrence']);
+
+        $this->actingAs($head)->patch("/tasks/{$task->id}", ['auto_reset_frequency' => 'daily']);
+        $this->assertSame('daily', $task->refresh()->auto_reset_frequency);
+    }
+
+    public function test_an_assistant_manager_can_manage_auto_reset_on_their_departments_task()
+    {
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+        $it = Department::query()->where('slug', 'it')->firstOrFail();
+
+        // Home department deliberately differs from the one they're assistant
+        // manager of — isolates the managedDepartmentIds() branch from the
+        // plain user.department_id === task.department_id branch above it.
+        $assistant = User::factory()->create(['department_id' => $it->id])->assignRole('Department Manager');
+        $marketing->update(['assistant_manager_id' => $assistant->id]);
+
+        $board = Board::factory()->create(['department_id' => $marketing->id]);
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+            'department_id' => $marketing->id,
+        ]);
+
+        $this->actingAs($assistant)->patch("/tasks/{$task->id}", ['auto_reset_frequency' => 'weekly']);
+        $this->assertSame('weekly', $task->refresh()->auto_reset_frequency);
     }
 
     /**

@@ -118,16 +118,21 @@ class TaskPolicy
             && $user->department_id === $task->department_id;
     }
 
-    /** Per WORKFLOWS.md: "Administrator or manager defines recurrence rule." */
+    /**
+     * Per WORKFLOWS.md: "Administrator or manager defines recurrence rule."
+     * Mirrors view()'s $isDepartmentManager: a plain department_id match
+     * misses assistant managers and managers of a parent department overseeing
+     * a child department's tasks, both of which managedDepartmentIds() covers.
+     */
     public function manageRecurrence(User $user, Task $task): bool
     {
         if ($user->hasAnyRole(['Administrator', 'CEO'])) {
             return true;
         }
 
-        return $user->hasRole('Department Manager')
-            && $task->department_id !== null
-            && $user->department_id === $task->department_id;
+        return $task->department_id !== null
+            && (($user->hasRole('Department Manager') && $user->department_id === $task->department_id)
+                || in_array($task->department_id, app(BoardPolicy::class)->managedDepartmentIds($user), true));
     }
 
     /** Manual time-entry adjustments require the same manager scope as recurrence rules. */
