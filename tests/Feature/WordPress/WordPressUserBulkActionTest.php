@@ -65,6 +65,35 @@ class WordPressUserBulkActionTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['event' => 'wp_user_created', 'actor_id' => $ceo->id]);
     }
 
+    /**
+     * The frontend's bulk-action dialogs (ChangeRoleDialog/UpdateEmailDialog)
+     * only reset their "Apply" button's disabled state via router.post's
+     * onError/onFinish callback — this confirms a bad submission actually
+     * takes the validation-error redirect path those callbacks depend on,
+     * rather than a 500 or a silent no-op.
+     */
+    public function test_change_role_with_no_roles_selected_returns_a_validation_error()
+    {
+        [, , $wpUser] = $this->credentialWithUser();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)
+            ->post('/admin/wordpress-users/bulk-change-role', ['wordpress_user_ids' => [$wpUser->id], 'roles' => []])
+            ->assertRedirect()
+            ->assertSessionHasErrors('roles');
+    }
+
+    public function test_update_email_with_an_invalid_address_returns_a_validation_error()
+    {
+        [, , $wpUser] = $this->credentialWithUser();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)
+            ->post('/admin/wordpress-users/bulk-update-email', ['updates' => [['id' => $wpUser->id, 'email' => 'not-an-email']]])
+            ->assertRedirect()
+            ->assertSessionHasErrors('updates.0.email');
+    }
+
     public function test_change_role_updates_the_remote_site_and_the_local_cache()
     {
         [, , $wpUser] = $this->credentialWithUser();

@@ -13,6 +13,7 @@ import { type RequestPayload } from '@inertiajs/core';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Pencil, Plug, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 type Credential = {
     id: number;
@@ -353,14 +354,14 @@ function AddUserDialog({ sites, roles }: { sites: Site[]; roles: string[] }) {
     );
 }
 
-function ChangeRoleDialog({ roles, onApply }: { roles: string[]; onApply: (roles: string[]) => void }) {
+function ChangeRoleDialog({ roles, onApply }: { roles: string[]; onApply: (roles: string[], onFinish: () => void) => void }) {
     const [open, setOpen] = useState(false);
     const [selected, setSelected] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
 
     const apply = () => {
         setProcessing(true);
-        onApply(selected);
+        onApply(selected, () => setProcessing(false));
     };
 
     return (
@@ -396,7 +397,7 @@ function UpdateEmailDialog({
     onApply,
 }: {
     selectedUsers: WordPressUserRow[];
-    onApply: (updates: { id: number; email: string }[]) => void;
+    onApply: (updates: { id: number; email: string }[], onFinish: () => void) => void;
 }) {
     const [open, setOpen] = useState(false);
     const [emails, setEmails] = useState<Record<number, string>>({});
@@ -413,7 +414,10 @@ function UpdateEmailDialog({
 
     const apply = () => {
         setProcessing(true);
-        onApply(selectedUsers.map((u) => ({ id: u.id, email: emails[u.id] ?? '' })));
+        onApply(
+            selectedUsers.map((u) => ({ id: u.id, email: emails[u.id] ?? '' })),
+            () => setProcessing(false),
+        );
     };
 
     return (
@@ -454,29 +458,52 @@ function BulkActionBar({
     selectedUsers,
     roles,
     onDone,
+    totalMatching,
 }: {
     selectedIds: number[];
     selectedUsers: WordPressUserRow[];
     roles: string[];
     onDone: () => void;
+    /** Rows matching the current filters across every page — shown only when it exceeds what's selectable on this one page, since that's exactly the gap that makes "select all" mean less than it looks like it means. */
+    totalMatching: number;
 }) {
-    const post = (url: string, data: RequestPayload) => {
-        router.post(url, data, { preserveScroll: true, onSuccess: onDone });
+    const post = (url: string, data: RequestPayload, onFinish: () => void) => {
+        router.post(url, data, {
+            preserveScroll: true,
+            onSuccess: onDone,
+            onError: (errors) => toast.error(Object.values(errors)[0] ?? 'That request was rejected — check your selection and try again.'),
+            onFinish,
+        });
     };
 
     const destroy = () => {
         if (!confirm(`Delete ${selectedIds.length} WordPress user(s)? This deletes them on the live site and cannot be undone.`)) return;
-        router.delete('/admin/wordpress-users/bulk-delete', { data: { wordpress_user_ids: selectedIds }, preserveScroll: true, onSuccess: onDone });
+        router.delete('/admin/wordpress-users/bulk-delete', {
+            data: { wordpress_user_ids: selectedIds },
+            preserveScroll: true,
+            onSuccess: onDone,
+            onError: (errors) => toast.error(Object.values(errors)[0] ?? 'That request was rejected — check your selection and try again.'),
+        });
     };
 
     return (
         <div className="bg-muted/50 border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-center gap-2 rounded-xl border p-3">
-            <span className="text-sm font-medium">{selectedIds.length} selected</span>
+            <span className="text-sm font-medium">
+                {selectedIds.length} selected
+                {totalMatching > selectedIds.length && (
+                    <span className="text-muted-foreground font-normal"> of {totalMatching} matching — not everything matching is selected</span>
+                )}
+            </span>
             <ChangeRoleDialog
                 roles={roles}
-                onApply={(newRoles) => post('/admin/wordpress-users/bulk-change-role', { wordpress_user_ids: selectedIds, roles: newRoles })}
+                onApply={(newRoles, onFinish) =>
+                    post('/admin/wordpress-users/bulk-change-role', { wordpress_user_ids: selectedIds, roles: newRoles }, onFinish)
+                }
             />
-            <UpdateEmailDialog selectedUsers={selectedUsers} onApply={(updates) => post('/admin/wordpress-users/bulk-update-email', { updates })} />
+            <UpdateEmailDialog
+                selectedUsers={selectedUsers}
+                onApply={(updates, onFinish) => post('/admin/wordpress-users/bulk-update-email', { updates }, onFinish)}
+            />
             <Button size="sm" variant="destructive" onClick={destroy}>
                 Delete
             </Button>
@@ -619,7 +646,13 @@ export default function WordPressUsersIndex({
                 )}
 
                 {selectedIds.length > 0 && (
-                    <BulkActionBar selectedIds={selectedIds} selectedUsers={selectedUsers} roles={roles} onDone={() => setSelectedIds([])} />
+                    <BulkActionBar
+                        selectedIds={selectedIds}
+                        selectedUsers={selectedUsers}
+                        roles={roles}
+                        onDone={() => setSelectedIds([])}
+                        totalMatching={users.total}
+                    />
                 )}
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
@@ -627,7 +660,7 @@ export default function WordPressUsersIndex({
                         <thead>
                             <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">
                                 <th className="w-10 p-3">
-                                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
+                                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all on this page" />
                                 </th>
                                 <th className="p-3 font-medium">Site</th>
                                 <SortableHeader column="username" sort={sort} onSort={onSort} className="p-3">
