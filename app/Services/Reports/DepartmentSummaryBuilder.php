@@ -37,9 +37,9 @@ class DepartmentSummaryBuilder
      *     completeness: array{active_members: int, members_with_activity: int, missing_activity: int, tasks_updated_today: int, overdue: int},
      * }
      */
-    public function build(Department $department, Carbon $businessDay, string $timezone): array
+    public function build(Department $department, Carbon $businessDay, string $timezone, ?string $cutoffTime = null): array
     {
-        [$start, $end] = $this->dayBounds($businessDay, $timezone);
+        [$start, $end] = $this->dayBounds($businessDay, $timezone, $cutoffTime);
         $pendingBreakdown = $this->pendingBreakdown($department->id);
 
         return [
@@ -55,12 +55,32 @@ class DepartmentSummaryBuilder
         ];
     }
 
-    /** @return array{0: Carbon, 1: Carbon} start (inclusive) / end (exclusive) of the business day, in UTC */
-    public function dayBounds(Carbon $businessDay, string $timezone): array
+    /**
+     * @return array{0: Carbon, 1: Carbon} start (inclusive) / end (exclusive) of the business day, in UTC
+     *
+     * Without a cutoff time, the window is plain calendar midnight-to-midnight.
+     * With one (a department's daily_summary_time, or the CEO's ceo_summary_time),
+     * the window instead runs from yesterday's cutoff to today's — i.e. "since we
+     * last reported" rather than "since local midnight". A report that fires at
+     * 23:30 would otherwise permanently lose anything completed between 23:30 and
+     * midnight: that slice of the day never gets queried by any report, because
+     * today's window already closed at generation time and the report_snapshots
+     * unique constraint blocks ever regenerating today's report. Anchoring the
+     * window to the send time instead means that trailing slice simply rolls into
+     * tomorrow's window — which is also how late-shift staff whose shift crosses
+     * midnight naturally end up reported the next day rather than never at all.
+     */
+    public function dayBounds(Carbon $businessDay, string $timezone, ?string $cutoffTime = null): array
     {
-        $start = Carbon::parse($businessDay->toDateString(), $timezone)->startOfDay()->utc();
+        if ($cutoffTime === null) {
+            $start = Carbon::parse($businessDay->toDateString(), $timezone)->startOfDay()->utc();
 
-        return [$start, $start->copy()->addDay()];
+            return [$start, $start->copy()->addDay()];
+        }
+
+        $end = Carbon::parse($businessDay->toDateString(), $timezone)->setTimeFromTimeString($cutoffTime)->utc();
+
+        return [$end->copy()->subDay(), $end];
     }
 
     private function completedCount(int $departmentId, Carbon $start, Carbon $end): int

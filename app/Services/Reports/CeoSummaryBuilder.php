@@ -11,13 +11,13 @@ class CeoSummaryBuilder
     public function __construct(private readonly DepartmentSummaryBuilder $departments) {}
 
     /** @return array{rows: Collection, totalCompletedToday: int, totalPending: int} */
-    public function build(Carbon $businessDay, string $timezone): array
+    public function build(Carbon $businessDay, string $timezone, ?string $cutoffTime = null): array
     {
         $rows = Department::query()
             ->active()
             ->orderBy('name')
             ->get()
-            ->map(fn (Department $department) => $this->departments->build($department, $businessDay, $timezone));
+            ->map(fn (Department $department) => $this->departments->build($department, $businessDay, $timezone, $cutoffTime));
 
         return [
             'rows' => $rows,

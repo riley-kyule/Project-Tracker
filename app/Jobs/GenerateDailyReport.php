@@ -47,18 +47,19 @@ class GenerateDailyReport implements ShouldQueue
 
     public function handle(CeoSummaryBuilder $ceoBuilder, DepartmentSummaryBuilder $departmentBuilder): void
     {
-        $timezone = (CompanySetting::current()->timezone) ?: 'Africa/Nairobi';
+        $companySetting = CompanySetting::current();
+        $timezone = $companySetting->timezone ?: 'Africa/Nairobi';
         $businessDay = Carbon::parse($this->businessDay, $timezone);
 
         if ($this->reportType === ReportSnapshot::TYPE_CEO_DAILY) {
             $recipients = User::role('CEO')->get();
-            $built = $ceoBuilder->build($businessDay, $timezone);
+            $built = $ceoBuilder->build($businessDay, $timezone, $companySetting->ceo_summary_time);
             $payload = $built;
             $mail = new CeoDailySummaryMail($built['rows'], $built['totalCompletedToday'], $built['totalPending']);
         } else {
             $department = Department::findOrFail($this->departmentId);
             $recipients = collect([$department->manager, $department->assistantManager])->filter()->unique('id');
-            $payload = $departmentBuilder->build($department, $businessDay, $timezone);
+            $payload = $departmentBuilder->build($department, $businessDay, $timezone, $department->daily_summary_time);
             $mail = new DepartmentDailySummaryMail(
                 $department,
                 $payload['completed_today'],

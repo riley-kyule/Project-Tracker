@@ -36,11 +36,12 @@ class SendDailySummariesTest extends TestCase
     public function test_department_summary_includes_todays_comments()
     {
         Mail::fake();
+        $this->travelTo(Carbon::parse('2026-08-03 12:00:00', 'Africa/Nairobi'));
 
         $manager = User::factory()->create()->assignRole('Employee');
         $department = Department::factory()->create([
             'manager_id' => $manager->id,
-            'daily_summary_time' => Carbon::now('Africa/Nairobi')->subMinute()->format('H:i:s'),
+            'daily_summary_time' => '18:00:00',
         ]);
 
         $board = Board::factory()->create();
@@ -61,15 +62,16 @@ class SendDailySummariesTest extends TestCase
             'created_at' => now(),
         ]);
 
-        // A comment from yesterday must not leak into today's summary.
+        // A comment from two days ago must not leak into today's summary.
         Comment::factory()->create([
             'commentable_type' => Task::class,
             'commentable_id' => $task->id,
             'user_id' => $commenter->id,
             'body' => 'Old context, should not appear.',
-            'created_at' => now()->subDay(),
+            'created_at' => now()->subDays(2),
         ]);
 
+        $this->travelTo(Carbon::parse('2026-08-03 18:01:00', 'Africa/Nairobi'));
         $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
 
         Mail::assertSent(DepartmentDailySummaryMail::class, function (DepartmentDailySummaryMail $mail) use ($department, $task) {
@@ -97,11 +99,12 @@ class SendDailySummariesTest extends TestCase
     public function test_completed_task_entries_include_description_and_checklist_progress()
     {
         Mail::fake();
+        $this->travelTo(Carbon::parse('2026-08-03 12:00:00', 'Africa/Nairobi'));
 
         $manager = User::factory()->create()->assignRole('Employee');
         $department = Department::factory()->create([
             'manager_id' => $manager->id,
-            'daily_summary_time' => Carbon::now('Africa/Nairobi')->subMinute()->format('H:i:s'),
+            'daily_summary_time' => '18:00:00',
         ]);
 
         $board = Board::factory()->create();
@@ -127,6 +130,7 @@ class SendDailySummariesTest extends TestCase
             'completed_at' => now(),
         ]);
 
+        $this->travelTo(Carbon::parse('2026-08-03 18:01:00', 'Africa/Nairobi'));
         $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
 
         Mail::assertSent(DepartmentDailySummaryMail::class, function (DepartmentDailySummaryMail $mail) use ($withExtras, $bare) {
@@ -227,15 +231,16 @@ class SendDailySummariesTest extends TestCase
     {
         Mail::fake();
 
-        // 22:00 UTC is already 01:00 the *next* day in Africa/Nairobi (UTC+3,
-        // no DST). A task completed just before this instant, on the UTC
-        // calendar day, must still land in "today's" Nairobi business day.
-        $this->travelTo(Carbon::parse('2026-07-31 22:00:00', 'UTC'));
+        // 22:05 UTC is already 01:05 the *next* day in Africa/Nairobi (UTC+3,
+        // no DST) — just past this department's 01:00 cutoff, so today's
+        // report is due. A task completed just before this instant, on the
+        // UTC calendar day, must still land in "today's" Nairobi business day.
+        $this->travelTo(Carbon::parse('2026-07-31 22:05:00', 'UTC'));
 
         $manager = User::factory()->create()->assignRole('Employee');
         $department = Department::factory()->create([
             'manager_id' => $manager->id,
-            'daily_summary_time' => '00:00:00',
+            'daily_summary_time' => '01:00:00',
         ]);
 
         $board = Board::factory()->create();
@@ -258,14 +263,80 @@ class SendDailySummariesTest extends TestCase
         $this->assertSame('2026-08-01', $snapshot->report_date->toDateString());
     }
 
-    public function test_summary_includes_pending_breakdown_progress_notes_reopened_tasks_and_completeness()
+    /**
+     * The department's report fires at its own daily_summary_time, not at
+     * midnight — so a task finished after that time but before midnight
+     * (e.g. a late-shift Customer Service agent closing out at 23:45 when
+     * the department reports at 23:30) can't be in *that* day's report: it
+     * hasn't happened yet when the report generates. Previously the report's
+     * data window still ran all the way to midnight regardless, and because
+     * report_snapshots is uniquely keyed per business day, that day's report
+     * could never be regenerated — so the task was silently lost forever,
+     * never appearing in any summary. The window must instead run from one
+     * cutoff to the next, so anything after today's cutoff simply rolls into
+     * tomorrow's report rather than vanishing.
+     */
+    public function test_activity_after_the_cutoff_rolls_into_the_next_days_report_instead_of_being_lost()
     {
         Mail::fake();
 
         $manager = User::factory()->create()->assignRole('Employee');
         $department = Department::factory()->create([
             'manager_id' => $manager->id,
-            'daily_summary_time' => Carbon::now('Africa/Nairobi')->subMinute()->format('H:i:s'),
+            'daily_summary_time' => '23:30:00',
+        ]);
+
+        $board = Board::factory()->create();
+        $column = BoardColumn::factory()->create(['board_id' => $board->id]);
+
+        $onTimeTask = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+            'department_id' => $department->id,
+            'title' => 'Finished before the cutoff',
+            'completed_at' => Carbon::parse('2026-08-03 20:00:00', 'Africa/Nairobi'),
+        ]);
+
+        $lateTask = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $column->id,
+            'department_id' => $department->id,
+            'title' => 'Closed out after the late shift ends',
+            'completed_at' => Carbon::parse('2026-08-03 23:45:00', 'Africa/Nairobi'),
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-08-03 23:31:00', 'Africa/Nairobi'));
+        $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
+
+        Mail::assertSent(DepartmentDailySummaryMail::class, function (DepartmentDailySummaryMail $mail) use ($onTimeTask, $lateTask) {
+            $urls = $mail->breakdown->flatten(1)->pluck('url');
+
+            return $mail->completedToday === 1
+                && $urls->contains(route('tasks.show', $onTimeTask))
+                && ! $urls->contains(route('tasks.show', $lateTask));
+        });
+
+        $this->travelTo(Carbon::parse('2026-08-04 23:31:00', 'Africa/Nairobi'));
+        $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
+
+        Mail::assertSent(DepartmentDailySummaryMail::class, function (DepartmentDailySummaryMail $mail) use ($lateTask) {
+            $urls = $mail->breakdown->flatten(1)->pluck('url');
+
+            return $mail->completedToday === 1 && $urls->contains(route('tasks.show', $lateTask));
+        });
+
+        $this->assertDatabaseCount('report_snapshots', 2);
+    }
+
+    public function test_summary_includes_pending_breakdown_progress_notes_reopened_tasks_and_completeness()
+    {
+        Mail::fake();
+        $this->travelTo(Carbon::parse('2026-08-03 12:00:00', 'Africa/Nairobi'));
+
+        $manager = User::factory()->create()->assignRole('Employee');
+        $department = Department::factory()->create([
+            'manager_id' => $manager->id,
+            'daily_summary_time' => '18:00:00',
         ]);
 
         $board = Board::factory()->create();
@@ -317,6 +388,7 @@ class SendDailySummariesTest extends TestCase
             Comment::NOTE_BLOCKER,
         );
 
+        $this->travelTo(Carbon::parse('2026-08-03 18:01:00', 'Africa/Nairobi'));
         $this->artisan('ewms:send-daily-summaries')->assertSuccessful();
 
         $sent = null;
