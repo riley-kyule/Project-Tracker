@@ -19,7 +19,7 @@ type SearchResults = {
         column: { name: string } | null;
         assignee: Person | null;
     }[];
-    tickets: { id: number; ticket_number: number; title: string; status: TicketStatus; requester: Person; category: { name: string } }[];
+    tickets: { id: number; ticket_number: number; title: string; status: TicketStatus; requester: Person; category: { name: string } | null }[];
     boards: { id: number; name: string; visibility: string }[];
     users: { id: number; name: string; email: string; job_title: string | null; department: { name: string } | null }[];
 };
@@ -102,7 +102,7 @@ export default function SearchPage({ query, results }: { query: string; results:
                                 </Link>
                                 <Badge variant={statusVariants[ticket.status]}>{statusLabels[ticket.status]}</Badge>
                                 <span className="text-muted-foreground ml-auto text-xs">
-                                    {ticket.category.name} · {ticket.requester.name}
+                                    {ticket.category?.name ?? '—'} · {ticket.requester.name}
                                 </span>
                             </li>
                         ))}

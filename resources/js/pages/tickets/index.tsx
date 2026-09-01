@@ -33,7 +33,7 @@ type TicketRow = {
     priority: 'critical' | 'high' | 'medium' | 'low';
     requester: { id: number; name: string };
     assignee: { id: number; name: string } | null;
-    category: { id: number; name: string };
+    category: { id: number; name: string } | null;
     due_at: string | null;
     created_at: string;
 };
@@ -331,7 +331,7 @@ export default function TicketsIndex({
                                     <td className={`p-3 font-medium capitalize ${priorityColors[ticket.priority]}`}>{ticket.priority}</td>
                                     {isManager && <td className="p-3">{ticket.requester.name}</td>}
                                     <td className="p-3">{ticket.assignee?.name ?? '—'}</td>
-                                    <td className="p-3">{ticket.category.name}</td>
+                                    <td className="p-3">{ticket.category?.name ?? '—'}</td>
                                 </tr>
                             ))}
                             {tickets.data.length === 0 && (

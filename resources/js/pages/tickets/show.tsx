@@ -29,7 +29,7 @@ type TicketDetail = {
     created_by: number;
     submitted_by: Person | null;
     assignee: Person | null;
-    category: { id: number; name: string };
+    category: { id: number; name: string } | null;
     department: { id: number; name: string } | null;
     converted_task: { id: number; task_number: number; title: string; board_id: number } | null;
     due_at: string | null;
@@ -417,7 +417,7 @@ export default function TicketShow({
                         <span className="text-muted-foreground">Department:</span> {ticket.department?.name ?? '—'}
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Category:</span> {ticket.category.name}
+                        <span className="text-muted-foreground">Category:</span> {ticket.category?.name ?? '—'}
                     </div>
                     <div>
                         <span className="text-muted-foreground">Assignee:</span> {ticket.assignee?.name ?? 'Unassigned'}
