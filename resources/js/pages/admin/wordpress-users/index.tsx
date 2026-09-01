@@ -302,6 +302,11 @@ function AddUserDialog({ sites, roles }: { sites: Site[]; roles: string[] }) {
         setData('site_ids', data.site_ids.includes(id) ? data.site_ids.filter((s) => s !== id) : [...data.site_ids, id]);
     };
 
+    const allSitesSelected = sites.length > 0 && data.site_ids.length === sites.length;
+    const toggleAllSites = () => {
+        setData('site_ids', allSitesSelected ? [] : sites.map((site) => site.id));
+    };
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -315,7 +320,12 @@ function AddUserDialog({ sites, roles }: { sites: Site[]; roles: string[] }) {
                 </DialogHeader>
                 <form onSubmit={submit} className="space-y-4">
                     <div className="grid gap-2">
-                        <Label>Sites</Label>
+                        <div className="flex items-center justify-between">
+                            <Label>Sites</Label>
+                            <button type="button" onClick={toggleAllSites} className="text-brand-600 dark:text-brand-400 text-xs hover:underline">
+                                {allSitesSelected ? 'Select none' : `Select all (${sites.length})`}
+                            </button>
+                        </div>
                         <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-md border p-2">
                             {sites.map((site) => (
                                 <label key={site.id} className="flex items-center gap-1.5 text-sm">
