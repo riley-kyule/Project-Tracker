@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Mail\WelcomeUserMail;
 use App\Models\Department;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
@@ -63,6 +65,8 @@ class UserManagementTest extends TestCase
 
     public function test_administrator_can_pre_provision_a_user_for_google_sign_in()
     {
+        Mail::fake();
+
         $admin = User::factory()->create()->assignRole('Administrator');
         $department = Department::query()->where('slug', 'it')->firstOrFail();
 
@@ -87,6 +91,24 @@ class UserManagementTest extends TestCase
             'auditable_id' => $user->id,
             'event' => 'created',
         ]);
+
+        Mail::assertQueued(WelcomeUserMail::class, fn (WelcomeUserMail $mail) => $mail->user->is($user));
+    }
+
+    public function test_creating_an_inactive_user_does_not_send_a_welcome_email()
+    {
+        Mail::fake();
+
+        $admin = User::factory()->create()->assignRole('Administrator');
+
+        $this->actingAs($admin)->post('/admin/users', [
+            'name' => 'Not Yet',
+            'email' => 'not.yet@example.com',
+            'status' => 'inactive',
+            'role' => 'Employee',
+        ])->assertRedirect();
+
+        Mail::assertNothingQueued();
     }
 
     public function test_employees_cannot_create_users()

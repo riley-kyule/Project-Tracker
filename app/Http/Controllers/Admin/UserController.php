@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Mail\WelcomeUserMail;
 use App\Models\Department;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -12,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -52,7 +54,7 @@ class UserController extends Controller
         // No password to set — sign-in is Google SSO only. This just
         // pre-provisions the account (role/department) so it's ready the
         // moment the person signs in with a matching company Google account.
-        DB::transaction(function () use ($request) {
+        $user = DB::transaction(function () use ($request) {
             $user = User::create([
                 ...$request->safe()->except('role'),
                 'password' => null,
@@ -60,7 +62,15 @@ class UserController extends Controller
             $user->syncRoles([$request->validated('role')]);
 
             AuditLogger::log($user, 'created', [], ['name' => $user->name, 'email' => $user->email, 'role' => $request->validated('role')]);
+
+            return $user;
         });
+
+        // Suspended/inactive accounts can't sign in yet — telling them to would
+        // just be confusing, so only active accounts get welcomed immediately.
+        if ($user->isActive()) {
+            Mail::to($user)->queue(new WelcomeUserMail($user));
+        }
 
         return back()->with('success', 'User created. They can sign in with Google using this email address.');
     }
