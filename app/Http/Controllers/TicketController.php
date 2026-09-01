@@ -31,7 +31,15 @@ class TicketController extends Controller
         $direction = $request->string('direction')->toString() === 'desc' ? 'desc' : 'asc';
 
         $tickets = Ticket::query()
-            ->with(['requester:id,name', 'assignee:id,name', 'category:id,name'])
+            // withTrashed(): a ticket's requester/assignee can be a since-deleted
+            // employee (User uses SoftDeletes, and neither FK cascades on a soft
+            // delete — it's just an UPDATE) — without this the relation silently
+            // comes back null and the historical name is lost.
+            ->with([
+                'requester' => fn ($query) => $query->withTrashed()->select('id', 'name'),
+                'assignee' => fn ($query) => $query->withTrashed()->select('id', 'name'),
+                'category:id,name',
+            ])
             ->when(! $manager, fn ($query) => $query->where('requester_id', $request->user()->id))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('priority'), fn ($query) => $query->where('priority', $request->string('priority')))
@@ -66,20 +74,27 @@ class TicketController extends Controller
 
         $manager = $request->user()->can('tickets.manage');
 
+        // withTrashed() throughout: any of these can be a since-deleted employee
+        // (User uses SoftDeletes, and none of these FKs cascade on a soft delete —
+        // it's just an UPDATE) — without it the relation silently comes back null
+        // and the ticket's own history loses who was actually involved.
         $ticket->load([
-            'requester:id,name,email',
-            'submittedBy:id,name',
-            'assignee:id,name',
+            'requester' => fn ($query) => $query->withTrashed()->select('id', 'name', 'email'),
+            'submittedBy' => fn ($query) => $query->withTrashed()->select('id', 'name'),
+            'assignee' => fn ($query) => $query->withTrashed()->select('id', 'name'),
             'category:id,name',
             'department:id,name',
             'convertedTask:id,task_number,title,board_id',
-            'statusHistory.changedBy:id,name',
+            'statusHistory.changedBy' => fn ($query) => $query->withTrashed()->select('id', 'name'),
         ]);
 
         $comments = $ticket->comments()
             ->whereNull('parent_id')
             ->when(! $manager, fn ($query) => $query->where('is_internal', false))
-            ->with(['user:id,name', 'replies.user:id,name'])
+            ->with([
+                'user' => fn ($query) => $query->withTrashed()->select('id', 'name'),
+                'replies.user' => fn ($query) => $query->withTrashed()->select('id', 'name'),
+            ])
             ->oldest()
             ->get();
 

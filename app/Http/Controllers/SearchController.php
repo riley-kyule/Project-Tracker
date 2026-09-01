@@ -46,7 +46,10 @@ class SearchController extends Controller
                 ->where(fn ($q) => $q->whereRaw('lower(title) like ?', [$lower])
                     ->orWhereRaw('lower(description) like ?', [$lower])
                     ->when($number !== null, fn ($qq) => $qq->orWhere('ticket_number', $number)))
-                ->with(['requester:id,name', 'category:id,name'])
+                // withTrashed(): the requester can be a since-deleted employee
+                // (User uses SoftDeletes and this FK doesn't cascade on a soft
+                // delete) — without it the relation silently comes back null.
+                ->with(['requester' => fn ($q) => $q->withTrashed()->select('id', 'name'), 'category:id,name'])
                 ->limit(15)
                 ->get();
 

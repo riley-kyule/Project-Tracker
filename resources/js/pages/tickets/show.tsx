@@ -24,7 +24,7 @@ type TicketDetail = {
     status: TicketStatus;
     priority: 'critical' | 'high' | 'medium' | 'low';
     impact: string;
-    requester: Person & { email: string };
+    requester: (Person & { email: string }) | null;
     requester_id: number;
     created_by: number;
     submitted_by: Person | null;
@@ -45,7 +45,7 @@ type TicketDetail = {
         from_status: string | null;
         to_status: TicketStatus;
         reason: string | null;
-        changed_by: Person;
+        changed_by: Person | null;
         created_at: string;
     }[];
 };
@@ -54,10 +54,10 @@ type TicketComment = {
     id: number;
     body: string;
     is_internal: boolean;
-    user: Person;
+    user: Person | null;
     created_at: string;
     gap_minutes: number | null;
-    replies: { id: number; body: string; is_internal: boolean; user: Person; created_at: string }[];
+    replies: { id: number; body: string; is_internal: boolean; user: Person | null; created_at: string }[];
 };
 
 function formatGap(minutes: number): string {
@@ -264,8 +264,8 @@ export default function TicketShow({
         });
     };
 
-    const canReopen = (ticket.status === 'resolved' || ticket.status === 'closed') && (isManager || auth.user.id === ticket.requester.id);
-    const canConfirmResolvedNow = canConfirmResolved && (isManager || auth.user.id === ticket.requester.id);
+    const canReopen = (ticket.status === 'resolved' || ticket.status === 'closed') && (isManager || auth.user.id === ticket.requester?.id);
+    const canConfirmResolvedNow = canConfirmResolved && (isManager || auth.user.id === ticket.requester?.id);
     const isOverdue = ticket.due_at !== null && new Date(ticket.due_at) < new Date() && ticket.status !== 'resolved' && ticket.status !== 'closed';
 
     const destroy = () => {
@@ -347,7 +347,7 @@ export default function TicketShow({
 
                 {ticket.submitted_by && ticket.submitted_by.id !== ticket.requester_id && (
                     <p className="text-muted-foreground text-sm">
-                        Filed by {ticket.submitted_by.name} on behalf of {ticket.requester.name}
+                        Filed by {ticket.submitted_by.name} on behalf of {ticket.requester?.name ?? 'a deleted user'}
                     </p>
                 )}
 
@@ -411,7 +411,7 @@ export default function TicketShow({
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2">
                     <div>
-                        <span className="text-muted-foreground">Requester:</span> {ticket.requester.name}
+                        <span className="text-muted-foreground">Requester:</span> {ticket.requester?.name ?? 'Deleted user'}
                     </div>
                     <div>
                         <span className="text-muted-foreground">Department:</span> {ticket.department?.name ?? '—'}
@@ -496,7 +496,7 @@ export default function TicketShow({
                                 }`}
                             >
                                 <div className="mb-1 flex items-center gap-2 text-xs">
-                                    <span className="font-semibold">{comment.user.name}</span>
+                                    <span className="font-semibold">{comment.user?.name ?? 'Deleted user'}</span>
                                     {comment.is_internal && (
                                         <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
                                             <Lock className="size-3" /> Internal note
@@ -542,7 +542,7 @@ export default function TicketShow({
                     <ul className="space-y-1.5">
                         {ticket.status_history.map((entry) => (
                             <li key={entry.id} className="text-muted-foreground text-xs">
-                                <span className="text-foreground font-medium">{entry.changed_by.name}</span>{' '}
+                                <span className="text-foreground font-medium">{entry.changed_by?.name ?? 'Deleted user'}</span>{' '}
                                 {entry.from_status ? `${statusLabels[entry.from_status as TicketStatus]} → ` : ''}
                                 {statusLabels[entry.to_status]}
                                 {entry.reason && ` — ${entry.reason}`}

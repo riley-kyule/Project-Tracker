@@ -99,6 +99,31 @@ class TicketLifecycleTest extends TestCase
         $this->actingAs($tech)->get("/tickets/{$ticket->id}")->assertOk();
     }
 
+    /**
+     * A ticket's requester (or assignee, comment author, status-change actor)
+     * can be a since-deleted employee — User uses SoftDeletes and none of
+     * these FKs cascade on a soft delete (it's just an UPDATE) — so the
+     * relation must be loaded withTrashed() or it silently comes back null
+     * and the frontend crashes rendering `.name` on it. See
+     * tickets/index.test.tsx for the frontend half of this.
+     */
+    public function test_a_deleted_requesters_name_still_resolves_on_the_ticket_pages()
+    {
+        $manager = User::factory()->create()->assignRole('Administrator');
+        $requester = User::factory()->create(['name' => 'Departed Employee'])->assignRole('Employee');
+        $ticket = Ticket::factory()->create(['requester_id' => $requester->id, 'category_id' => $this->category()->id]);
+
+        $requester->delete();
+        $this->assertSoftDeleted($requester);
+
+        $indexProps = $this->actingAs($manager)->get('/tickets')->assertOk()->viewData('page')['props'];
+        $row = collect($indexProps['tickets']['data'])->firstWhere('id', $ticket->id);
+        $this->assertSame('Departed Employee', $row['requester']['name']);
+
+        $showProps = $this->actingAs($manager)->get("/tickets/{$ticket->id}")->assertOk()->viewData('page')['props'];
+        $this->assertSame('Departed Employee', $showProps['ticket']['requester']['name']);
+    }
+
     public function test_assignment_requires_technician_and_notifies()
     {
         Notification::fake();

@@ -31,7 +31,7 @@ type TicketRow = {
     title: string;
     status: TicketStatus;
     priority: 'critical' | 'high' | 'medium' | 'low';
-    requester: { id: number; name: string };
+    requester: { id: number; name: string } | null;
     assignee: { id: number; name: string } | null;
     category: { id: number; name: string } | null;
     due_at: string | null;
@@ -329,7 +329,7 @@ export default function TicketsIndex({
                                         <Badge variant={statusVariants[ticket.status]}>{statusLabels[ticket.status]}</Badge>
                                     </td>
                                     <td className={`p-3 font-medium capitalize ${priorityColors[ticket.priority]}`}>{ticket.priority}</td>
-                                    {isManager && <td className="p-3">{ticket.requester.name}</td>}
+                                    {isManager && <td className="p-3">{ticket.requester?.name ?? '—'}</td>}
                                     <td className="p-3">{ticket.assignee?.name ?? '—'}</td>
                                     <td className="p-3">{ticket.category?.name ?? '—'}</td>
                                 </tr>

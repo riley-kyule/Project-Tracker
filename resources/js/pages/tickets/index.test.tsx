@@ -71,4 +71,22 @@ describe('TicketsIndex', () => {
         render(<TicketsIndex tickets={tickets} {...defaultProps} />);
         expect(screen.getByText('Hardware')).toBeInTheDocument();
     });
+
+    // Regression: a ticket's requester can be a since-deleted employee (User
+    // uses SoftDeletes; the FK doesn't cascade on a soft delete) — the backend
+    // now loads withTrashed() so this shouldn't reach the frontend as null in
+    // practice, but ticket.requester.name was unguarded here too and must not
+    // crash the page if it ever does.
+    it('renders a ticket with no requester instead of crashing', () => {
+        const tickets = {
+            data: [baseTicket({ requester: null })],
+            links: [],
+            current_page: 1,
+            last_page: 1,
+            total: 1,
+        };
+
+        expect(() => render(<TicketsIndex tickets={tickets} {...defaultProps} />)).not.toThrow();
+        expect(screen.getByText('Printer is on fire')).toBeInTheDocument();
+    });
 });
