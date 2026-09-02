@@ -6,6 +6,7 @@ export interface Auth {
     roles: string[];
     managesDepartment: boolean;
     hasWebsiteAssignments: boolean;
+    hasEmployeeRecord: boolean;
     canViewMarketingStatistics: boolean;
 }
 

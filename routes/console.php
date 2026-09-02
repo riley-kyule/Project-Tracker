@@ -11,3 +11,5 @@ Schedule::command('ewms:send-weekly-summaries')->hourly();
 Schedule::command('ewms:run-scheduled-backup')->hourly();
 Schedule::command('ewms:reset-recurring-tasks')->hourly();
 Schedule::command('ewms:sync-wordpress-users')->dailyAt('01:00');
+Schedule::command('ewms:hr-contract-alerts')->dailyAt('07:00');
+Schedule::command('ewms:accrue-leave')->monthlyOn(1, '01:00');

@@ -34,6 +34,36 @@ class RoleSeeder extends Seeder
             'wordpress.manage',
         ];
 
+        // HR module. Compensation and payroll are deliberately split out from
+        // the rest of HR so an "HR Staff" role can administer people, leave and
+        // assets without ever seeing salary figures or running payroll.
+        $hrPermissions = [
+            'hr.employees.view',
+            'hr.employees.manage',
+            'hr.compensation.view',
+            'hr.compensation.manage',
+            'hr.assets.view',
+            'hr.assets.manage',
+            'hr.leave.view',
+            'hr.leave.manage',
+            'hr.leave.approve',
+            'hr.payroll.view',
+            'hr.payroll.process',
+            'hr.payroll.approve',
+            'hr.performance.view',
+            'hr.performance.manage',
+        ];
+
+        $hrStaffPermissions = array_values(array_diff($hrPermissions, [
+            'hr.compensation.view',
+            'hr.compensation.manage',
+            'hr.payroll.view',
+            'hr.payroll.process',
+            'hr.payroll.approve',
+        ]));
+
+        $permissions = [...$permissions, ...$hrPermissions];
+
         foreach ($permissions as $permission) {
             Permission::findOrCreate($permission);
         }
@@ -47,7 +77,14 @@ class RoleSeeder extends Seeder
             // it makes that parity impossible to accidentally drift apart again.
             'CEO' => $permissions,
             'Administrator' => $permissions,
-            'Department Manager' => ['users.view', 'departments.view', 'boards.manage', 'tasks.create', 'reports.view', 'projects.manage'],
+            // Full HR access including compensation and payroll processing;
+            // final payroll sign-off (hr.payroll.approve) stays with CEO/Admin.
+            'HR Manager' => [...array_diff($hrPermissions, ['hr.payroll.approve']), 'users.view', 'departments.view'],
+            // People, leave and assets — but no salary or payroll visibility.
+            'HR Staff' => [...$hrStaffPermissions, 'users.view', 'departments.view'],
+            // Managers approve their team's leave and see (non-salary) employee
+            // records for their reports; scoping lives in the policies.
+            'Department Manager' => ['users.view', 'departments.view', 'boards.manage', 'tasks.create', 'reports.view', 'projects.manage', 'hr.employees.view', 'hr.leave.view', 'hr.leave.approve'],
             'IT Technician' => ['departments.view', 'tasks.create', 'tickets.manage'],
             'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics'],
             'Customer Service' => ['departments.view', 'tasks.create'],

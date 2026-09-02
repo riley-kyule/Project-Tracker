@@ -19,6 +19,14 @@ class CompanySetting extends Model
         'mail_encryption',
         'mail_from_address',
         'mail_from_name',
+        'hr_from_name',
+        'company_kra_pin',
+        'nssf_employer_number',
+        'shif_employer_number',
+        'payroll_currency',
+        'default_pay_day',
+        'payslip_footer_note',
+        'nita_levy_enabled',
         'epe_api_url',
         'epe_site_key',
         'business_hours_start',
@@ -52,12 +60,31 @@ class CompanySetting extends Model
             'google_drive_refresh_token' => 'encrypted',
             'google_drive_token_expires_at' => 'datetime',
             'business_hours_days' => 'array',
+            'nita_levy_enabled' => 'boolean',
+            'default_pay_day' => 'integer',
         ];
     }
 
     public static function current(): self
     {
         return static::query()->firstOrCreate(['id' => 1]);
+    }
+
+    /**
+     * Sender identity for HR-module mail: the HR sender name (falling back to
+     * the global one) over the same configured "from" address as everything
+     * else. Returned as [address, name] for a Mailable envelope's `from`.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function hrMailFrom(): array
+    {
+        $settings = static::current();
+
+        return [
+            $settings->mail_from_address ?? config('mail.from.address'),
+            $settings->hr_from_name ?: ($settings->mail_from_name ?: config('mail.from.name')),
+        ];
     }
 
     /**

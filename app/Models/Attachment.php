@@ -19,6 +19,7 @@ class Attachment extends Model
         'size_bytes',
         'checksum',
         'scan_status',
+        'category',
     ];
 
     public function attachable(): MorphTo

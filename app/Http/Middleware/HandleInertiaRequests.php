@@ -50,6 +50,8 @@ class HandleInertiaRequests extends Middleware
                         || Department::query()->where('manager_id', $user->id)->orWhere('assistant_manager_id', $user->id)->exists()
                     : false,
                 'hasWebsiteAssignments' => $user ? $user->websiteAssignments()->exists() : false,
+                // Drives the "My HR" self-service nav entry.
+                'hasEmployeeRecord' => $user ? $user->employee()->exists() : false,
                 // Broader than the 'view marketing statistics' permission
                 // alone — also true for Marketing department (and
                 // sub-department) members, matching
