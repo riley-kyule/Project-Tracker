@@ -231,6 +231,8 @@ function TaskList({ id, title, tasks, icon }: { id?: string; title: string; task
     );
 }
 
+type LeaveRow = { id: number; employee: string; type: string; days: number; start_date: string; end_date: string };
+
 export default function CeoDashboard({
     counts,
     departmentPerformance,
@@ -239,6 +241,7 @@ export default function CeoDashboard({
     upcoming,
     recentActivity,
     wordpressStaff,
+    leaveOverview,
 }: {
     counts: {
         due_today: number;
@@ -258,6 +261,12 @@ export default function CeoDashboard({
     upcoming: ExecTask[];
     recentActivity: Activity[];
     wordpressStaff: WordPressStaffRow[];
+    leaveOverview: {
+        open_count: number;
+        open: LeaveRow[];
+        upcoming: LeaveRow[];
+        holidays: { name: string; date: string }[];
+    };
 }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -360,6 +369,50 @@ export default function CeoDashboard({
                         icon={<Star className="size-4 fill-amber-400 text-amber-400" />}
                     />
                     <TaskList id="upcoming-deadlines" title="Upcoming deadlines (7 days)" tasks={upcoming} />
+                </div>
+
+                <div
+                    id="leave-overview"
+                    className="border-sidebar-border/70 dark:border-sidebar-border grid scroll-mt-4 gap-4 rounded-xl border p-4 lg:grid-cols-3"
+                >
+                    <div>
+                        <div className="mb-2 flex items-center justify-between">
+                            <h2 className="text-sm font-semibold">Open leave requests</h2>
+                            <a href="/hr/leave" className="text-primary text-xs hover:underline">
+                                {leaveOverview.open_count} pending →
+                            </a>
+                        </div>
+                        <ul className="space-y-1 text-xs">
+                            {leaveOverview.open.map((r) => (
+                                <li key={r.id} className="text-muted-foreground">
+                                    <span className="text-foreground font-medium">{r.employee}</span> · {r.type} · {r.start_date}
+                                </li>
+                            ))}
+                            {leaveOverview.open.length === 0 && <li className="text-muted-foreground">Nothing pending.</li>}
+                        </ul>
+                    </div>
+                    <div>
+                        <h2 className="mb-2 text-sm font-semibold">Upcoming leave (30 days)</h2>
+                        <ul className="space-y-1 text-xs">
+                            {leaveOverview.upcoming.map((r) => (
+                                <li key={r.id} className="text-muted-foreground">
+                                    <span className="text-foreground font-medium">{r.employee}</span> · {r.type} · {r.start_date}–{r.end_date}
+                                </li>
+                            ))}
+                            {leaveOverview.upcoming.length === 0 && <li className="text-muted-foreground">None scheduled.</li>}
+                        </ul>
+                    </div>
+                    <div>
+                        <h2 className="mb-2 text-sm font-semibold">Upcoming holidays</h2>
+                        <ul className="space-y-1 text-xs">
+                            {leaveOverview.holidays.map((h) => (
+                                <li key={h.date} className="text-muted-foreground">
+                                    <span className="text-foreground font-medium">{h.date}</span> · {h.name}
+                                </li>
+                            ))}
+                            {leaveOverview.holidays.length === 0 && <li className="text-muted-foreground">None in the next 60 days.</li>}
+                        </ul>
+                    </div>
                 </div>
 
                 <div id="traffic-data" className="scroll-mt-4">

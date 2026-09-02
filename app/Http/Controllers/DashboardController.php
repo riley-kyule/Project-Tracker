@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Board;
 use App\Models\Department;
+use App\Models\LeaveRequest;
 use App\Models\Mention;
+use App\Models\PublicHoliday;
 use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\Ticket;
@@ -68,6 +70,7 @@ class DashboardController extends Controller
                 ->latest('created_at')
                 ->limit(12)
                 ->get(),
+            'leaveOverview' => $this->leaveOverview(),
             // Staff-only summary (already synced/cached in Postgres, no live WP calls
             // on dashboard load) — the full cross-site management page lives at
             // /admin/wordpress-users, this is read-only visibility for the CEO.
@@ -77,6 +80,33 @@ class DashboardController extends Controller
                 ->orderBy('email')
                 ->get(['id', 'wordpress_site_id', 'username', 'email', 'display_name', 'roles']),
         ]);
+    }
+
+    /** Leave snapshot for the CEO dashboard: open requests, upcoming leave, holidays. */
+    private function leaveOverview(): array
+    {
+        $format = fn (LeaveRequest $r) => [
+            'id' => $r->id,
+            'employee' => $r->employee->full_name,
+            'type' => $r->leaveType->name,
+            'days' => (float) $r->days,
+            'start_date' => $r->start_date->toDateString(),
+            'end_date' => $r->end_date->toDateString(),
+        ];
+
+        $withRelations = fn ($q) => $q->with(['employee:id,first_name,middle_name,last_name', 'leaveType:id,name']);
+
+        return [
+            'open_count' => LeaveRequest::query()->where('status', LeaveRequest::STATUS_PENDING)->count(),
+            'open' => $withRelations(LeaveRequest::query())
+                ->where('status', LeaveRequest::STATUS_PENDING)
+                ->orderBy('start_date')->limit(8)->get()->map($format),
+            'upcoming' => $withRelations(LeaveRequest::query())
+                ->where('status', LeaveRequest::STATUS_APPROVED)
+                ->whereBetween('start_date', [today()->toDateString(), today()->addDays(30)->toDateString()])
+                ->orderBy('start_date')->limit(10)->get()->map($format),
+            'holidays' => PublicHoliday::occurrencesBetween(today(), today()->addDays(60)),
+        ];
     }
 
     /**
