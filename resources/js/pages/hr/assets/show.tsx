@@ -1,0 +1,336 @@
+import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem } from '@/types';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+
+type Ref = { id: number; name: string };
+
+type Assignment = {
+    id: number;
+    employee: Ref | null;
+    assigned_by: string | null;
+    assigned_at: string;
+    expected_return_at: string | null;
+    returned_at: string | null;
+    condition_out: string | null;
+    condition_in: string | null;
+    notes: string | null;
+};
+
+type Asset = {
+    id: number;
+    asset_tag: string;
+    asset_category_id: number | null;
+    name: string;
+    description: string | null;
+    serial_number: string | null;
+    manufacturer: string | null;
+    model: string | null;
+    purchase_date: string | null;
+    purchase_cost: string | null;
+    supplier: string | null;
+    warranty_expiry: string | null;
+    status: string;
+    condition: string;
+    location: string | null;
+    notes: string | null;
+    category: Ref | null;
+    current_assignment_id: number | null;
+    assignments: Assignment[];
+};
+
+type PageProps = {
+    asset: Asset;
+    categories: Ref[];
+    employees: Ref[];
+    canManage: boolean;
+};
+
+const CONDITIONS = ['new', 'good', 'fair', 'poor'];
+
+function label(value: string) {
+    return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function Field({ label: l, value }: { label: string; value: React.ReactNode }) {
+    return (
+        <div className="grid gap-0.5">
+            <span className="text-muted-foreground text-xs">{l}</span>
+            <span className="text-sm">{value ?? '—'}</span>
+        </div>
+    );
+}
+
+function AssignDialog({ asset, employees }: { asset: Asset; employees: Ref[] }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, post, processing, errors, reset, transform } = useForm({
+        employee_id: '',
+        expected_return_at: '',
+        condition_out: asset.condition,
+        notes: '',
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((form) => ({ ...form, employee_id: Number(form.employee_id), expected_return_at: form.expected_return_at || null }));
+        post(`/hr/assets/${asset.id}/assignments`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setOpen(false);
+                reset();
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm">Assign</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Assign {asset.name}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="grid gap-4">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="employee_id">Custodian</Label>
+                        <Select value={data.employee_id} onValueChange={(v) => setData('employee_id', v)}>
+                            <SelectTrigger id="employee_id">
+                                <SelectValue placeholder="Select employee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {employees.map((emp) => (
+                                    <SelectItem key={emp.id} value={String(emp.id)}>
+                                        {emp.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.employee_id} />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="expected_return_at">Expected return</Label>
+                        <Input
+                            id="expected_return_at"
+                            type="date"
+                            value={data.expected_return_at}
+                            onChange={(e) => setData('expected_return_at', e.target.value)}
+                        />
+                        <InputError message={errors.expected_return_at} />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="condition_out">Condition out</Label>
+                        <Select value={data.condition_out} onValueChange={(v) => setData('condition_out', v)}>
+                            <SelectTrigger id="condition_out">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {CONDITIONS.map((c) => (
+                                    <SelectItem key={c} value={c}>
+                                        {label(c)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="assign-notes">Notes</Label>
+                        <Input id="assign-notes" value={data.notes} onChange={(e) => setData('notes', e.target.value)} />
+                    </div>
+                    <Button type="submit" disabled={processing || !data.employee_id}>
+                        Assign
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function ReturnDialog({ asset }: { asset: Asset }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, patch, processing, transform } = useForm({
+        condition_in: 'good',
+        new_status: 'in_stock',
+        notes: '',
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((form) => ({ ...form, notes: form.notes || null }));
+        patch(`/hr/assets/${asset.id}/assignments/${asset.current_assignment_id}`, {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                    Record return
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Record return</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="grid gap-4">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="condition_in">Condition in</Label>
+                        <Select value={data.condition_in} onValueChange={(v) => setData('condition_in', v)}>
+                            <SelectTrigger id="condition_in">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {CONDITIONS.map((c) => (
+                                    <SelectItem key={c} value={c}>
+                                        {label(c)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="new_status">New status</Label>
+                        <Select value={data.new_status} onValueChange={(v) => setData('new_status', v)}>
+                            <SelectTrigger id="new_status">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {['in_stock', 'in_repair', 'retired', 'lost'].map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {label(s)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="return-notes">Notes</Label>
+                        <Input id="return-notes" value={data.notes} onChange={(e) => setData('notes', e.target.value)} />
+                    </div>
+                    <Button type="submit" disabled={processing}>
+                        Save
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function AssetShow({ asset, employees, canManage }: PageProps) {
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Assets', href: '/hr/assets' },
+        { title: asset.name, href: `/hr/assets/${asset.id}` },
+    ];
+
+    const open = asset.assignments.find((a) => a.returned_at === null);
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title={asset.name} />
+            <div className="flex flex-col gap-4 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-semibold">{asset.name}</h1>
+                        <p className="text-muted-foreground text-sm">
+                            {asset.asset_tag} · {asset.category?.name ?? 'Uncategorised'}
+                        </p>
+                        <div className="mt-1 flex items-center gap-2">
+                            <Badge>{label(asset.status)}</Badge>
+                            <span className="text-muted-foreground text-xs">Condition: {label(asset.condition)}</span>
+                            {open?.employee && (
+                                <span className="text-muted-foreground text-xs">
+                                    · Held by{' '}
+                                    <Link href={`/hr/employees/${open.employee.id}`} className="text-primary hover:underline">
+                                        {open.employee.name}
+                                    </Link>
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    {canManage && (
+                        <div className="flex gap-2">
+                            {open ? <ReturnDialog asset={asset} /> : <AssignDialog asset={asset} employees={employees} />}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    if (confirm('Remove this asset?')) router.delete(`/hr/assets/${asset.id}`);
+                                }}
+                            >
+                                Delete
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
+                <Card className="p-4">
+                    <h2 className="mb-3 text-sm font-semibold">Details</h2>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        <Field label="Serial number" value={asset.serial_number} />
+                        <Field label="Manufacturer" value={asset.manufacturer} />
+                        <Field label="Model" value={asset.model} />
+                        <Field label="Location" value={asset.location} />
+                        <Field label="Purchase date" value={asset.purchase_date} />
+                        <Field label="Purchase cost" value={asset.purchase_cost ? `KES ${asset.purchase_cost}` : null} />
+                        <Field label="Supplier" value={asset.supplier} />
+                        <Field label="Warranty expiry" value={asset.warranty_expiry} />
+                    </div>
+                    {asset.description && <p className="text-muted-foreground mt-3 text-sm">{asset.description}</p>}
+                </Card>
+
+                <Card className="p-4">
+                    <h2 className="mb-3 text-sm font-semibold">Assignment history</h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-muted-foreground text-left">
+                                <tr>
+                                    <th className="py-1 pr-3">Custodian</th>
+                                    <th className="py-1 pr-3">Assigned</th>
+                                    <th className="py-1 pr-3">Expected return</th>
+                                    <th className="py-1 pr-3">Returned</th>
+                                    <th className="py-1 pr-3">Condition out/in</th>
+                                    <th className="py-1 pr-3">By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {asset.assignments.map((a) => (
+                                    <tr key={a.id} className="border-t">
+                                        <td className="py-1.5 pr-3">{a.employee?.name ?? '—'}</td>
+                                        <td className="py-1.5 pr-3">{new Date(a.assigned_at).toLocaleDateString()}</td>
+                                        <td className="py-1.5 pr-3">{a.expected_return_at ?? '—'}</td>
+                                        <td className="py-1.5 pr-3">
+                                            {a.returned_at ? new Date(a.returned_at).toLocaleDateString() : <Badge>Open</Badge>}
+                                        </td>
+                                        <td className="py-1.5 pr-3">
+                                            {(a.condition_out ? label(a.condition_out) : '—') +
+                                                ' / ' +
+                                                (a.condition_in ? label(a.condition_in) : '—')}
+                                        </td>
+                                        <td className="text-muted-foreground py-1.5 pr-3">{a.assigned_by ?? '—'}</td>
+                                    </tr>
+                                ))}
+                                {asset.assignments.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="text-muted-foreground py-4 text-center">
+                                            Never assigned.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            </div>
+        </AppLayout>
+    );
+}
