@@ -65,6 +65,7 @@ class Task extends Model
         'reopened_at',
         'auto_reset_frequency',
         'last_auto_reset_at',
+        'auto_reset_column_id',
     ];
 
     public const APPROVAL_PENDING = 'pending';
@@ -97,6 +98,12 @@ class Task extends Model
     public function column(): BelongsTo
     {
         return $this->belongsTo(BoardColumn::class, 'board_column_id');
+    }
+
+    /** Where an auto-reset drops this task; null falls back to the board's Ready column. */
+    public function autoResetColumn(): BelongsTo
+    {
+        return $this->belongsTo(BoardColumn::class, 'auto_reset_column_id');
     }
 
     public function department(): BelongsTo

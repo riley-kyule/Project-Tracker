@@ -199,6 +199,7 @@ class TaskBulkActionController extends Controller
             'task_ids' => ['required', 'array', 'min:1', 'max:100'],
             'task_ids.*' => ['integer', 'exists:tasks,id'],
             'auto_reset_frequency' => ['nullable', Rule::in(Task::AUTO_RESET_FREQUENCIES)],
+            'auto_reset_column_id' => ['nullable', 'integer', 'exists:board_columns,id'],
         ]);
 
         $tasks = Task::query()->whereIn('id', $validated['task_ids'])->get();
@@ -207,10 +208,26 @@ class TaskBulkActionController extends Controller
             Gate::authorize('manageRecurrence', $task);
         }
 
-        DB::transaction(function () use ($tasks, $validated) {
+        $columnId = $validated['auto_reset_frequency'] === null ? null : ($validated['auto_reset_column_id'] ?? null);
+
+        // The picker only offers columns from the board being viewed; reject a
+        // column that doesn't belong to every selected task's board.
+        if ($columnId !== null && $tasks->pluck('board_id')->unique()->count() === 1) {
+            $column = BoardColumn::find($columnId);
+            if ($column === null || $column->board_id !== $tasks->first()->board_id) {
+                $columnId = null;
+            }
+        } elseif ($columnId !== null) {
+            $columnId = null;
+        }
+
+        DB::transaction(function () use ($tasks, $validated, $columnId) {
             foreach ($tasks as $task) {
                 $old = $task->auto_reset_frequency;
-                $task->update(['auto_reset_frequency' => $validated['auto_reset_frequency'] ?? null]);
+                $task->update([
+                    'auto_reset_frequency' => $validated['auto_reset_frequency'] ?? null,
+                    'auto_reset_column_id' => $columnId,
+                ]);
                 AuditLogger::log($task, 'auto_reset_frequency_changed', ['auto_reset_frequency' => $old], ['auto_reset_frequency' => $task->auto_reset_frequency]);
             }
         });

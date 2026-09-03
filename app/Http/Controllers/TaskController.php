@@ -143,7 +143,7 @@ class TaskController extends Controller
             $this->guardAssigneeIsActive($request->validated('primary_assignee_id'));
         }
 
-        $validated = $request->safe()->except(['label_ids', 'ceo_priority', 'confidentiality', 'auto_reset_frequency']);
+        $validated = $request->safe()->except(['label_ids', 'ceo_priority', 'confidentiality', 'auto_reset_frequency', 'auto_reset_column_id']);
 
         if ($request->has('ceo_priority') && $request->user()->hasAnyRole(['CEO', 'Administrator'])) {
             $validated['ceo_priority'] = $request->boolean('ceo_priority');
@@ -155,6 +155,10 @@ class TaskController extends Controller
 
         if ($request->has('auto_reset_frequency') && Gate::forUser($request->user())->allows('manageRecurrence', $task)) {
             $validated['auto_reset_frequency'] = $request->validated('auto_reset_frequency');
+        }
+
+        if ($request->has('auto_reset_column_id') && Gate::forUser($request->user())->allows('manageRecurrence', $task)) {
+            $validated['auto_reset_column_id'] = $request->validated('auto_reset_column_id');
         }
 
         $previousAssignee = $task->primary_assignee_id;
@@ -320,7 +324,11 @@ class TaskController extends Controller
             'recurrenceRule' => $task->recurrenceRule()->first(['id', 'frequency', 'interval_value', 'next_run_at', 'is_active', 'template_task_id']),
             'canManageRecurrence' => $request->user()->can('manageRecurrence', $task),
             'autoResetFrequency' => $task->auto_reset_frequency,
+            'autoResetColumnId' => $task->auto_reset_column_id,
             'lastAutoResetAt' => $task->last_auto_reset_at,
+            'columns' => $task->board->columns()
+                ->orderBy('position')
+                ->get(['id', 'name', 'is_completion_column', 'is_archive_column']),
             'timeEntries' => $task->timeEntries()->with(['user:id,name', 'approvedBy:id,name'])->latest('started_at')->get(),
             'canApproveTime' => $request->user()->can('approveTimeEntry', $task),
             'estimatedMinutes' => $task->estimated_minutes,

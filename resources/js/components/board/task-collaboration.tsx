@@ -1,4 +1,5 @@
 import { type Member } from '@/components/board/task-card';
+import { CommentThread } from '@/components/comments/comment-thread';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -15,9 +16,12 @@ type Reply = {
     body: string;
     user: Member;
     created_at: string;
+    edited_at: string | null;
 };
 
 type CommentNode = Reply & { replies: Reply[] };
+
+type AutoResetColumn = { id: number; name: string; is_completion_column: boolean; is_archive_column: boolean };
 
 type ChecklistItemNode = {
     id: number;
@@ -126,7 +130,9 @@ type Detail = {
     recurrenceRule: RecurrenceRuleNode | null;
     canManageRecurrence: boolean;
     autoResetFrequency: 'daily' | 'weekly' | 'monthly' | null;
+    autoResetColumnId: number | null;
     lastAutoResetAt: string | null;
+    columns: AutoResetColumn[];
     timeEntries: TimeEntryNode[];
     canApproveTime: boolean;
     estimatedMinutes: number | null;
@@ -157,7 +163,9 @@ const emptyDetail: Detail = {
     recurrenceRule: null,
     canManageRecurrence: false,
     autoResetFrequency: null,
+    autoResetColumnId: null,
     lastAutoResetAt: null,
+    columns: [],
     timeEntries: [],
     canApproveTime: false,
     estimatedMinutes: null,
@@ -225,7 +233,14 @@ export function TaskCollaboration({
     const { auth } = usePage<SharedData>().props;
     const [detail, setDetail] = useState<Detail>(emptyDetail);
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-    const [commentBody, setCommentBody] = useState('');
+    const commentDraftKey = `task-${taskId}-comment-draft`;
+    const [commentBody, setCommentBody] = useState(() => {
+        try {
+            return localStorage.getItem(commentDraftKey) ?? '';
+        } catch {
+            return '';
+        }
+    });
     const [replyTo, setReplyTo] = useState<CommentNode | null>(null);
     const [mentionIds, setMentionIds] = useState<number[]>([]);
     const [showMentions, setShowMentions] = useState(false);
@@ -305,6 +320,36 @@ export function TaskCollaboration({
     const destroy = (url: string) => {
         router.delete(url, { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError });
     };
+
+    // Persist the in-progress comment so an accidental blur / navigation can't wipe it.
+    useEffect(() => {
+        try {
+            if (commentBody) localStorage.setItem(commentDraftKey, commentBody);
+            else localStorage.removeItem(commentDraftKey);
+        } catch {
+            /* private mode / storage disabled — the draft just isn't kept */
+        }
+    }, [commentBody, commentDraftKey]);
+
+    const editComment = (id: number, body: string) =>
+        new Promise<void>((resolve, reject) => {
+            router.patch(
+                `/comments/${id}`,
+                { body },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        reload();
+                        resolve();
+                    },
+                    onError: (errors) => {
+                        showError(errors);
+                        reject(new Error('comment edit failed'));
+                    },
+                },
+            );
+        });
 
     const submitComment = (e: React.FormEvent) => {
         e.preventDefault();
@@ -1041,45 +1086,89 @@ export function TaskCollaboration({
             )}
 
             {/* Auto-reset — distinct from the recurrence rule above: this resets
-                THIS task in place to its board's Ready column on a schedule,
-                instead of generating a new task from a template. */}
-            {(detail.autoResetFrequency !== null || detail.canManageRecurrence) && (
-                <section>
-                    <h3 className="text-sm font-semibold">Auto-reset</h3>
-                    <p className="text-muted-foreground mb-2 text-xs">Resets this same task back to Ready on a schedule — no new task is created.</p>
-                    {detail.canManageRecurrence ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Select
-                                value={detail.autoResetFrequency ?? NO_DEPENDENCY}
-                                onValueChange={(value) => patch(`/tasks/${taskId}`, { auto_reset_frequency: value === NO_DEPENDENCY ? null : value })}
-                            >
-                                <SelectTrigger className="h-8 w-44 text-sm" aria-label="Auto-reset frequency">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_DEPENDENCY}>Off</SelectItem>
-                                    <SelectItem value="daily">Daily</SelectItem>
-                                    <SelectItem value="weekly">Weekly</SelectItem>
-                                    <SelectItem value="monthly">Monthly</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {detail.autoResetFrequency && (
-                                <span className="text-muted-foreground text-xs">
-                                    Moves to Ready and notifies the assignee, every {detail.autoResetFrequency === 'daily' && 'morning'}
-                                    {detail.autoResetFrequency === 'weekly' && 'week'}
-                                    {detail.autoResetFrequency === 'monthly' && 'month'}
-                                    {detail.lastAutoResetAt && ` — last reset ${new Date(detail.lastAutoResetAt).toLocaleDateString()}`}
-                                </span>
-                            )}
-                        </div>
-                    ) : (
-                        <span className="text-muted-foreground text-sm">
-                            {detail.autoResetFrequency} — last reset{' '}
-                            {detail.lastAutoResetAt ? new Date(detail.lastAutoResetAt).toLocaleDateString() : 'never'}
-                        </span>
-                    )}
-                </section>
-            )}
+                THIS task in place to a chosen column on a schedule, instead of
+                generating a new task from a template. Visible to everyone when
+                it's on; managers can also turn it on and pick the column. */}
+            {(() => {
+                const resetColumns = detail.columns.filter((column) => !column.is_completion_column && !column.is_archive_column);
+                const targetName = detail.columns.find((column) => column.id === detail.autoResetColumnId)?.name ?? 'the board’s first column';
+                const cadence =
+                    detail.autoResetFrequency === 'daily'
+                        ? 'every morning'
+                        : detail.autoResetFrequency === 'weekly'
+                          ? 'every week'
+                          : 'every month';
+                const lastReset = detail.lastAutoResetAt
+                    ? ` — last reset ${new Date(detail.lastAutoResetAt).toLocaleDateString()}`
+                    : '';
+
+                if (detail.autoResetFrequency === null && !detail.canManageRecurrence) return null;
+
+                return (
+                    <section>
+                        <h3 className="text-sm font-semibold">Auto-reset</h3>
+                        <p className="text-muted-foreground mb-2 text-xs">
+                            Puts this same task back on the board on a schedule — no new task is created.
+                        </p>
+                        {detail.canManageRecurrence ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Select
+                                    value={detail.autoResetFrequency ?? NO_DEPENDENCY}
+                                    onValueChange={(value) =>
+                                        patch(`/tasks/${taskId}`, { auto_reset_frequency: value === NO_DEPENDENCY ? null : value })
+                                    }
+                                >
+                                    <SelectTrigger className="h-8 w-36 text-sm" aria-label="Auto-reset frequency">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={NO_DEPENDENCY}>Off</SelectItem>
+                                        <SelectItem value="daily">Daily</SelectItem>
+                                        <SelectItem value="weekly">Weekly</SelectItem>
+                                        <SelectItem value="monthly">Monthly</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {detail.autoResetFrequency && (
+                                    <>
+                                        <span className="text-muted-foreground text-xs">moves it to</span>
+                                        <Select
+                                            value={detail.autoResetColumnId?.toString() ?? NO_DEPENDENCY}
+                                            onValueChange={(value) =>
+                                                patch(`/tasks/${taskId}`, {
+                                                    auto_reset_column_id: value === NO_DEPENDENCY ? null : Number(value),
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger className="h-8 w-44 text-sm" aria-label="Auto-reset column">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NO_DEPENDENCY}>Ready column (default)</SelectItem>
+                                                {resetColumns.map((column) => (
+                                                    <SelectItem key={column.id} value={column.id.toString()}>
+                                                        {column.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </>
+                                )}
+                                {detail.autoResetFrequency && (
+                                    <span className="text-muted-foreground w-full text-xs">
+                                        Notifies the assignee {cadence}
+                                        {lastReset}
+                                    </span>
+                                )}
+                            </div>
+                        ) : (
+                            <span className="text-muted-foreground text-sm">
+                                Auto-resets {detail.autoResetFrequency} to <span className="text-foreground font-medium">{targetName}</span>
+                                {lastReset}
+                            </span>
+                        )}
+                    </section>
+                );
+            })()}
 
             {/* Approval */}
             <section>
@@ -1426,48 +1515,14 @@ export function TaskCollaboration({
             {/* Comments */}
             <section>
                 <h3 className="mb-2 text-sm font-semibold">Comments</h3>
-                <ul className="space-y-3">
-                    {detail.comments.map((comment) => (
-                        <li key={comment.id} className="border-sidebar-border/70 dark:border-sidebar-border rounded-lg border p-3">
-                            <div className="mb-1 flex items-center gap-2 text-xs">
-                                <span className="font-semibold">{comment.user.name}</span>
-                                <span className="text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => setReplyTo(comment)}
-                                    className="text-brand-600 dark:text-brand-400 ml-auto hover:underline"
-                                >
-                                    Reply
-                                </button>
-                                {(comment.user.id === auth.user.id || auth.roles.includes('Administrator')) && (
-                                    <button
-                                        type="button"
-                                        aria-label="Delete comment"
-                                        onClick={() => destroy(`/comments/${comment.id}`)}
-                                        className="text-muted-foreground hover:text-destructive"
-                                    >
-                                        <Trash2 className="size-3.5" />
-                                    </button>
-                                )}
-                            </div>
-                            <p className="text-sm whitespace-pre-wrap">{comment.body}</p>
-                            {comment.replies.length > 0 && (
-                                <ul className="border-sidebar-border/70 dark:border-sidebar-border mt-2 space-y-2 border-l-2 pl-3">
-                                    {comment.replies.map((reply) => (
-                                        <li key={reply.id}>
-                                            <div className="flex items-center gap-2 text-xs">
-                                                <span className="font-semibold">{reply.user.name}</span>
-                                                <span className="text-muted-foreground">{new Date(reply.created_at).toLocaleString()}</span>
-                                            </div>
-                                            <p className="text-sm whitespace-pre-wrap">{reply.body}</p>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </li>
-                    ))}
-                    {detail.comments.length === 0 && <li className="text-muted-foreground text-sm">No comments yet.</li>}
-                </ul>
+                <CommentThread
+                    comments={detail.comments}
+                    currentUserId={auth.user.id}
+                    canModerate={auth.roles.includes('Administrator')}
+                    onReply={(comment) => setReplyTo(comment as CommentNode)}
+                    onEdit={(id, body) => editComment(id, body)}
+                    onDelete={(id) => destroy(`/comments/${id}`)}
+                />
                 <form onSubmit={submitComment} className="mt-3 space-y-2">
                     {replyTo && (
                         <div className="text-muted-foreground flex items-center gap-1 text-xs">

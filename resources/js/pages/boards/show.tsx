@@ -462,15 +462,30 @@ function BulkApprovalDialog({
     );
 }
 
-function BulkAutoRenewDialog({ selectedIds, onClose, onDone }: { selectedIds: number[]; onClose: () => void; onDone: () => void }) {
+function BulkAutoRenewDialog({
+    selectedIds,
+    columns,
+    onClose,
+    onDone,
+}: {
+    selectedIds: number[];
+    columns: ColumnOption[];
+    onClose: () => void;
+    onDone: () => void;
+}) {
     const [frequency, setFrequency] = useState<'off' | 'daily' | 'weekly' | 'monthly'>('off');
+    const [columnId, setColumnId] = useState('default');
     const [processing, setProcessing] = useState(false);
 
     const submit = () => {
         setProcessing(true);
         router.post(
             '/tasks/bulk-auto-renew',
-            { task_ids: selectedIds, auto_reset_frequency: frequency === 'off' ? null : frequency },
+            {
+                task_ids: selectedIds,
+                auto_reset_frequency: frequency === 'off' ? null : frequency,
+                auto_reset_column_id: frequency === 'off' || columnId === 'default' ? null : Number(columnId),
+            },
             {
                 preserveScroll: true,
                 preserveState: true,
@@ -487,11 +502,11 @@ function BulkAutoRenewDialog({ selectedIds, onClose, onDone }: { selectedIds: nu
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Set auto-renew for {selectedIds.length} task(s)</DialogTitle>
+                    <DialogTitle>Set auto-reset for {selectedIds.length} task(s)</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                     <Select value={frequency} onValueChange={(value) => setFrequency(value as typeof frequency)}>
-                        <SelectTrigger className="w-full" aria-label="Auto-renew frequency">
+                        <SelectTrigger className="w-full" aria-label="Auto-reset frequency">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -501,6 +516,24 @@ function BulkAutoRenewDialog({ selectedIds, onClose, onDone }: { selectedIds: nu
                             <SelectItem value="monthly">Monthly</SelectItem>
                         </SelectContent>
                     </Select>
+                    {frequency !== 'off' && (
+                        <div className="grid gap-1.5">
+                            <span className="text-muted-foreground text-xs">Moves each task to</span>
+                            <Select value={columnId} onValueChange={setColumnId}>
+                                <SelectTrigger className="w-full" aria-label="Auto-reset column">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="default">Ready column (default)</SelectItem>
+                                    {columns.map((column) => (
+                                        <SelectItem key={column.id} value={column.id.toString()}>
+                                            {column.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                     <Button onClick={submit} disabled={processing}>
                         Save
                     </Button>
@@ -599,7 +632,9 @@ function BulkActionsBar({
             {dialog === 'approval' && (
                 <BulkApprovalDialog selectedIds={selectedIds} allMembers={allMembers} onClose={() => setDialog(null)} onDone={onDone} />
             )}
-            {dialog === 'auto-renew' && <BulkAutoRenewDialog selectedIds={selectedIds} onClose={() => setDialog(null)} onDone={onDone} />}
+            {dialog === 'auto-renew' && (
+                <BulkAutoRenewDialog selectedIds={selectedIds} columns={columns} onClose={() => setDialog(null)} onDone={onDone} />
+            )}
         </div>
     );
 }

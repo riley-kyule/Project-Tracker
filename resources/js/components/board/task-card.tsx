@@ -6,10 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAutosave, type SaveStatus } from '@/hooks/use-autosave';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useForm } from '@inertiajs/react';
-import { AlertCircle, Calendar, GripVertical, Lock, Star } from 'lucide-react';
+import { AlertCircle, Calendar, Check, CloudOff, Loader2, Lock, Star } from 'lucide-react';
 import { useState } from 'react';
 
 export type Member = { id: number; name: string };
@@ -75,13 +75,12 @@ export function TaskCard({
     onToggleSelect?: (taskId: number, checked: boolean) => void;
     pending?: boolean;
 }) {
-    // Drag listeners live on the handle, not the whole card: keyboard drag
-    // (Space to pick up, arrows to move, Space to drop — see the
-    // KeyboardSensor registered in boards/show.tsx) needs Enter/Space on the
-    // card itself to mean "open", not "start dragging". Splitting the two
-    // interactions onto separate elements is dnd-kit's own recommended
-    // pattern for a sortable item that's also independently clickable.
-    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    // The whole card is the drag surface — no separate grip handle. A plain
+    // click still opens the task: PointerSensor in boards/show.tsx has a 6px
+    // activation distance, so a click without movement never starts a drag.
+    // For the keyboard we keep the split meaning: Enter opens, Space is handed
+    // to dnd-kit to pick up / drop (arrows move — see its KeyboardSensor).
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: task.id,
         disabled: overlay,
     });
@@ -101,16 +100,25 @@ export function TaskCard({
                 transition,
                 ...(coverColor ? { borderTopColor: coverColor, borderTopWidth: '4px' } : {}),
             }}
+            {...(overlay ? {} : attributes)}
+            {...(overlay ? {} : listeners)}
             role="button"
             tabIndex={overlay ? undefined : 0}
+            aria-label={overlay ? undefined : `${task.title} — click to open, space to reorder`}
             onClick={open}
             onKeyDown={(e) => {
-                if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                if (e.target !== e.currentTarget) return;
+                if (e.key === 'Enter') {
                     e.preventDefault();
                     open();
+                    return;
+                }
+                if (e.key === ' ') {
+                    // Hand off to dnd-kit's KeyboardSensor: Space picks up / drops.
+                    listeners?.onKeyDown?.(e);
                 }
             }}
-            className={`bg-background border-sidebar-border/70 dark:border-sidebar-border focus-visible:ring-ring rounded-lg border p-3 text-left shadow-sm focus-visible:ring-2 focus-visible:outline-none ${
+            className={`bg-background border-sidebar-border/70 dark:border-sidebar-border focus-visible:ring-ring cursor-grab rounded-lg border p-3 text-left shadow-sm focus-visible:ring-2 focus-visible:outline-none active:cursor-grabbing ${
                 isDragging ? 'opacity-40' : pending ? 'opacity-60' : ''
             } ${overlay ? 'rotate-2 shadow-lg' : ''}`}
         >
@@ -123,19 +131,6 @@ export function TaskCard({
                         aria-label={`Select ${task.title}`}
                         className="mt-0.5 shrink-0"
                     />
-                )}
-                {!overlay && (
-                    <button
-                        ref={setActivatorNodeRef}
-                        type="button"
-                        {...attributes}
-                        {...listeners}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Reorder ${task.title}: press space to pick up, arrow keys to move, space to drop, escape to cancel`}
-                        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -m-1 shrink-0 cursor-grab touch-none rounded p-1 focus-visible:ring-2 focus-visible:outline-none"
-                    >
-                        <GripVertical className="size-4" />
-                    </button>
                 )}
                 <span className="text-sm leading-snug font-medium">{task.title}</span>
                 <span className="ml-auto flex shrink-0 items-center gap-1">
@@ -175,6 +170,33 @@ export function TaskCard({
     );
 }
 
+function SaveIndicator({ status, onRetry }: { status: SaveStatus; onRetry: () => void }) {
+    if (status === 'idle') return null;
+    if (status === 'saving') {
+        return (
+            <span className="text-muted-foreground ml-auto flex items-center gap-1 text-xs font-normal">
+                <Loader2 className="size-3 animate-spin" /> Saving…
+            </span>
+        );
+    }
+    if (status === 'saved') {
+        return (
+            <span className="ml-auto flex items-center gap-1 text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                <Check className="size-3" /> Saved
+            </span>
+        );
+    }
+    return (
+        <button
+            type="button"
+            onClick={onRetry}
+            className="text-destructive ml-auto flex items-center gap-1 text-xs font-normal hover:underline"
+        >
+            <CloudOff className="size-3" /> Couldn&rsquo;t save — retry
+        </button>
+    );
+}
+
 export function TaskDialog({
     task,
     members,
@@ -200,11 +222,17 @@ export function TaskDialog({
         total: task.checklist_items_count ?? 0,
         completed: task.completed_checklist_items_count ?? 0,
     });
-    const { data, setData, patch, processing, errors, transform } = useForm({
+
+    // Real-time auto-save — no "Save changes" button. Text fields ride the
+    // debounce; selects / checkboxes / the slider save immediately; blur and
+    // dialog-close flush anything still pending.
+    const { status, errors, save, flush } = useAutosave(`/tasks/${task.id}`);
+
+    const [form, setForm] = useState({
         title: task.title,
         description: task.description ?? '',
         primary_assignee_id: task.assignee?.id.toString() ?? NONE,
-        priority: task.priority,
+        priority: task.priority as BoardTask['priority'],
         due_at: task.due_at?.slice(0, 10) ?? '',
         // Defaults to end of day rather than midnight — a task due "today" with no
         // explicit time shouldn't read as overdue the instant the clock passes 00:00.
@@ -214,41 +242,73 @@ export function TaskDialog({
         label_ids: task.labels.map((label) => label.id),
     });
 
-    const submit = (e: React.FormEvent) => {
-        e.preventDefault();
-        transform((form) => ({
-            ...form,
-            primary_assignee_id: form.primary_assignee_id === NONE ? null : Number(form.primary_assignee_id),
-            due_at: form.due_at === '' ? null : `${form.due_at}T${form.due_time || '23:59'}`,
-        }));
-        patch(`/tasks/${task.id}`, { preserveScroll: true, onSuccess: onClose });
+    const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => setForm((prev) => ({ ...prev, [key]: value }));
+
+    const saveTitle = (value: string) => {
+        setField('title', value);
+        // Title is required — keep the draft on screen, don't push an empty one.
+        if (value.trim() !== '') save({ title: value });
+    };
+
+    const saveDue = (date: string, time: string) => {
+        setForm((prev) => ({ ...prev, due_at: date, due_time: time }));
+        save({ due_at: date === '' ? null : `${date}T${time || '23:59'}` }, { immediate: true });
+    };
+
+    const setProgress = (value: number) => {
+        setField('progress_percentage', value);
+        save({ progress_percentage: value }, { immediate: true });
     };
 
     const toggleLabel = (id: number, checked: boolean) => {
-        setData('label_ids', checked ? [...data.label_ids, id] : data.label_ids.filter((labelId) => labelId !== id));
+        const next = checked ? [...form.label_ids, id] : form.label_ids.filter((labelId) => labelId !== id);
+        setField('label_ids', next);
+        save({ label_ids: next }, { immediate: true });
+    };
+
+    const markCompleted = () => {
+        setField('progress_percentage', 100);
+        save({ progress_percentage: 100 }, { immediate: true });
+        onClose();
+    };
+
+    const close = () => {
+        flush();
+        onClose();
     };
 
     return (
-        <Dialog open onOpenChange={(open) => !open && onClose()}>
+        <Dialog open onOpenChange={(open) => !open && close()}>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>
-                        <span className="text-muted-foreground mr-2 text-sm">T-{task.task_number}</span>
-                        {task.title}
+                    <DialogTitle className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-sm">T-{task.task_number}</span>
+                        <span>{form.title || task.title}</span>
+                        <SaveIndicator status={status} onRetry={flush} />
                     </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={submit} className="space-y-4">
+                <div className="space-y-4">
                     <div className="grid gap-2">
                         <Label htmlFor="task-title">Title</Label>
-                        <Input id="task-title" value={data.title} onChange={(e) => setData('title', e.target.value)} required />
+                        <Input
+                            id="task-title"
+                            value={form.title}
+                            onChange={(e) => saveTitle(e.target.value)}
+                            onBlur={flush}
+                            required
+                        />
                         <InputError message={errors.title} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="task-description">Description</Label>
                         <textarea
                             id="task-description"
-                            value={data.description}
-                            onChange={(e) => setData('description', e.target.value)}
+                            value={form.description}
+                            onChange={(e) => {
+                                setField('description', e.target.value);
+                                save({ description: e.target.value });
+                            }}
+                            onBlur={flush}
                             rows={4}
                             className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-1 focus-visible:outline-none"
                         />
@@ -257,7 +317,13 @@ export function TaskDialog({
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="task-assignee">Assignee</Label>
-                            <Select value={data.primary_assignee_id} onValueChange={(value) => setData('primary_assignee_id', value)}>
+                            <Select
+                                value={form.primary_assignee_id}
+                                onValueChange={(value) => {
+                                    setField('primary_assignee_id', value);
+                                    save({ primary_assignee_id: value === NONE ? null : Number(value) }, { immediate: true });
+                                }}
+                            >
                                 <SelectTrigger id="task-assignee">
                                     <SelectValue placeholder="Unassigned" />
                                 </SelectTrigger>
@@ -276,7 +342,13 @@ export function TaskDialog({
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="task-priority">Priority</Label>
-                            <Select value={data.priority} onValueChange={(value) => setData('priority', value as BoardTask['priority'])}>
+                            <Select
+                                value={form.priority}
+                                onValueChange={(value) => {
+                                    setField('priority', value as BoardTask['priority']);
+                                    save({ priority: value }, { immediate: true });
+                                }}
+                            >
                                 <SelectTrigger id="task-priority">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -291,7 +363,12 @@ export function TaskDialog({
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="task-due">Due date</Label>
-                            <Input id="task-due" type="date" value={data.due_at} onChange={(e) => setData('due_at', e.target.value)} />
+                            <Input
+                                id="task-due"
+                                type="date"
+                                value={form.due_at}
+                                onChange={(e) => saveDue(e.target.value, form.due_time)}
+                            />
                             <InputError message={errors.due_at} />
                         </div>
                         <div className="grid gap-2">
@@ -299,9 +376,9 @@ export function TaskDialog({
                             <Input
                                 id="task-due-time"
                                 type="time"
-                                value={data.due_time}
-                                disabled={data.due_at === ''}
-                                onChange={(e) => setData('due_time', e.target.value)}
+                                value={form.due_time}
+                                disabled={form.due_at === ''}
+                                onChange={(e) => saveDue(form.due_at, e.target.value)}
                             />
                         </div>
                         <div className="grid gap-2">
@@ -324,20 +401,20 @@ export function TaskDialog({
                             {checklistCounts.total > 0 ? (
                                 <>
                                     <div className="bg-secondary h-2 w-full overflow-hidden rounded-full">
-                                        <div className="bg-brand-600 h-full" style={{ width: `${data.progress_percentage}%` }} />
+                                        <div className="bg-brand-600 h-full" style={{ width: `${form.progress_percentage}%` }} />
                                     </div>
                                     <span className="text-muted-foreground text-xs">
-                                        {data.progress_percentage}% — {checklistCounts.completed} of {checklistCounts.total} checklist items done
+                                        {form.progress_percentage}% — {checklistCounts.completed} of {checklistCounts.total} checklist items done
                                     </span>
                                 </>
-                            ) : data.progress_percentage === 100 ? (
+                            ) : form.progress_percentage === 100 ? (
                                 <div className="flex items-center gap-2">
-                                    <Button type="submit" size="sm" disabled={processing} className="w-fit">
+                                    <Button type="button" size="sm" onClick={markCompleted} className="w-fit">
                                         Mark as Completed
                                     </Button>
                                     <button
                                         type="button"
-                                        onClick={() => setData('progress_percentage', 90)}
+                                        onClick={() => setProgress(90)}
                                         className="text-muted-foreground text-xs hover:underline"
                                     >
                                         Not done yet?
@@ -351,11 +428,11 @@ export function TaskDialog({
                                         min={0}
                                         max={100}
                                         step={5}
-                                        value={data.progress_percentage}
-                                        onChange={(e) => setData('progress_percentage', Number(e.target.value))}
+                                        value={form.progress_percentage}
+                                        onChange={(e) => setProgress(Number(e.target.value))}
                                         className="accent-brand-600"
                                     />
-                                    <span className="text-muted-foreground text-xs">{data.progress_percentage}%</span>
+                                    <span className="text-muted-foreground text-xs">{form.progress_percentage}%</span>
                                 </>
                             )}
                             <InputError message={errors.progress_percentage} />
@@ -367,7 +444,7 @@ export function TaskDialog({
                             {labels.map((label) => (
                                 <label key={label.id} className="flex items-center gap-1.5 text-sm">
                                     <Checkbox
-                                        checked={data.label_ids.includes(label.id)}
+                                        checked={form.label_ids.includes(label.id)}
                                         onCheckedChange={(checked) => toggleLabel(label.id, checked === true)}
                                     />
                                     <span className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ backgroundColor: label.color }}>
@@ -381,18 +458,18 @@ export function TaskDialog({
                         <div className="flex items-center gap-2">
                             <Checkbox
                                 id="ceo-priority"
-                                checked={data.ceo_priority}
-                                onCheckedChange={(checked) => setData('ceo_priority', checked === true)}
+                                checked={form.ceo_priority}
+                                onCheckedChange={(checked) => {
+                                    setField('ceo_priority', checked === true);
+                                    save({ ceo_priority: checked === true }, { immediate: true });
+                                }}
                             />
                             <Label htmlFor="ceo-priority" className="flex items-center gap-1">
                                 <Star className="size-4 fill-amber-400 text-amber-400" /> CEO Priority
                             </Label>
                         </div>
                     )}
-                    <Button type="submit" disabled={processing}>
-                        Save changes
-                    </Button>
-                </form>
+                </div>
                 <div className="border-t pt-4">
                     <TaskCollaboration
                         taskId={task.id}
@@ -403,7 +480,7 @@ export function TaskDialog({
                         onDeleted={onClose}
                         onChecklistProgressChange={(percentage, completed, total) => {
                             setChecklistCounts({ completed, total });
-                            if (percentage !== null) setData('progress_percentage', percentage);
+                            if (percentage !== null) setField('progress_percentage', percentage);
                         }}
                     />
                 </div>

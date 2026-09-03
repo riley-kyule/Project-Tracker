@@ -41,16 +41,37 @@ class ResetRecurringTask implements ShouldQueue
             return;
         }
 
-        $readyColumn = $task->board->columns()->where('semantic_status', 'ready')->first()
-            ?? $task->board->columns()->orderBy('position')->first();
+        // Where to drop it: the task's explicit choice (if it's still a live,
+        // non-terminal column on this board), else the board's Ready column,
+        // else the first column that isn't a completion/archive column — so a
+        // board with no 'ready' semantic_status can't strand the task in a
+        // done/archive lane (the "unchecks itself but never moves" bug).
+        $chosenColumn = $task->auto_reset_column_id === null
+            ? null
+            : $task->board->columns()
+                ->whereKey($task->auto_reset_column_id)
+                ->where('is_completion_column', false)
+                ->where('is_archive_column', false)
+                ->first();
 
-        if ($readyColumn === null) {
+        $targetColumn = $chosenColumn
+            ?? $task->board->columns()->where('semantic_status', 'ready')->first()
+            ?? $task->board->columns()
+                ->where('is_completion_column', false)
+                ->where('is_archive_column', false)
+                ->orderBy('position')
+                ->first();
+
+        if ($targetColumn === null) {
             return;
         }
 
+        $readyColumn = $targetColumn;
+        $alreadyThere = $task->board_column_id === $readyColumn->id;
+
         $resetItems = 0;
 
-        $task = DB::transaction(function () use ($task, $readyColumn, &$resetItems): Task {
+        $task = DB::transaction(function () use ($task, $readyColumn, $alreadyThere, &$resetItems): Task {
             $position = (int) $readyColumn->tasks()->max('position') + 1;
             $task = TaskMover::move($task, $readyColumn, $position);
 
@@ -73,7 +94,13 @@ class ResetRecurringTask implements ShouldQueue
                 'progress_percentage' => $hasChecklistItems ? 0 : $task->progress_percentage,
             ])->save();
 
-            AuditLogger::log($task, 'auto_renewed', [], ['checklist_items_reset' => $resetItems]);
+            AuditLogger::log($task, 'auto_renewed', [], [
+                'checklist_items_reset' => $resetItems,
+                'column_id' => $readyColumn->id,
+                // Flags the "unchecked but didn't visibly move" case: the task
+                // was already sitting in its reset column.
+                'already_in_column' => $alreadyThere,
+            ]);
 
             return $task;
         });

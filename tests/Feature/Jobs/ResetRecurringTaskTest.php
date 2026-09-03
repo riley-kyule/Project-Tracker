@@ -79,6 +79,53 @@ class ResetRecurringTaskTest extends TestCase
         $this->assertSame($first->id, $task->refresh()->board_column_id);
     }
 
+    public function test_it_honors_an_explicit_auto_reset_column()
+    {
+        Notification::fake();
+        $this->travelTo(Carbon::parse('2026-08-05 07:00:00', 'Africa/Nairobi'));
+
+        $board = Board::factory()->create();
+        $ready = BoardColumn::factory()->create(['board_id' => $board->id, 'position' => 1, 'semantic_status' => 'ready']);
+        $inProgress = BoardColumn::factory()->create(['board_id' => $board->id, 'position' => 2, 'semantic_status' => 'active']);
+        $done = BoardColumn::factory()->create(['board_id' => $board->id, 'position' => 3, 'semantic_status' => 'completed', 'is_completion_column' => true]);
+
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $done->id,
+            'auto_reset_frequency' => 'daily',
+            'auto_reset_column_id' => $inProgress->id,
+            'completed_at' => now()->subDay(),
+        ]);
+
+        ResetRecurringTask::dispatchSync($task->id);
+
+        // The chosen column wins over the board's Ready column.
+        $this->assertSame($inProgress->id, $task->refresh()->board_column_id);
+        $this->assertNotSame($ready->id, $task->board_column_id);
+    }
+
+    public function test_a_completion_column_choice_is_ignored_and_falls_back_to_ready()
+    {
+        Notification::fake();
+        $this->travelTo(Carbon::parse('2026-08-05 07:00:00', 'Africa/Nairobi'));
+
+        $board = Board::factory()->create();
+        $ready = BoardColumn::factory()->create(['board_id' => $board->id, 'position' => 1, 'semantic_status' => 'ready']);
+        $done = BoardColumn::factory()->create(['board_id' => $board->id, 'position' => 2, 'is_completion_column' => true]);
+        $active = BoardColumn::factory()->create(['board_id' => $board->id, 'position' => 3, 'semantic_status' => 'active']);
+
+        $task = Task::factory()->create([
+            'board_id' => $board->id,
+            'board_column_id' => $active->id,
+            'auto_reset_frequency' => 'daily',
+            'auto_reset_column_id' => $done->id,
+        ]);
+
+        ResetRecurringTask::dispatchSync($task->id);
+
+        $this->assertSame($ready->id, $task->refresh()->board_column_id);
+    }
+
     public function test_it_does_nothing_if_not_actually_due()
     {
         $this->travelTo(Carbon::parse('2026-08-05 07:00:00', 'Africa/Nairobi'));

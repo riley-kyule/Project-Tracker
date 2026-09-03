@@ -23,6 +23,14 @@ class UpdateTaskRequest extends FormRequest
             'ceo_priority' => ['sometimes', 'boolean'],
             'confidentiality' => ['sometimes', Rule::in(Task::CONFIDENTIALITY_LEVELS)],
             'auto_reset_frequency' => ['sometimes', 'nullable', Rule::in(Task::AUTO_RESET_FREQUENCIES)],
+            'auto_reset_column_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('board_columns', 'id')->where(
+                    fn ($query) => $query->where('board_id', $this->route('task')?->board_id),
+                ),
+            ],
             'work_location' => ['sometimes', Rule::in(['unspecified', 'remote', 'office', 'onsite'])],
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => ['integer', 'exists:labels,id'],

@@ -1,4 +1,4 @@
-import { DndContext } from '@dnd-kit/core';
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -21,13 +21,20 @@ const baseTask: BoardTask = {
     labels: [],
 };
 
-// useSortable() reads dnd-kit's DndContext; every render needs one, even
-// though these tests never actually start a drag.
+// useSortable() reads dnd-kit's DndContext; every render needs one. The card's
+// drag listeners now live on the whole card, so the wrapper mirrors the real
+// board's PointerSensor (6px activation distance) — without it dnd-kit's default
+// pointer activator fires on pointerdown and swallows the click that opens the task.
+function Wrapper({ children }: { children: React.ReactNode }) {
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+    return <DndContext sensors={sensors}>{children}</DndContext>;
+}
+
 function renderCard(props: Partial<React.ComponentProps<typeof TaskCard>> = {}) {
     return render(
-        <DndContext>
+        <Wrapper>
             <TaskCard task={baseTask} {...props} />
-        </DndContext>,
+        </Wrapper>,
     );
 }
 
@@ -45,9 +52,8 @@ describe('TaskCard', () => {
         const onOpen = vi.fn();
         const { container } = renderCard({ onOpen });
 
-        // The card is a div[role=button] wrapping a real <button> drag handle,
-        // so role-based queries alone can't disambiguate the two — the
-        // explicit role attribute is unique to the card itself.
+        // The whole card is the drag surface (no separate handle); the explicit
+        // role attribute is unique to the card root.
         const card = container.querySelector<HTMLElement>('[role="button"]')!;
         card.focus();
         await userEvent.keyboard('{Enter}');
@@ -55,7 +61,7 @@ describe('TaskCard', () => {
         expect(onOpen).toHaveBeenCalledWith(baseTask);
     });
 
-    it('opens the task on Space when the card itself is focused', async () => {
+    it('does not open the task on Space — Space is handed to dnd-kit to pick up', async () => {
         const onOpen = vi.fn();
         const { container } = renderCard({ onOpen });
 
@@ -63,23 +69,21 @@ describe('TaskCard', () => {
         card.focus();
         await userEvent.keyboard(' ');
 
-        expect(onOpen).toHaveBeenCalledWith(baseTask);
-    });
-
-    it('does not open the task when the drag handle is clicked', async () => {
-        const onOpen = vi.fn();
-        const { container } = renderCard({ onOpen });
-
-        await userEvent.click(container.querySelector('button')!);
-
         expect(onOpen).not.toHaveBeenCalled();
     });
 
-    it('the overlay copy has no interactive drag handle or open handler', () => {
-        const onOpen = vi.fn();
-        const { container } = renderCard({ onOpen, overlay: true });
+    it('marks the card root as a dnd-kit sortable so the whole card is draggable', () => {
+        const { container } = renderCard();
 
-        expect(container.querySelector('button')).not.toBeInTheDocument();
+        const card = container.querySelector<HTMLElement>('[role="button"]')!;
+        expect(card).toHaveAttribute('aria-roledescription', 'sortable');
+    });
+
+    it('the overlay copy is not interactive as a sortable', () => {
+        const { container } = renderCard({ onOpen: vi.fn(), overlay: true });
+
+        const card = container.querySelector<HTMLElement>('[role="button"]')!;
+        expect(card).not.toHaveAttribute('aria-roledescription');
     });
 
     it('renders no selection checkbox when onToggleSelect is not provided', () => {
