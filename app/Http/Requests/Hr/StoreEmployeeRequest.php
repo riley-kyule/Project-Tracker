@@ -33,7 +33,7 @@ class StoreEmployeeRequest extends FormRequest
             'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'gender' => ['nullable', 'string', 'max:20'],
+            'gender' => ['nullable', Rule::in(['male', 'female'])],
             'marital_status' => ['nullable', 'string', 'max:20'],
 
             'national_id_number' => ['nullable', 'string', 'max:20'],

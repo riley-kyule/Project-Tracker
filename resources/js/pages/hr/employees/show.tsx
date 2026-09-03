@@ -197,7 +197,7 @@ function EditProfileDialog({
         middle_name: employee.middle_name ?? '',
         last_name: employee.last_name,
         date_of_birth: dateInput(employee.date_of_birth),
-        gender: employee.gender ?? '',
+        gender: ['male', 'female'].includes((employee.gender ?? '').toLowerCase()) ? (employee.gender as string).toLowerCase() : NONE,
         marital_status: employee.marital_status ?? '',
         national_id_number: employee.national_id_number ?? '',
         kra_pin: employee.kra_pin ?? '',
@@ -238,6 +238,7 @@ function EditProfileDialog({
             out.department_id = form.department_id === NONE ? null : Number(form.department_id);
             out.manager_id = form.is_org_head || form.manager_id === NONE ? null : Number(form.manager_id);
             out.user_id = form.user_id === NONE ? null : Number(form.user_id);
+            out.gender = form.gender === NONE ? null : form.gender;
             for (const k of Object.keys(out)) {
                 if (out[k] === '') out[k] = null;
             }
@@ -293,7 +294,20 @@ function EditProfileDialog({
                     {text('middle_name', 'Middle name')}
                     {text('last_name', 'Last name')}
                     {text('date_of_birth', 'Date of birth', 'date')}
-                    {text('gender', 'Gender')}
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="gender">Gender</Label>
+                        <Select value={data.gender} onValueChange={(v) => setData('gender', v)}>
+                            <SelectTrigger id="gender">
+                                <SelectValue placeholder="Not specified" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>Not specified</SelectItem>
+                                <SelectItem value="male">Male</SelectItem>
+                                <SelectItem value="female">Female</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.gender} />
+                    </div>
                     {text('marital_status', 'Marital status')}
                     {text('national_id_number', 'National ID')}
                     {text('kra_pin', 'KRA PIN')}
@@ -1089,7 +1103,7 @@ export default function EmployeeShow({
                             <h2 className="mb-3 text-sm font-semibold">Personal</h2>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Field label="Date of birth" value={fmtDate(employee.date_of_birth)} />
-                                <Field label="Gender" value={employee.gender} />
+                                <Field label="Gender" value={employee.gender ? label(employee.gender) : null} />
                                 <Field label="Marital status" value={employee.marital_status} />
                                 <Field label="National ID" value={employee.national_id_number} />
                                 <Field label="Personal email" value={employee.personal_email} />

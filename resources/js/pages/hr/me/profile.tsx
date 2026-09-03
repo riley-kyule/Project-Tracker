@@ -86,7 +86,7 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                         <h2 className="mb-3 text-sm font-semibold">Personal</h2>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <Field label="Date of birth" value={fmtDate(employee.date_of_birth)} />
-                            <Field label="Gender" value={employee.gender} />
+                            <Field label="Gender" value={employee.gender ? label(employee.gender) : null} />
                             <Field label="Marital status" value={employee.marital_status} />
                             <Field label="National ID" value={employee.national_id_number} />
                             <Field label="Personal email" value={employee.personal_email} />

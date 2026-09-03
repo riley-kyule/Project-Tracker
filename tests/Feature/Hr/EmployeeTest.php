@@ -128,6 +128,28 @@ class EmployeeTest extends TestCase
         ])->assertSessionHasErrors('kra_pin');
     }
 
+    public function test_gender_only_accepts_male_or_female(): void
+    {
+        $hr = $this->hrManager();
+        $department = Department::factory()->create();
+
+        $base = [
+            'staff_number' => 'EMP-2050',
+            'first_name' => 'Gee',
+            'last_name' => 'Dee',
+            'employment_type' => 'permanent',
+            'employment_status' => 'active',
+            'payment_method' => 'bank',
+            'department_id' => $department->id,
+            'is_org_head' => true,
+        ];
+
+        $this->actingAs($hr)->post('/hr/employees', [...$base, 'gender' => 'unspecified'])->assertSessionHasErrors('gender');
+
+        $this->actingAs($hr)->post('/hr/employees', [...$base, 'gender' => 'female'])->assertRedirect();
+        $this->assertSame('female', Employee::firstWhere('staff_number', 'EMP-2050')->gender);
+    }
+
     public function test_a_user_can_only_be_linked_to_one_employee(): void
     {
         $hr = $this->hrManager();
