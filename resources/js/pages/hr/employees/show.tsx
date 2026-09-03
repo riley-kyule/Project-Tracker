@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -271,19 +272,16 @@ function EditProfileDialog({
                 <form onSubmit={submit} className="grid gap-4 sm:grid-cols-3">
                     <div className="grid gap-1.5 sm:col-span-3">
                         <Label htmlFor="link-user">Linked login account</Label>
-                        <Select value={data.user_id} onValueChange={(v) => setData('user_id', v)}>
-                            <SelectTrigger id="link-user">
-                                <SelectValue placeholder="Not linked" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={NONE}>Not linked — no system login</SelectItem>
-                                {linkableUsers.map((u) => (
-                                    <SelectItem key={u.id} value={String(u.id)}>
-                                        {u.name} ({u.email})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="link-user"
+                            value={data.user_id === NONE ? '' : data.user_id}
+                            onChange={(v) => setData('user_id', v || NONE)}
+                            placeholder="Not linked — no system login"
+                            options={[
+                                { value: NONE, label: 'Not linked — no system login' },
+                                ...linkableUsers.map((u) => ({ value: String(u.id), label: u.name, hint: u.email })),
+                            ]}
+                        />
                         <InputError message={errors.user_id} />
                         <p className="text-muted-foreground text-xs">
                             Links this record to the person's sign-in account — enables their self-service pages (My Employee Data, Leave Application,
@@ -327,18 +325,14 @@ function EditProfileDialog({
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="manager_id">Reports to {data.is_org_head ? '' : '*'}</Label>
-                        <Select value={data.manager_id} onValueChange={(v) => setData('manager_id', v)} disabled={data.is_org_head}>
-                            <SelectTrigger id="manager_id">
-                                <SelectValue placeholder="Select manager" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {managers.map((m) => (
-                                    <SelectItem key={m.id} value={String(m.id)}>
-                                        {m.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="manager_id"
+                            value={data.is_org_head || data.manager_id === NONE ? '' : data.manager_id}
+                            onChange={(v) => setData('manager_id', v || NONE)}
+                            disabled={data.is_org_head}
+                            placeholder="Select manager"
+                            options={managers.map((m) => ({ value: String(m.id), label: m.name }))}
+                        />
                         <label className="text-muted-foreground flex items-center gap-2 text-xs">
                             <Checkbox checked={data.is_org_head} onCheckedChange={(v) => setData('is_org_head', v === true)} />
                             Top of the reporting line (no manager)

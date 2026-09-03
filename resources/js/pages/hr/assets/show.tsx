@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Combobox } from '@/components/ui/combobox';
 import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -231,18 +232,13 @@ function AssignDialog({ asset, employees }: { asset: Asset; employees: Ref[] }) 
                 <form onSubmit={submit} className="grid gap-4">
                     <div className="grid gap-1.5">
                         <Label htmlFor="employee_id">Custodian</Label>
-                        <Select value={data.employee_id} onValueChange={(v) => setData('employee_id', v)}>
-                            <SelectTrigger id="employee_id">
-                                <SelectValue placeholder="Select employee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {employees.map((emp) => (
-                                    <SelectItem key={emp.id} value={String(emp.id)}>
-                                        {emp.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="employee_id"
+                            value={data.employee_id}
+                            onChange={(v) => setData('employee_id', v)}
+                            placeholder="Select employee"
+                            options={employees.map((emp) => ({ value: String(emp.id), label: emp.name }))}
+                        />
                         <InputError message={errors.employee_id} />
                     </div>
                     <div className="grid gap-1.5">

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -139,18 +140,13 @@ function FileLeaveDialog({ employees, leaveTypes }: { employees: Ref[]; leaveTyp
                 <form onSubmit={submit} className="grid gap-4">
                     <div className="grid gap-1.5">
                         <Label htmlFor="fl-emp">Employee</Label>
-                        <Select value={data.employee_id} onValueChange={(v) => setData('employee_id', v)}>
-                            <SelectTrigger id="fl-emp">
-                                <SelectValue placeholder="Select employee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {employees.map((e) => (
-                                    <SelectItem key={e.id} value={String(e.id)}>
-                                        {e.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="fl-emp"
+                            value={data.employee_id}
+                            onChange={(v) => setData('employee_id', v)}
+                            placeholder="Select employee"
+                            options={employees.map((e) => ({ value: String(e.id), label: e.name }))}
+                        />
                         <InputError message={errors.employee_id} />
                     </div>
                     <div className="grid gap-1.5">

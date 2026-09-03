@@ -24,7 +24,9 @@ class StoreEmployeeRequest extends FormRequest
         $employeeId = $this->route('employee')?->id;
 
         return [
-            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id'), Rule::unique('employees', 'user_id')->ignore($employeeId)],
+            // Only a *live* employee holds the link — a user tied to a since-removed
+            // employee can be linked to a new record (matches the picker's filter).
+            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id'), Rule::unique('employees', 'user_id')->ignore($employeeId)->whereNull('deleted_at')],
             'staff_number' => ['required', 'string', 'max:50', Rule::unique('employees', 'staff_number')->ignore($employeeId)],
 
             'first_name' => ['required', 'string', 'max:100'],
