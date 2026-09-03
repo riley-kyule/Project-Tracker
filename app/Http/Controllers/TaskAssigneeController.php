@@ -13,7 +13,10 @@ use Illuminate\Validation\Rule;
 
 class TaskAssigneeController extends Controller
 {
-    private const ADDABLE_TYPES = ['collaborator', 'reviewer', 'watcher'];
+    private const ADDABLE_TYPES = ['collaborator', 'watcher'];
+
+    /** 'reviewer' is retired (folded into the task Approval flow) but old rows may linger. */
+    private const REMOVABLE_TYPES = ['collaborator', 'watcher', 'reviewer'];
 
     public function store(Request $request, Task $task): RedirectResponse
     {
@@ -52,7 +55,7 @@ class TaskAssigneeController extends Controller
         // primary "assignee" row, which stays in sync via TaskAssigneeSync
         // and is only ever changed by updating the task's primary assignee.
         $pivot = $task->assignees()->where('user_id', $assignee->id)->first()?->pivot;
-        abort_unless($pivot && in_array($pivot->assignment_type, self::ADDABLE_TYPES, true), 404);
+        abort_unless($pivot && in_array($pivot->assignment_type, self::REMOVABLE_TYPES, true), 404);
 
         $task->assignees()->detach($assignee->id);
 

@@ -2,6 +2,7 @@ import { type Member } from '@/components/board/task-card';
 import { CommentThread } from '@/components/comments/comment-thread';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,7 +10,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { fmtDate, fmtDateTime } from '@/lib/utils';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, BookmarkPlus, Copy, Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
+import {
+    ArrowDown,
+    ArrowUp,
+    BookmarkPlus,
+    ChevronRight,
+    Copy,
+    Download,
+    ExternalLink,
+    Lock,
+    Paperclip,
+    ShieldAlert,
+    Trash2,
+    Users,
+    X,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -267,7 +282,7 @@ export function TaskCollaboration({
     const [reviewerId, setReviewerId] = useState(NO_DEPENDENCY);
     const [newGranteeId, setNewGranteeId] = useState(NO_DEPENDENCY);
     const [newCollaboratorId, setNewCollaboratorId] = useState(NO_DEPENDENCY);
-    const [newCollaboratorType, setNewCollaboratorType] = useState<'collaborator' | 'reviewer' | 'watcher'>('collaborator');
+    const [newCollaboratorType, setNewCollaboratorType] = useState<'collaborator' | 'watcher'>('collaborator');
     const [showRejectForm, setShowRejectForm] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
     const fileInput = useRef<HTMLInputElement>(null);
@@ -418,6 +433,438 @@ export function TaskCollaboration({
 
     return (
         <div className="space-y-6">
+            {/* Advanced — collapsed by default. */}
+            <section>
+                <Collapsible className="group/advanced">
+                    <CollapsibleTrigger asChild>
+                        <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground flex w-full items-center gap-1.5 text-sm font-semibold"
+                        >
+                            <ChevronRight className="size-4 transition-transform group-data-[state=open]/advanced:rotate-90" />
+                            Advanced
+                        </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-3 space-y-6">
+                        {/* People */}
+                        <section>
+                            <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+                                <Users className="size-4" /> People
+                            </h3>
+                            <p className="text-muted-foreground mb-2 text-xs">
+                                Anyone can be added, including people outside this board's department — adding them here is what gives them access to
+                                this task specifically.
+                            </p>
+                            <ul className="mb-2 space-y-1.5">
+                                {detail.assignees
+                                    .filter((person) => person.assignment_type !== 'assignee')
+                                    .map((person) => (
+                                        <li key={person.id} className="flex items-center gap-2 text-sm">
+                                            {person.name}
+                                            <span className="text-muted-foreground text-xs capitalize">{person.assignment_type}</span>
+                                            <button
+                                                type="button"
+                                                aria-label={`Remove ${person.name}`}
+                                                onClick={() => destroy(`/tasks/${taskId}/assignees/${person.id}`)}
+                                                className="text-muted-foreground hover:text-destructive ml-auto"
+                                            >
+                                                <X className="size-3.5" />
+                                            </button>
+                                        </li>
+                                    ))}
+                                {detail.assignees.filter((person) => person.assignment_type !== 'assignee').length === 0 && (
+                                    <li className="text-muted-foreground text-sm">No collaborators or watchers yet.</li>
+                                )}
+                            </ul>
+                            <div className="flex flex-wrap gap-2">
+                                <Combobox
+                                    className="h-8 flex-1 text-sm"
+                                    aria-label="Add a collaborator"
+                                    value={newCollaboratorId}
+                                    onChange={setNewCollaboratorId}
+                                    placeholder="Add a person…"
+                                    options={allMembers
+                                        .filter((member) => !detail.assignees.some((person) => person.id === member.id))
+                                        .map((member) => ({ value: member.id.toString(), label: member.name }))}
+                                />
+                                <Select
+                                    value={newCollaboratorType}
+                                    onValueChange={(value) => setNewCollaboratorType(value as typeof newCollaboratorType)}
+                                >
+                                    <SelectTrigger className="h-8 w-32 text-sm" aria-label="Collaboration type">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="collaborator">Collaborator</SelectItem>
+                                        <SelectItem value="watcher">Watcher</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={newCollaboratorId === NO_DEPENDENCY}
+                                    onClick={() =>
+                                        post(
+                                            `/tasks/${taskId}/assignees`,
+                                            { user_id: Number(newCollaboratorId), assignment_type: newCollaboratorType },
+                                            () => setNewCollaboratorId(NO_DEPENDENCY),
+                                        )
+                                    }
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                        </section>
+
+                        {/* Confidentiality */}
+                        {(detail.confidentiality !== 'normal' || detail.canManageConfidentiality) && (
+                            <section>
+                                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                                    <ShieldAlert className="size-4" /> Confidentiality
+                                </h3>
+                                {detail.canManageConfidentiality ? (
+                                    <Select
+                                        value={detail.confidentiality}
+                                        onValueChange={(value) =>
+                                            router.patch(
+                                                `/tasks/${taskId}`,
+                                                { confidentiality: value },
+                                                { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger className="h-8 w-44 text-sm" aria-label="Confidentiality">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="normal">Normal</SelectItem>
+                                            <SelectItem value="restricted">Restricted</SelectItem>
+                                            <SelectItem value="confidential">Confidential</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <p className="text-sm">{confidentialityLabels[detail.confidentiality]}</p>
+                                )}
+                                {detail.confidentiality !== 'normal' && detail.canManageConfidentiality && (
+                                    <div className="mt-2">
+                                        <p className="text-muted-foreground mb-1 text-xs">
+                                            Only CEO, Administrators, and department managers listed below can see this task.
+                                        </p>
+                                        <ul className="mb-2 space-y-1">
+                                            {detail.confidentialGrants.map((grantee) => (
+                                                <li key={grantee.id} className="flex items-center gap-2 text-sm">
+                                                    {grantee.name}
+                                                    <button
+                                                        type="button"
+                                                        aria-label={`Remove ${grantee.name}'s access`}
+                                                        onClick={() => destroy(`/tasks/${taskId}/confidential-grants/${grantee.id}`)}
+                                                        className="text-muted-foreground hover:text-destructive ml-auto"
+                                                    >
+                                                        <X className="size-3.5" />
+                                                    </button>
+                                                </li>
+                                            ))}
+                                            {detail.confidentialGrants.length === 0 && (
+                                                <li className="text-muted-foreground text-sm">No one else has been granted access.</li>
+                                            )}
+                                        </ul>
+                                        <div className="flex gap-2">
+                                            <Combobox
+                                                className="h-8 flex-1 text-sm"
+                                                aria-label="Grant confidential access to"
+                                                value={newGranteeId}
+                                                onChange={setNewGranteeId}
+                                                placeholder="Grant access to…"
+                                                options={members
+                                                    .filter((member) => !detail.confidentialGrants.some((grantee) => grantee.id === member.id))
+                                                    .map((member) => ({ value: member.id.toString(), label: member.name }))}
+                                            />
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="secondary"
+                                                disabled={newGranteeId === NO_DEPENDENCY}
+                                                onClick={() =>
+                                                    post(`/tasks/${taskId}/confidential-grants`, { user_id: Number(newGranteeId) }, () =>
+                                                        setNewGranteeId(NO_DEPENDENCY),
+                                                    )
+                                                }
+                                            >
+                                                Grant
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </section>
+                        )}
+                        {/* Related tasks */}
+                        <section>
+                            <h3 className="mb-2 text-sm font-semibold">Related tasks</h3>
+                            <ul className="space-y-1.5">
+                                {detail.relations.map((relation) => (
+                                    <li key={relation.id} className="flex items-center gap-2 text-sm">
+                                        <span>
+                                            T-{relation.task.task_number} {relation.task.title}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            aria-label="Remove relation"
+                                            onClick={() => destroy(`/task-relations/${relation.id}`)}
+                                            className="text-muted-foreground hover:text-destructive ml-auto"
+                                        >
+                                            <X className="size-3.5" />
+                                        </button>
+                                    </li>
+                                ))}
+                                {detail.relations.length === 0 && <li className="text-muted-foreground text-sm">No related tasks.</li>}
+                            </ul>
+                            <div className="mt-2 flex gap-2">
+                                <Combobox
+                                    className="h-8 flex-1 text-sm"
+                                    aria-label="Link a related task"
+                                    value={newRelationId === NO_DEPENDENCY ? '' : newRelationId}
+                                    onChange={(v) => setNewRelationId(v || NO_DEPENDENCY)}
+                                    placeholder="Link a related task…"
+                                    options={boardTasks
+                                        .filter((candidate) => candidate.id !== taskId && !detail.relations.some((r) => r.task.id === candidate.id))
+                                        .map((candidate) => ({
+                                            value: candidate.id.toString(),
+                                            label: `T-${candidate.task_number} ${candidate.title}`,
+                                        }))}
+                                />
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={newRelationId === NO_DEPENDENCY}
+                                    onClick={() =>
+                                        post(`/tasks/${taskId}/relations`, { related_task_id: Number(newRelationId) }, () =>
+                                            setNewRelationId(NO_DEPENDENCY),
+                                        )
+                                    }
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                        </section>
+
+                        {/* Project */}
+                        <section>
+                            <h3 className="mb-2 text-sm font-semibold">Project</h3>
+                            {detail.project ? (
+                                <div className="flex items-center gap-2 text-sm">
+                                    <Link href={`/projects/${detail.project.id}`} className="text-brand-600 dark:text-brand-400 hover:underline">
+                                        {detail.project.name}
+                                    </Link>
+                                    {detail.canEditLinks && (
+                                        <button
+                                            type="button"
+                                            aria-label="Unlink project"
+                                            onClick={() =>
+                                                router.patch(
+                                                    `/tasks/${taskId}`,
+                                                    { project_id: null },
+                                                    { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
+                                                )
+                                            }
+                                            className="text-muted-foreground hover:text-destructive ml-auto"
+                                        >
+                                            <X className="size-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-muted-foreground text-sm">Not linked to a project.</p>
+                            )}
+                            {detail.canEditLinks && (
+                                <div className="mt-2 flex gap-2">
+                                    <Select
+                                        value={NO_DEPENDENCY}
+                                        onValueChange={(value) =>
+                                            router.patch(
+                                                `/tasks/${taskId}`,
+                                                { project_id: Number(value) },
+                                                { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger
+                                            className="h-8 flex-1 text-sm"
+                                            aria-label={detail.project ? 'Change project' : 'Link a project'}
+                                        >
+                                            <SelectValue placeholder={detail.project ? 'Change project…' : 'Link a project…'} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {detail.projectOptions
+                                                .filter((project) => project.id !== detail.project?.id)
+                                                .map((project) => (
+                                                    <SelectItem key={project.id} value={project.id.toString()}>
+                                                        {project.name}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </section>
+
+                        {/* Recurrence */}
+                        {(detail.recurrenceRule || detail.canManageRecurrence) && (
+                            <section>
+                                <h3 className="text-sm font-semibold">Recurrence</h3>
+                                <p className="text-muted-foreground mb-2 text-xs">
+                                    Generates a new task on a schedule — this one stays as a record once done.
+                                </p>
+                                {detail.recurrenceRule ? (
+                                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                                        <span>
+                                            {frequencyLabels[detail.recurrenceRule.frequency] ?? detail.recurrenceRule.frequency}
+                                            {detail.recurrenceRule.interval_value > 1 && ` (every ${detail.recurrenceRule.interval_value})`}
+                                        </span>
+                                        {!detail.recurrenceRule.is_active && <span className="text-muted-foreground text-xs">stopped</span>}
+                                        {detail.recurrenceRule.is_active && detail.recurrenceRule.next_run_at && (
+                                            <span className="text-muted-foreground text-xs">next: {fmtDate(detail.recurrenceRule.next_run_at)}</span>
+                                        )}
+                                        {detail.canManageRecurrence && detail.recurrenceRule.is_active && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="ghost"
+                                                className="ml-auto"
+                                                onClick={() => post(`/recurrence-rules/${detail.recurrenceRule?.id}`, { is_active: false })}
+                                            >
+                                                Stop recurring
+                                            </Button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Select value={newFrequency} onValueChange={setNewFrequency}>
+                                            <SelectTrigger className="h-8 w-44 text-sm" aria-label="Recurrence frequency">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Object.entries(frequencyLabels).map(([value, label]) => (
+                                                    <SelectItem key={value} value={value}>
+                                                        {label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {newFrequency !== 'after_completion' && (
+                                            <Input
+                                                type="number"
+                                                min={1}
+                                                max={365}
+                                                value={newInterval}
+                                                onChange={(e) => setNewInterval(Number(e.target.value))}
+                                                className="h-8 w-20 text-sm"
+                                            />
+                                        )}
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={() =>
+                                                post(`/tasks/${taskId}/recurrence`, { frequency: newFrequency, interval_value: newInterval })
+                                            }
+                                        >
+                                            Make recurring
+                                        </Button>
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
+                        {/* Auto-reset — distinct from the recurrence rule above: this resets
+                THIS task in place to a chosen column on a schedule, instead of
+                generating a new task from a template. Visible to everyone when
+                it's on; managers can also turn it on and pick the column. */}
+                        {(() => {
+                            const resetColumns = detail.columns.filter((column) => !column.is_completion_column && !column.is_archive_column);
+                            const targetName =
+                                detail.columns.find((column) => column.id === detail.autoResetColumnId)?.name ?? 'the board’s first column';
+                            const cadence =
+                                detail.autoResetFrequency === 'daily'
+                                    ? 'every morning'
+                                    : detail.autoResetFrequency === 'weekly'
+                                      ? 'every week'
+                                      : 'every month';
+                            const lastReset = detail.lastAutoResetAt ? ` — last reset ${fmtDate(detail.lastAutoResetAt)}` : '';
+
+                            if (detail.autoResetFrequency === null && !detail.canManageRecurrence) return null;
+
+                            return (
+                                <section>
+                                    <h3 className="text-sm font-semibold">Auto-reset</h3>
+                                    <p className="text-muted-foreground mb-2 text-xs">
+                                        Puts this same task back on the board on a schedule — no new task is created.
+                                    </p>
+                                    {detail.canManageRecurrence ? (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Select
+                                                value={detail.autoResetFrequency ?? NO_DEPENDENCY}
+                                                onValueChange={(value) =>
+                                                    patch(`/tasks/${taskId}`, { auto_reset_frequency: value === NO_DEPENDENCY ? null : value })
+                                                }
+                                            >
+                                                <SelectTrigger className="h-8 w-36 text-sm" aria-label="Auto-reset frequency">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value={NO_DEPENDENCY}>Off</SelectItem>
+                                                    <SelectItem value="daily">Daily</SelectItem>
+                                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {detail.autoResetFrequency && (
+                                                <>
+                                                    <span className="text-muted-foreground text-xs">moves it to</span>
+                                                    <Select
+                                                        value={detail.autoResetColumnId?.toString() ?? NO_DEPENDENCY}
+                                                        onValueChange={(value) =>
+                                                            patch(`/tasks/${taskId}`, {
+                                                                auto_reset_column_id: value === NO_DEPENDENCY ? null : Number(value),
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="h-8 w-44 text-sm" aria-label="Auto-reset column">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value={NO_DEPENDENCY}>Ready column (default)</SelectItem>
+                                                            {resetColumns.map((column) => (
+                                                                <SelectItem key={column.id} value={column.id.toString()}>
+                                                                    {column.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </>
+                                            )}
+                                            {detail.autoResetFrequency && (
+                                                <span className="text-muted-foreground w-full text-xs">
+                                                    Notifies the assignee {cadence}
+                                                    {lastReset}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-muted-foreground text-sm">
+                                            Auto-resets {detail.autoResetFrequency} to{' '}
+                                            <span className="text-foreground font-medium">{targetName}</span>
+                                            {lastReset}
+                                        </span>
+                                    )}
+                                </section>
+                            );
+                        })()}
+                    </CollapsibleContent>
+                </Collapsible>
+            </section>
+
             {/* Checklists */}
             <section>
                 <h3 className="mb-2 text-sm font-semibold">Checklists</h3>
@@ -688,154 +1135,66 @@ export function TaskCollaboration({
                 )}
             </section>
 
-            {/* People */}
+            {/* Comments */}
             <section>
-                <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-                    <Users className="size-4" /> People
-                </h3>
-                <p className="text-muted-foreground mb-2 text-xs">
-                    Anyone can be added, including people outside this board's department — adding them here is what gives them access to this task
-                    specifically.
-                </p>
-                <ul className="mb-2 space-y-1.5">
-                    {detail.assignees
-                        .filter((person) => person.assignment_type !== 'assignee')
-                        .map((person) => (
-                            <li key={person.id} className="flex items-center gap-2 text-sm">
-                                {person.name}
-                                <span className="text-muted-foreground text-xs capitalize">{person.assignment_type}</span>
-                                <button
-                                    type="button"
-                                    aria-label={`Remove ${person.name}`}
-                                    onClick={() => destroy(`/tasks/${taskId}/assignees/${person.id}`)}
-                                    className="text-muted-foreground hover:text-destructive ml-auto"
-                                >
-                                    <X className="size-3.5" />
-                                </button>
-                            </li>
-                        ))}
-                    {detail.assignees.filter((person) => person.assignment_type !== 'assignee').length === 0 && (
-                        <li className="text-muted-foreground text-sm">No collaborators, reviewers, or watchers yet.</li>
-                    )}
-                </ul>
-                <div className="flex flex-wrap gap-2">
-                    <Combobox
-                        className="h-8 flex-1 text-sm"
-                        aria-label="Add a collaborator"
-                        value={newCollaboratorId}
-                        onChange={setNewCollaboratorId}
-                        placeholder="Add a person…"
-                        options={allMembers
-                            .filter((member) => !detail.assignees.some((person) => person.id === member.id))
-                            .map((member) => ({ value: member.id.toString(), label: member.name }))}
-                    />
-                    <Select value={newCollaboratorType} onValueChange={(value) => setNewCollaboratorType(value as typeof newCollaboratorType)}>
-                        <SelectTrigger className="h-8 w-32 text-sm" aria-label="Collaboration type">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="collaborator">Collaborator</SelectItem>
-                            <SelectItem value="reviewer">Reviewer</SelectItem>
-                            <SelectItem value="watcher">Watcher</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        disabled={newCollaboratorId === NO_DEPENDENCY}
-                        onClick={() =>
-                            post(`/tasks/${taskId}/assignees`, { user_id: Number(newCollaboratorId), assignment_type: newCollaboratorType }, () =>
-                                setNewCollaboratorId(NO_DEPENDENCY),
-                            )
-                        }
-                    >
-                        Add
-                    </Button>
-                </div>
-            </section>
-
-            {/* Confidentiality */}
-            {(detail.confidentiality !== 'normal' || detail.canManageConfidentiality) && (
-                <section>
-                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-                        <ShieldAlert className="size-4" /> Confidentiality
-                    </h3>
-                    {detail.canManageConfidentiality ? (
-                        <Select
-                            value={detail.confidentiality}
-                            onValueChange={(value) =>
-                                router.patch(
-                                    `/tasks/${taskId}`,
-                                    { confidentiality: value },
-                                    { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
-                                )
-                            }
-                        >
-                            <SelectTrigger className="h-8 w-44 text-sm" aria-label="Confidentiality">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="normal">Normal</SelectItem>
-                                <SelectItem value="restricted">Restricted</SelectItem>
-                                <SelectItem value="confidential">Confidential</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    ) : (
-                        <p className="text-sm">{confidentialityLabels[detail.confidentiality]}</p>
-                    )}
-                    {detail.confidentiality !== 'normal' && detail.canManageConfidentiality && (
-                        <div className="mt-2">
-                            <p className="text-muted-foreground mb-1 text-xs">
-                                Only CEO, Administrators, and department managers listed below can see this task.
-                            </p>
-                            <ul className="mb-2 space-y-1">
-                                {detail.confidentialGrants.map((grantee) => (
-                                    <li key={grantee.id} className="flex items-center gap-2 text-sm">
-                                        {grantee.name}
-                                        <button
-                                            type="button"
-                                            aria-label={`Remove ${grantee.name}'s access`}
-                                            onClick={() => destroy(`/tasks/${taskId}/confidential-grants/${grantee.id}`)}
-                                            className="text-muted-foreground hover:text-destructive ml-auto"
-                                        >
-                                            <X className="size-3.5" />
-                                        </button>
-                                    </li>
-                                ))}
-                                {detail.confidentialGrants.length === 0 && (
-                                    <li className="text-muted-foreground text-sm">No one else has been granted access.</li>
-                                )}
-                            </ul>
-                            <div className="flex gap-2">
-                                <Combobox
-                                    className="h-8 flex-1 text-sm"
-                                    aria-label="Grant confidential access to"
-                                    value={newGranteeId}
-                                    onChange={setNewGranteeId}
-                                    placeholder="Grant access to…"
-                                    options={members
-                                        .filter((member) => !detail.confidentialGrants.some((grantee) => grantee.id === member.id))
-                                        .map((member) => ({ value: member.id.toString(), label: member.name }))}
-                                />
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="secondary"
-                                    disabled={newGranteeId === NO_DEPENDENCY}
-                                    onClick={() =>
-                                        post(`/tasks/${taskId}/confidential-grants`, { user_id: Number(newGranteeId) }, () =>
-                                            setNewGranteeId(NO_DEPENDENCY),
-                                        )
-                                    }
-                                >
-                                    Grant
-                                </Button>
-                            </div>
+                <h3 className="mb-2 text-sm font-semibold">Comments</h3>
+                <CommentThread
+                    comments={detail.comments}
+                    currentUserId={auth.user.id}
+                    canModerate={auth.roles.includes('Administrator')}
+                    onReply={(comment) => setReplyTo(comment as CommentNode)}
+                    onEdit={(id, body) => editComment(id, body)}
+                    onDelete={(id) => destroy(`/comments/${id}`)}
+                />
+                <form onSubmit={submitComment} className="mt-3 space-y-2">
+                    {replyTo && (
+                        <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                            Replying to {replyTo.user.name}
+                            <button type="button" aria-label="Cancel reply" onClick={() => setReplyTo(null)}>
+                                <X className="size-3.5" />
+                            </button>
                         </div>
                     )}
-                </section>
-            )}
+                    <textarea
+                        value={commentBody}
+                        onChange={(e) => setCommentBody(e.target.value)}
+                        rows={2}
+                        placeholder="Write a comment…"
+                        className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-1 focus-visible:outline-none"
+                    />
+                    <div className="flex items-center gap-2">
+                        <Button type="submit" size="sm">
+                            {replyTo ? 'Reply' : 'Comment'}
+                        </Button>
+                        <button
+                            type="button"
+                            onClick={() => setShowMentions((current) => !current)}
+                            className="text-brand-600 dark:text-brand-400 text-xs hover:underline"
+                        >
+                            @ Mention {mentionIds.length > 0 && `(${mentionIds.length})`}
+                        </button>
+                    </div>
+                    {showMentions && (
+                        <div className="border-sidebar-border/70 dark:border-sidebar-border flex max-h-32 flex-wrap gap-3 overflow-y-auto rounded-md border p-2">
+                            {members
+                                .filter((member) => member.id !== auth.user.id)
+                                .map((member) => (
+                                    <label key={member.id} className="flex items-center gap-1.5 text-xs">
+                                        <Checkbox
+                                            checked={mentionIds.includes(member.id)}
+                                            onCheckedChange={(checked) =>
+                                                setMentionIds((current) =>
+                                                    checked === true ? [...current, member.id] : current.filter((id) => id !== member.id),
+                                                )
+                                            }
+                                        />
+                                        {member.name}
+                                    </label>
+                                ))}
+                        </div>
+                    )}
+                </form>
+            </section>
 
             {/* Dependencies */}
             <section>
@@ -901,353 +1260,6 @@ export function TaskCollaboration({
                         Add
                     </Button>
                 </div>
-            </section>
-
-            {/* Related tasks */}
-            <section>
-                <h3 className="mb-2 text-sm font-semibold">Related tasks</h3>
-                <ul className="space-y-1.5">
-                    {detail.relations.map((relation) => (
-                        <li key={relation.id} className="flex items-center gap-2 text-sm">
-                            <span>
-                                T-{relation.task.task_number} {relation.task.title}
-                            </span>
-                            <button
-                                type="button"
-                                aria-label="Remove relation"
-                                onClick={() => destroy(`/task-relations/${relation.id}`)}
-                                className="text-muted-foreground hover:text-destructive ml-auto"
-                            >
-                                <X className="size-3.5" />
-                            </button>
-                        </li>
-                    ))}
-                    {detail.relations.length === 0 && <li className="text-muted-foreground text-sm">No related tasks.</li>}
-                </ul>
-                <div className="mt-2 flex gap-2">
-                    <Combobox
-                        className="h-8 flex-1 text-sm"
-                        aria-label="Link a related task"
-                        value={newRelationId === NO_DEPENDENCY ? '' : newRelationId}
-                        onChange={(v) => setNewRelationId(v || NO_DEPENDENCY)}
-                        placeholder="Link a related task…"
-                        options={boardTasks
-                            .filter((candidate) => candidate.id !== taskId && !detail.relations.some((r) => r.task.id === candidate.id))
-                            .map((candidate) => ({
-                                value: candidate.id.toString(),
-                                label: `T-${candidate.task_number} ${candidate.title}`,
-                            }))}
-                    />
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        disabled={newRelationId === NO_DEPENDENCY}
-                        onClick={() =>
-                            post(`/tasks/${taskId}/relations`, { related_task_id: Number(newRelationId) }, () => setNewRelationId(NO_DEPENDENCY))
-                        }
-                    >
-                        Add
-                    </Button>
-                </div>
-            </section>
-
-            {/* Project */}
-            <section>
-                <h3 className="mb-2 text-sm font-semibold">Project</h3>
-                {detail.project ? (
-                    <div className="flex items-center gap-2 text-sm">
-                        <Link href={`/projects/${detail.project.id}`} className="text-brand-600 dark:text-brand-400 hover:underline">
-                            {detail.project.name}
-                        </Link>
-                        {detail.canEditLinks && (
-                            <button
-                                type="button"
-                                aria-label="Unlink project"
-                                onClick={() =>
-                                    router.patch(
-                                        `/tasks/${taskId}`,
-                                        { project_id: null },
-                                        { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
-                                    )
-                                }
-                                className="text-muted-foreground hover:text-destructive ml-auto"
-                            >
-                                <X className="size-3.5" />
-                            </button>
-                        )}
-                    </div>
-                ) : (
-                    <p className="text-muted-foreground text-sm">Not linked to a project.</p>
-                )}
-                {detail.canEditLinks && (
-                    <div className="mt-2 flex gap-2">
-                        <Select
-                            value={NO_DEPENDENCY}
-                            onValueChange={(value) =>
-                                router.patch(
-                                    `/tasks/${taskId}`,
-                                    { project_id: Number(value) },
-                                    { preserveScroll: true, preserveState: true, onSuccess: reload, onError: showError },
-                                )
-                            }
-                        >
-                            <SelectTrigger className="h-8 flex-1 text-sm" aria-label={detail.project ? 'Change project' : 'Link a project'}>
-                                <SelectValue placeholder={detail.project ? 'Change project…' : 'Link a project…'} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {detail.projectOptions
-                                    .filter((project) => project.id !== detail.project?.id)
-                                    .map((project) => (
-                                        <SelectItem key={project.id} value={project.id.toString()}>
-                                            {project.name}
-                                        </SelectItem>
-                                    ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
-            </section>
-
-            {/* Recurrence */}
-            {(detail.recurrenceRule || detail.canManageRecurrence) && (
-                <section>
-                    <h3 className="text-sm font-semibold">Recurrence</h3>
-                    <p className="text-muted-foreground mb-2 text-xs">Generates a new task on a schedule — this one stays as a record once done.</p>
-                    {detail.recurrenceRule ? (
-                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <span>
-                                {frequencyLabels[detail.recurrenceRule.frequency] ?? detail.recurrenceRule.frequency}
-                                {detail.recurrenceRule.interval_value > 1 && ` (every ${detail.recurrenceRule.interval_value})`}
-                            </span>
-                            {!detail.recurrenceRule.is_active && <span className="text-muted-foreground text-xs">stopped</span>}
-                            {detail.recurrenceRule.is_active && detail.recurrenceRule.next_run_at && (
-                                <span className="text-muted-foreground text-xs">next: {fmtDate(detail.recurrenceRule.next_run_at)}</span>
-                            )}
-                            {detail.canManageRecurrence && detail.recurrenceRule.is_active && (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    className="ml-auto"
-                                    onClick={() => post(`/recurrence-rules/${detail.recurrenceRule?.id}`, { is_active: false })}
-                                >
-                                    Stop recurring
-                                </Button>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Select value={newFrequency} onValueChange={setNewFrequency}>
-                                <SelectTrigger className="h-8 w-44 text-sm" aria-label="Recurrence frequency">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(frequencyLabels).map(([value, label]) => (
-                                        <SelectItem key={value} value={value}>
-                                            {label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {newFrequency !== 'after_completion' && (
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    max={365}
-                                    value={newInterval}
-                                    onChange={(e) => setNewInterval(Number(e.target.value))}
-                                    className="h-8 w-20 text-sm"
-                                />
-                            )}
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => post(`/tasks/${taskId}/recurrence`, { frequency: newFrequency, interval_value: newInterval })}
-                            >
-                                Make recurring
-                            </Button>
-                        </div>
-                    )}
-                </section>
-            )}
-
-            {/* Auto-reset — distinct from the recurrence rule above: this resets
-                THIS task in place to a chosen column on a schedule, instead of
-                generating a new task from a template. Visible to everyone when
-                it's on; managers can also turn it on and pick the column. */}
-            {(() => {
-                const resetColumns = detail.columns.filter((column) => !column.is_completion_column && !column.is_archive_column);
-                const targetName = detail.columns.find((column) => column.id === detail.autoResetColumnId)?.name ?? 'the board’s first column';
-                const cadence =
-                    detail.autoResetFrequency === 'daily' ? 'every morning' : detail.autoResetFrequency === 'weekly' ? 'every week' : 'every month';
-                const lastReset = detail.lastAutoResetAt ? ` — last reset ${fmtDate(detail.lastAutoResetAt)}` : '';
-
-                if (detail.autoResetFrequency === null && !detail.canManageRecurrence) return null;
-
-                return (
-                    <section>
-                        <h3 className="text-sm font-semibold">Auto-reset</h3>
-                        <p className="text-muted-foreground mb-2 text-xs">
-                            Puts this same task back on the board on a schedule — no new task is created.
-                        </p>
-                        {detail.canManageRecurrence ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Select
-                                    value={detail.autoResetFrequency ?? NO_DEPENDENCY}
-                                    onValueChange={(value) =>
-                                        patch(`/tasks/${taskId}`, { auto_reset_frequency: value === NO_DEPENDENCY ? null : value })
-                                    }
-                                >
-                                    <SelectTrigger className="h-8 w-36 text-sm" aria-label="Auto-reset frequency">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={NO_DEPENDENCY}>Off</SelectItem>
-                                        <SelectItem value="daily">Daily</SelectItem>
-                                        <SelectItem value="weekly">Weekly</SelectItem>
-                                        <SelectItem value="monthly">Monthly</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {detail.autoResetFrequency && (
-                                    <>
-                                        <span className="text-muted-foreground text-xs">moves it to</span>
-                                        <Select
-                                            value={detail.autoResetColumnId?.toString() ?? NO_DEPENDENCY}
-                                            onValueChange={(value) =>
-                                                patch(`/tasks/${taskId}`, {
-                                                    auto_reset_column_id: value === NO_DEPENDENCY ? null : Number(value),
-                                                })
-                                            }
-                                        >
-                                            <SelectTrigger className="h-8 w-44 text-sm" aria-label="Auto-reset column">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value={NO_DEPENDENCY}>Ready column (default)</SelectItem>
-                                                {resetColumns.map((column) => (
-                                                    <SelectItem key={column.id} value={column.id.toString()}>
-                                                        {column.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </>
-                                )}
-                                {detail.autoResetFrequency && (
-                                    <span className="text-muted-foreground w-full text-xs">
-                                        Notifies the assignee {cadence}
-                                        {lastReset}
-                                    </span>
-                                )}
-                            </div>
-                        ) : (
-                            <span className="text-muted-foreground text-sm">
-                                Auto-resets {detail.autoResetFrequency} to <span className="text-foreground font-medium">{targetName}</span>
-                                {lastReset}
-                            </span>
-                        )}
-                    </section>
-                );
-            })()}
-
-            {/* Approval */}
-            <section>
-                <h3 className="mb-2 text-sm font-semibold">Approval</h3>
-                {detail.approval.status === null && (
-                    <div className="flex flex-wrap gap-2">
-                        <Combobox
-                            className="h-8 w-48 text-sm"
-                            aria-label="Choose a reviewer"
-                            value={reviewerId}
-                            onChange={setReviewerId}
-                            placeholder="Choose a reviewer…"
-                            options={members.map((member) => ({ value: member.id.toString(), label: member.name }))}
-                        />
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            disabled={reviewerId === NO_DEPENDENCY}
-                            onClick={() =>
-                                post(`/tasks/${taskId}/request-approval`, { reviewer_id: Number(reviewerId) }, () => setReviewerId(NO_DEPENDENCY))
-                            }
-                        >
-                            Request approval
-                        </Button>
-                    </div>
-                )}
-                {detail.approval.status === 'pending' && (
-                    <div>
-                        <p className="text-sm">
-                            Awaiting approval from <span className="font-medium">{detail.approval.approver?.name}</span>
-                        </p>
-                        {detail.canReviewApproval && (
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <Button type="button" size="sm" onClick={() => post(`/tasks/${taskId}/approve-review`, {})}>
-                                    Approve
-                                </Button>
-                                <Button type="button" size="sm" variant="destructive" onClick={() => setShowRejectForm((current) => !current)}>
-                                    Send back
-                                </Button>
-                            </div>
-                        )}
-                        {showRejectForm && (
-                            <form
-                                onSubmit={(e) => {
-                                    e.preventDefault();
-                                    post(`/tasks/${taskId}/reject-review`, { reason: rejectReason }, () => {
-                                        setRejectReason('');
-                                        setShowRejectForm(false);
-                                    });
-                                }}
-                                className="mt-2 flex gap-2"
-                            >
-                                <Input
-                                    placeholder="What needs to change?"
-                                    value={rejectReason}
-                                    onChange={(e) => setRejectReason(e.target.value)}
-                                    required
-                                    className="h-8 flex-1 text-sm"
-                                />
-                                <Button type="submit" size="sm" variant="destructive">
-                                    Confirm
-                                </Button>
-                            </form>
-                        )}
-                    </div>
-                )}
-                {detail.approval.status === 'approved' && (
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400">Approved by {detail.approval.approver?.name}.</p>
-                )}
-                {detail.approval.status === 'rejected' && (
-                    <div>
-                        <p className="text-destructive text-sm">
-                            Sent back by {detail.approval.approver?.name}: {detail.approval.note}
-                        </p>
-                        <Combobox
-                            className="mt-2 h-8 w-48 text-sm"
-                            aria-label="Re-request approval from"
-                            value={reviewerId}
-                            onChange={setReviewerId}
-                            placeholder="Re-request from…"
-                            options={members.map((member) => ({ value: member.id.toString(), label: member.name }))}
-                        />
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            className="mt-2 ml-2"
-                            disabled={reviewerId === NO_DEPENDENCY}
-                            onClick={() =>
-                                post(`/tasks/${taskId}/request-approval`, { reviewer_id: Number(reviewerId) }, () => setReviewerId(NO_DEPENDENCY))
-                            }
-                        >
-                            Re-request approval
-                        </Button>
-                    </div>
-                )}
             </section>
 
             {/* Time tracking */}
@@ -1486,65 +1498,102 @@ export function TaskCollaboration({
                 )}
             </section>
 
-            {/* Comments */}
+            {/* Approval */}
             <section>
-                <h3 className="mb-2 text-sm font-semibold">Comments</h3>
-                <CommentThread
-                    comments={detail.comments}
-                    currentUserId={auth.user.id}
-                    canModerate={auth.roles.includes('Administrator')}
-                    onReply={(comment) => setReplyTo(comment as CommentNode)}
-                    onEdit={(id, body) => editComment(id, body)}
-                    onDelete={(id) => destroy(`/comments/${id}`)}
-                />
-                <form onSubmit={submitComment} className="mt-3 space-y-2">
-                    {replyTo && (
-                        <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                            Replying to {replyTo.user.name}
-                            <button type="button" aria-label="Cancel reply" onClick={() => setReplyTo(null)}>
-                                <X className="size-3.5" />
-                            </button>
-                        </div>
-                    )}
-                    <textarea
-                        value={commentBody}
-                        onChange={(e) => setCommentBody(e.target.value)}
-                        rows={2}
-                        placeholder="Write a comment…"
-                        className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-1 focus-visible:outline-none"
-                    />
-                    <div className="flex items-center gap-2">
-                        <Button type="submit" size="sm">
-                            {replyTo ? 'Reply' : 'Comment'}
-                        </Button>
-                        <button
+                <h3 className="mb-2 text-sm font-semibold">Approval</h3>
+                {detail.approval.status === null && (
+                    <div className="flex flex-wrap gap-2">
+                        <Combobox
+                            className="h-8 w-48 text-sm"
+                            aria-label="Choose an approver"
+                            value={reviewerId}
+                            onChange={setReviewerId}
+                            placeholder="Choose an approver…"
+                            options={members.map((member) => ({ value: member.id.toString(), label: member.name }))}
+                        />
+                        <Button
                             type="button"
-                            onClick={() => setShowMentions((current) => !current)}
-                            className="text-brand-600 dark:text-brand-400 text-xs hover:underline"
+                            size="sm"
+                            variant="secondary"
+                            disabled={reviewerId === NO_DEPENDENCY}
+                            onClick={() =>
+                                post(`/tasks/${taskId}/request-approval`, { reviewer_id: Number(reviewerId) }, () => setReviewerId(NO_DEPENDENCY))
+                            }
                         >
-                            @ Mention {mentionIds.length > 0 && `(${mentionIds.length})`}
-                        </button>
+                            Request approval
+                        </Button>
                     </div>
-                    {showMentions && (
-                        <div className="border-sidebar-border/70 dark:border-sidebar-border flex max-h-32 flex-wrap gap-3 overflow-y-auto rounded-md border p-2">
-                            {members
-                                .filter((member) => member.id !== auth.user.id)
-                                .map((member) => (
-                                    <label key={member.id} className="flex items-center gap-1.5 text-xs">
-                                        <Checkbox
-                                            checked={mentionIds.includes(member.id)}
-                                            onCheckedChange={(checked) =>
-                                                setMentionIds((current) =>
-                                                    checked === true ? [...current, member.id] : current.filter((id) => id !== member.id),
-                                                )
-                                            }
-                                        />
-                                        {member.name}
-                                    </label>
-                                ))}
-                        </div>
-                    )}
-                </form>
+                )}
+                {detail.approval.status === 'pending' && (
+                    <div>
+                        <p className="text-sm">
+                            Awaiting approval from <span className="font-medium">{detail.approval.approver?.name}</span>
+                        </p>
+                        {detail.canReviewApproval && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <Button type="button" size="sm" onClick={() => post(`/tasks/${taskId}/approve-review`, {})}>
+                                    Approve
+                                </Button>
+                                <Button type="button" size="sm" variant="destructive" onClick={() => setShowRejectForm((current) => !current)}>
+                                    Send back
+                                </Button>
+                            </div>
+                        )}
+                        {showRejectForm && (
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    post(`/tasks/${taskId}/reject-review`, { reason: rejectReason }, () => {
+                                        setRejectReason('');
+                                        setShowRejectForm(false);
+                                    });
+                                }}
+                                className="mt-2 flex gap-2"
+                            >
+                                <Input
+                                    placeholder="What needs to change?"
+                                    value={rejectReason}
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                    required
+                                    className="h-8 flex-1 text-sm"
+                                />
+                                <Button type="submit" size="sm" variant="destructive">
+                                    Confirm
+                                </Button>
+                            </form>
+                        )}
+                    </div>
+                )}
+                {detail.approval.status === 'approved' && (
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400">Approved by {detail.approval.approver?.name}.</p>
+                )}
+                {detail.approval.status === 'rejected' && (
+                    <div>
+                        <p className="text-destructive text-sm">
+                            Sent back by {detail.approval.approver?.name}: {detail.approval.note}
+                        </p>
+                        <Combobox
+                            className="mt-2 h-8 w-48 text-sm"
+                            aria-label="Re-request approval from"
+                            value={reviewerId}
+                            onChange={setReviewerId}
+                            placeholder="Re-request from…"
+                            options={members.map((member) => ({ value: member.id.toString(), label: member.name }))}
+                        />
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="mt-2 ml-2"
+                            disabled={reviewerId === NO_DEPENDENCY}
+                            onClick={() =>
+                                post(`/tasks/${taskId}/request-approval`, { reviewer_id: Number(reviewerId) }, () => setReviewerId(NO_DEPENDENCY))
+                            }
+                        >
+                            Re-request approval
+                        </Button>
+                    </div>
+                )}
             </section>
 
             {/* Activity */}
