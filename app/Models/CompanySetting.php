@@ -30,6 +30,7 @@ class CompanySetting extends Model
         'payslip_logo_path',
         'payslip_dispatch_timing',
         'payroll_requires_second_approval',
+        'staff_number_prefix',
         'nita_levy_enabled',
         'epe_api_url',
         'epe_site_key',

@@ -53,7 +53,7 @@ type PageProps = {
     leaveTypes: LeaveTypeOption[];
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'My Leave', href: '/hr/me/leave' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Leave Application', href: '/hr/me/leave' }];
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     approved: 'default',
@@ -117,10 +117,10 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="My Leave" />
+            <Head title="Leave Application" />
             <div className="flex flex-col gap-4 p-4">
                 <div>
-                    <h1 className="text-xl font-semibold">My Leave</h1>
+                    <h1 className="text-xl font-semibold">Leave Application</h1>
                     <p className="text-muted-foreground text-sm">
                         {employee.department ?? '—'} · entitlement period from {fmtDate(employee.period.start)}
                         {employee.period.end ? ` to ${fmtDate(employee.period.end)}` : ''}

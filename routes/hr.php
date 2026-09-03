@@ -63,6 +63,7 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('hr')->name('hr.')->g
 
     // Employees
     Route::get('employees', [EmployeeController::class, 'index'])->name('employees.index');
+    Route::patch('employees/numbering', [EmployeeController::class, 'updateNumbering'])->name('employees.numbering');
     Route::post('employees', [EmployeeController::class, 'store'])->name('employees.store');
     Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
     Route::patch('employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');

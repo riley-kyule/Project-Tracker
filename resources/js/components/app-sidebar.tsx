@@ -1,4 +1,4 @@
-import { NavMain } from '@/components/nav-main';
+import { NavMain, type NavGroup } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { UpdateChecker } from '@/components/update-checker';
@@ -8,7 +8,7 @@ import {
     Activity,
     Banknote,
     BarChart3,
-    Briefcase,
+    Boxes,
     Building2,
     CalendarDays,
     Crown,
@@ -23,66 +23,65 @@ import {
     Mail,
     Sliders,
     Tag,
+    Target,
     UserCog,
     Users,
     UsersRound,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        url: '/dashboard',
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Boards',
-        url: '/boards',
-        icon: KanbanSquare,
-    },
-    {
-        title: 'Service Desk',
-        url: '/tickets',
-        icon: LifeBuoy,
-    },
-    {
-        title: 'Projects',
-        url: '/projects',
-        icon: ListTodo,
-    },
-];
-
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
 
+    const has = (permission: string) => auth.permissions.includes(permission);
     const isExec = auth.roles.includes('CEO') || auth.roles.includes('Administrator');
 
-    const hrmsChildren: NavItem[] = [
-        ...(auth.permissions.includes('hr.employees.view') ? [{ title: 'People', url: '/hr/employees' }] : []),
-        ...(auth.permissions.includes('hr.assets.view') ? [{ title: 'Assets', url: '/hr/assets' }] : []),
-        ...(auth.permissions.includes('hr.leave.view') ? [{ title: 'Leave', url: '/hr/leave' }] : []),
-        ...(auth.permissions.includes('hr.payroll.view') ? [{ title: 'Payroll', url: '/hr/payroll' }] : []),
-        ...(auth.permissions.includes('hr.performance.view') ? [{ title: 'Performance', url: '/hr/performance' }] : []),
+    const work: NavItem[] = [
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid },
+        { title: 'Boards', url: '/boards', icon: KanbanSquare },
+        { title: 'Service Desk', url: '/tickets', icon: LifeBuoy },
+        { title: 'Projects', url: '/projects', icon: ListTodo },
     ];
 
-    const adminNavItems: NavItem[] = [
+    const overview: NavItem[] = [
         ...(isExec ? [{ title: 'CEO Dashboard', url: '/dashboards/ceo', icon: Crown }] : []),
         ...(auth.managesDepartment ? [{ title: 'My Department', url: '/dashboards/department', icon: UsersRound }] : []),
-        ...(auth.permissions.includes('reports.view') ? [{ title: 'Reports', url: '/reports/tasks', icon: BarChart3 }] : []),
+        ...(has('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
+        ...(has('reports.view') ? [{ title: 'Reports', url: '/reports/tasks', icon: BarChart3 }] : []),
         ...(auth.canViewMarketingStatistics ? [{ title: 'Marketing Statistics', url: '/marketing-statistics', icon: LineChart }] : []),
-        ...(auth.permissions.includes('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
-        ...(auth.permissions.includes('tickets.manage') ? [{ title: 'SLA Policies', url: '/admin/sla-policies', icon: Sliders }] : []),
-        ...(auth.permissions.includes('wordpress.manage') ? [{ title: 'WordPress Users', url: '/admin/wordpress-users', icon: UserCog }] : []),
-        ...(hrmsChildren.length > 0 ? [{ title: 'HRMS', url: '/hr/employees', icon: Briefcase, items: hrmsChildren }] : []),
+    ];
+
+    const hr: NavItem[] = [
+        ...(has('hr.employees.view') ? [{ title: 'People', url: '/hr/employees', icon: Users }] : []),
+        ...(has('hr.assets.view') ? [{ title: 'Assets', url: '/hr/assets', icon: Boxes }] : []),
+        ...(has('hr.leave.view') ? [{ title: 'Leave', url: '/hr/leave', icon: CalendarDays }] : []),
+        ...(has('hr.payroll.view') ? [{ title: 'Payroll', url: '/hr/payroll', icon: Banknote }] : []),
+        ...(has('hr.performance.view') ? [{ title: 'Performance', url: '/hr/performance', icon: Target }] : []),
+    ];
+
+    const personal: NavItem[] = [
         ...(auth.hasEmployeeRecord ? [{ title: 'My Employee Data', url: '/hr/me/profile', icon: IdCard }] : []),
         ...(auth.hasEmployeeRecord ? [{ title: 'Leave Application', url: '/hr/me/leave', icon: CalendarDays }] : []),
         ...(auth.hasEmployeeRecord ? [{ title: 'My Payslips', url: '/hr/me/payslips', icon: Banknote }] : []),
-        ...(auth.permissions.includes('departments.view') ? [{ title: 'Departments', url: '/admin/departments', icon: Building2 }] : []),
-        ...(auth.permissions.includes('labels.manage') ? [{ title: 'Labels', url: '/admin/labels', icon: Tag }] : []),
-        ...(auth.permissions.includes('users.view') ? [{ title: 'Users', url: '/admin/users', icon: Users }] : []),
         ...(auth.hasWebsiteAssignments ? [{ title: 'My Reports', url: '/my-reports', icon: FileText }] : []),
-        ...(auth.permissions.includes('system.deploy') ? [{ title: 'Queue Health', url: '/admin/queue-health', icon: Activity }] : []),
-        ...(auth.permissions.includes('system.deploy') ? [{ title: 'Report Deliveries', url: '/admin/report-deliveries', icon: Mail }] : []),
+    ];
+
+    const admin: NavItem[] = [
+        ...(has('tickets.manage') ? [{ title: 'SLA Policies', url: '/admin/sla-policies', icon: Sliders }] : []),
+        ...(has('wordpress.manage') ? [{ title: 'WordPress Users', url: '/admin/wordpress-users', icon: UserCog }] : []),
+        ...(has('departments.view') ? [{ title: 'Departments', url: '/admin/departments', icon: Building2 }] : []),
+        ...(has('labels.manage') ? [{ title: 'Labels', url: '/admin/labels', icon: Tag }] : []),
+        ...(has('users.view') ? [{ title: 'Users', url: '/admin/users', icon: UserCog }] : []),
+        ...(has('system.deploy') ? [{ title: 'Queue Health', url: '/admin/queue-health', icon: Activity }] : []),
+        ...(has('system.deploy') ? [{ title: 'Report Deliveries', url: '/admin/report-deliveries', icon: Mail }] : []),
+    ];
+
+    const groups: NavGroup[] = [
+        { label: 'Work', items: work },
+        { label: 'Overview', items: overview },
+        { label: 'HR', items: hr },
+        { label: 'Personal', items: personal },
+        { label: 'Admin', items: admin },
     ];
 
     return (
@@ -100,11 +99,11 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={[...mainNavItems, ...adminNavItems]} />
+                <NavMain groups={groups} />
             </SidebarContent>
 
             <SidebarFooter>
-                {auth.permissions.includes('system.deploy') && <UpdateChecker />}
+                {has('system.deploy') && <UpdateChecker />}
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

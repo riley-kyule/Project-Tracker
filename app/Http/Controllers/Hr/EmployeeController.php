@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Hr;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Hr\StoreEmployeeRequest;
 use App\Http\Requests\Hr\UpdateEmployeeRequest;
+use App\Models\CompanySetting;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\User;
@@ -45,8 +46,25 @@ class EmployeeController extends Controller
                 ->whereDoesntHave('employee')
                 ->orderBy('name')
                 ->get(['id', 'name', 'email']),
+            'suggestedStaffNumber' => Employee::suggestNextStaffNumber(),
+            'staffNumberPrefix' => rtrim((string) CompanySetting::current()->staff_number_prefix, '-_ '),
             'canManage' => request()->user()->can('hr.employees.manage'),
         ]);
+    }
+
+    public function updateNumbering(): RedirectResponse
+    {
+        Gate::authorize('create', Employee::class);
+
+        $data = request()->validate([
+            'staff_number_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
+        ]);
+
+        CompanySetting::current()->update([
+            'staff_number_prefix' => ! empty($data['staff_number_prefix']) ? strtoupper($data['staff_number_prefix']) : null,
+        ]);
+
+        return back()->with('success', 'Staff numbering updated.');
     }
 
     public function show(Employee $employee): Response

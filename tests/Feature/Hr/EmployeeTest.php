@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Hr;
 
+use App\Models\CompanySetting;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\User;
@@ -151,6 +152,23 @@ class EmployeeTest extends TestCase
         $employee = Employee::firstWhere('staff_number', 'EMP-2050');
         $this->assertSame('female', $employee->gender);
         $this->assertSame('married', $employee->marital_status);
+    }
+
+    public function test_the_new_employee_form_suggests_the_next_staff_number(): void
+    {
+        $hr = $this->hrManager();
+        Employee::factory()->create(['staff_number' => 'EXO-028']);
+        Employee::factory()->create(['staff_number' => 'EXO-029']);
+
+        // No prefix configured → inferred from the records, padding preserved.
+        $this->actingAs($hr)->get('/hr/employees')
+            ->assertInertia(fn ($p) => $p->where('suggestedStaffNumber', 'EXO-030'));
+
+        // Configured prefix wins and is uppercased.
+        $this->actingAs($hr)->patch('/hr/employees/numbering', ['staff_number_prefix' => 'hr'])->assertRedirect();
+        $this->assertSame('HR', CompanySetting::current()->staff_number_prefix);
+        $this->actingAs($hr)->get('/hr/employees')
+            ->assertInertia(fn ($p) => $p->where('suggestedStaffNumber', 'HR-001'));
     }
 
     public function test_a_user_can_only_be_linked_to_one_employee(): void

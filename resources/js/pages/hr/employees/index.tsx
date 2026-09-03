@@ -35,6 +35,8 @@ type PageProps = {
     departments: Ref[];
     managers: Ref[];
     linkableUsers: { id: number; name: string; email: string }[];
+    suggestedStaffNumber: string;
+    staffNumberPrefix: string;
     canManage: boolean;
 };
 
@@ -56,10 +58,15 @@ function label(value: string) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function CreateEmployeeDialog({ departments, managers, linkableUsers }: Pick<PageProps, 'departments' | 'managers' | 'linkableUsers'>) {
+function CreateEmployeeDialog({
+    departments,
+    managers,
+    linkableUsers,
+    suggestedStaffNumber,
+}: Pick<PageProps, 'departments' | 'managers' | 'linkableUsers' | 'suggestedStaffNumber'>) {
     const [open, setOpen] = useState(false);
     const { data, setData, post, processing, errors, reset, transform } = useForm({
-        staff_number: '',
+        staff_number: suggestedStaffNumber,
         first_name: '',
         middle_name: '',
         last_name: '',
@@ -258,7 +265,59 @@ function CreateEmployeeDialog({ departments, managers, linkableUsers }: Pick<Pag
     );
 }
 
-export default function EmployeesIndex({ employees, departments, managers, linkableUsers, canManage }: PageProps) {
+function NumberingDialog({ prefix, sample }: { prefix: string; sample: string }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, patch, processing, errors } = useForm({ staff_number_prefix: prefix });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        patch('/hr/employees/numbering', { preserveScroll: true, onSuccess: () => setOpen(false) });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline">Numbering</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Staff numbering</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="grid gap-4">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="prefix">Prefix</Label>
+                        <Input
+                            id="prefix"
+                            value={data.staff_number_prefix}
+                            onChange={(e) => setData('staff_number_prefix', e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase())}
+                            placeholder="e.g. EXO"
+                        />
+                        <InputError message={errors.staff_number_prefix} />
+                        <p className="text-muted-foreground text-xs">
+                            New staff numbers are suggested as <span className="font-medium">{data.staff_number_prefix || 'EXO'}-030</span> (the next
+                            free number, padded to match existing ones). Currently: {sample}. Leave blank to infer the prefix from existing records.
+                        </p>
+                    </div>
+                    <div>
+                        <Button type="submit" disabled={processing}>
+                            Save
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function EmployeesIndex({
+    employees,
+    departments,
+    managers,
+    linkableUsers,
+    suggestedStaffNumber,
+    staffNumberPrefix,
+    canManage,
+}: PageProps) {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [includeTerminated, setIncludeTerminated] = useState(false);
@@ -308,7 +367,17 @@ export default function EmployeesIndex({ employees, departments, managers, linka
                         <h1 className="text-xl font-semibold">People</h1>
                         <p className="text-muted-foreground text-sm">{filtered.length} employees</p>
                     </div>
-                    {canManage && <CreateEmployeeDialog departments={departments} managers={managers} linkableUsers={linkableUsers} />}
+                    {canManage && (
+                        <div className="flex gap-2">
+                            <NumberingDialog prefix={staffNumberPrefix} sample={suggestedStaffNumber} />
+                            <CreateEmployeeDialog
+                                departments={departments}
+                                managers={managers}
+                                linkableUsers={linkableUsers}
+                                suggestedStaffNumber={suggestedStaffNumber}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">

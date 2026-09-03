@@ -45,7 +45,7 @@ type Employee = {
     documents: { id: number; name: string; category: string | null; created_at: string }[];
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'My HR', href: '/hr/me/profile' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'My Employee Data', href: '/hr/me/profile' }];
 
 function label(value: string) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -63,7 +63,7 @@ function Field({ label: l, value }: { label: string; value: React.ReactNode }) {
 export default function MyProfile({ employee }: { employee: Employee }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="My HR" />
+            <Head title="My Employee Data" />
             <div className="flex flex-col gap-4 p-4">
                 <div>
                     <h1 className="text-xl font-semibold">{employee.full_name}</h1>

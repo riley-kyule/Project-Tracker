@@ -180,6 +180,42 @@ class Employee extends Model
     }
 
     /**
+     * The staff number to pre-fill on the "new employee" form:
+     * `<prefix>-<next number>`, padded to the width already in use.
+     * Prefix comes from company settings, or is inferred from the records
+     * that already exist (or "EMP" if there are none).
+     */
+    public static function suggestNextStaffNumber(): string
+    {
+        $numbers = static::withTrashed()->whereNotNull('staff_number')->pluck('staff_number');
+
+        $prefix = CompanySetting::current()->staff_number_prefix;
+        $prefix = $prefix !== null ? rtrim($prefix, '-_ ') : null;
+
+        if ($prefix === null || $prefix === '') {
+            $tally = [];
+            foreach ($numbers as $sn) {
+                if (preg_match('/^(.*?)[-_ ]?\d+$/', $sn, $m) && $m[1] !== '') {
+                    $tally[$m[1]] = ($tally[$m[1]] ?? 0) + 1;
+                }
+            }
+            arsort($tally);
+            $prefix = array_key_first($tally) ?: 'EMP';
+        }
+
+        $max = 0;
+        $width = 3;
+        foreach ($numbers as $sn) {
+            if (str_starts_with(mb_strtolower($sn), mb_strtolower($prefix)) && preg_match('/(\d+)$/', $sn, $m)) {
+                $max = max($max, (int) $m[1]);
+                $width = max($width, strlen($m[1]));
+            }
+        }
+
+        return $prefix.'-'.str_pad((string) ($max + 1), $width, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * Narrows a roster query to what {@see EmployeePolicy::view}
      * would allow this user to open one-by-one. Full HR (`hr.employees.manage`)
      * sees everyone; a line manager sees their reports and their own record;
