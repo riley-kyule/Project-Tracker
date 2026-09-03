@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Board;
+use App\Models\Comment;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
@@ -93,14 +94,16 @@ class TicketController extends Controller
             ->when(! $manager, fn ($query) => $query->where('is_internal', false))
             ->with([
                 'user' => fn ($query) => $query->withTrashed()->select('id', 'name'),
-                'replies.user' => fn ($query) => $query->withTrashed()->select('id', 'name'),
+                'replies' => fn ($query) => $query
+                    ->when(! $manager, fn ($q) => $q->where('is_internal', false))
+                    ->with(['user' => fn ($q) => $q->withTrashed()->select('id', 'name')]),
             ])
             ->oldest()
             ->get();
 
-        // Annotate each public response with how long it took after the previous one —
-        // the automatic "time between responses" metric, derived at read time rather
-        // than stored, since comments are never edited/deleted in this app.
+        // Annotate each public top-level response with how long it took after the
+        // previous one — the automatic "time between responses" metric, derived at
+        // read time. Replies (threaded follow-ups) don't feed this metric.
         $lastResponseAt = $ticket->assigned_at ?? $ticket->created_at;
         $comments->each(function ($comment) use (&$lastResponseAt) {
             if ($comment->is_internal) {
@@ -268,14 +271,31 @@ class TicketController extends Controller
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:10000'],
             'is_internal' => ['sometimes', 'boolean'],
+            'parent_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('comments', 'id')
+                    ->where('commentable_type', Ticket::class)
+                    ->where('commentable_id', $ticket->id)
+                    ->whereNull('parent_id'),
+            ],
         ]);
 
         $isInternal = $request->boolean('is_internal') && $request->user()->can('tickets.manage');
+
+        // A public reply may not hang off an internal note (it would leak the
+        // note's existence to the requester via the thread); managers only.
+        $parentId = $validated['parent_id'] ?? null;
+        if ($parentId !== null && ! $request->user()->can('tickets.manage')) {
+            $parentIsInternal = Comment::whereKey($parentId)->value('is_internal');
+            abort_if($parentIsInternal, 403);
+        }
 
         $comment = $ticket->comments()->create([
             'user_id' => $request->user()->id,
             'body' => $validated['body'],
             'is_internal' => $isInternal,
+            'parent_id' => $parentId,
         ]);
 
         if (! $isInternal) {

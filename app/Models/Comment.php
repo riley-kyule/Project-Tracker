@@ -14,6 +14,9 @@ class Comment extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /** How long after posting the author may still edit their own comment. */
+    public const EDIT_WINDOW_MINUTES = 10;
+
     public const NOTE_COMPLETED_WORK = 'completed_work';
 
     public const NOTE_BLOCKER = 'blocker';
@@ -38,6 +41,7 @@ class Comment extends Model
         'is_internal',
         'note_type',
         'structured_fields',
+        'edited_at',
     ];
 
     protected function casts(): array
@@ -53,6 +57,20 @@ class Comment extends Model
     public function isProgressNote(): bool
     {
         return $this->note_type !== null;
+    }
+
+    /**
+     * The author may edit their own free-text comment for a short window after
+     * posting (EDIT_WINDOW_MINUTES). Structured progress notes are not
+     * free-text-editable and deleted comments can't be edited.
+     */
+    public function isEditableBy(User $user): bool
+    {
+        return $this->user_id === $user->id
+            && $this->note_type === null
+            && $this->deleted_at === null
+            && $this->created_at !== null
+            && $this->created_at->gt(now()->subMinutes(self::EDIT_WINDOW_MINUTES));
     }
 
     public function commentable(): MorphTo

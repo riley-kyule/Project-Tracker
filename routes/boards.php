@@ -71,6 +71,8 @@ Route::middleware(['auth', 'throttle:api-writes'])->group(function () {
     Route::post('tasks/{task}/reject-review', [TaskApprovalController::class, 'reject'])->name('task-approvals.reject');
 
     Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
+    // Parent-agnostic (task or ticket comment) — the controller resolves the commentable.
+    Route::patch('comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
     Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
 
     Route::post('tasks/{task}/checklists', [ChecklistController::class, 'store'])->name('checklists.store');

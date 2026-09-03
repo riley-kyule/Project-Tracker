@@ -160,6 +160,35 @@ class CommentTest extends TestCase
         ]);
     }
 
+    public function test_author_can_edit_own_comment_within_the_window_but_not_after()
+    {
+        $author = User::factory()->create()->assignRole('Employee');
+        $other = User::factory()->create()->assignRole('Employee');
+        $task = $this->makeTask($author);
+
+        $this->actingAs($author)->post("/tasks/{$task->id}/comments", ['body' => 'Original']);
+        $comment = Comment::query()->firstOrFail();
+
+        // Someone else may never edit it.
+        $this->actingAs($other)->patch("/comments/{$comment->id}", ['body' => 'Hijacked'])->assertForbidden();
+
+        // Author, inside the 10-minute window.
+        $this->actingAs($author)->patch("/comments/{$comment->id}", ['body' => 'Edited'])->assertRedirect();
+        $comment->refresh();
+        $this->assertSame('Edited', $comment->body);
+        $this->assertNotNull($comment->edited_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'auditable_type' => Task::class,
+            'auditable_id' => $task->id,
+            'event' => 'comment_edited',
+        ]);
+
+        // Past the window — locked.
+        $comment->forceFill(['created_at' => now()->subMinutes(Comment::EDIT_WINDOW_MINUTES + 1)])->save();
+        $this->actingAs($author)->patch("/comments/{$comment->id}", ['body' => 'Too late'])->assertForbidden();
+        $this->assertSame('Edited', $comment->fresh()->body);
+    }
+
     public function test_author_cannot_delete_comment_after_losing_parent_access()
     {
         $creator = User::factory()->create()->assignRole('Employee');

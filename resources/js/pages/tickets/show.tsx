@@ -1,3 +1,4 @@
+import { CommentThread } from '@/components/comments/comment-thread';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { priorityColors, statusLabels, statusVariants, type TicketStatus } from 
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage, usePoll } from '@inertiajs/react';
 import { Lock, Paperclip } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 type Person = { id: number; name: string };
@@ -56,8 +57,9 @@ type TicketComment = {
     is_internal: boolean;
     user: Person | null;
     created_at: string;
+    edited_at: string | null;
     gap_minutes: number | null;
-    replies: { id: number; body: string; is_internal: boolean; user: Person | null; created_at: string }[];
+    replies: { id: number; body: string; is_internal: boolean; user: Person | null; created_at: string; edited_at: string | null }[];
 };
 
 function formatGap(minutes: number): string {
@@ -241,7 +243,19 @@ export default function TicketShow({
 }) {
     const { auth } = usePage<SharedData>().props;
     const fileInput = useRef<HTMLInputElement>(null);
-    const commentForm = useForm<{ body: string; is_internal: boolean }>({ body: '', is_internal: false });
+    const draftKey = `ticket-${ticket.id}-response-draft`;
+    const commentForm = useForm<{ body: string; is_internal: boolean; parent_id: number | null }>({
+        body: (() => {
+            try {
+                return localStorage.getItem(draftKey) ?? '';
+            } catch {
+                return '';
+            }
+        })(),
+        is_internal: false,
+        parent_id: null,
+    });
+    const [replyTo, setReplyTo] = useState<TicketComment | null>(null);
     const [assigning, setAssigning] = useState(false);
     const [confirmingResolved, setConfirmingResolved] = useState(false);
     const [reopening, setReopening] = useState(false);
@@ -256,13 +270,47 @@ export default function TicketShow({
         { title: `TK-${ticket.ticket_number}`, href: `/tickets/${ticket.id}` },
     ];
 
+    // Keep the in-progress response through an accidental blur / navigation.
+    useEffect(() => {
+        try {
+            if (commentForm.data.body) localStorage.setItem(draftKey, commentForm.data.body);
+            else localStorage.removeItem(draftKey);
+        } catch {
+            /* storage disabled — draft just isn't kept */
+        }
+    }, [commentForm.data.body, draftKey]);
+
     const submitComment = (e: React.FormEvent) => {
         e.preventDefault();
+        commentForm.transform((data) => ({ ...data, parent_id: replyTo?.id ?? null }));
         commentForm.post(`/tickets/${ticket.id}/comments`, {
             preserveScroll: true,
-            onSuccess: () => commentForm.reset(),
+            onSuccess: () => {
+                // Not reset() — its defaults captured the restored draft.
+                commentForm.setData('body', '');
+                commentForm.setData('is_internal', false);
+                commentForm.transform((data) => data);
+                setReplyTo(null);
+            },
         });
     };
+
+    const editComment = (id: number, body: string) =>
+        new Promise<void>((resolve, reject) => {
+            router.patch(
+                `/comments/${id}`,
+                { body },
+                {
+                    preserveScroll: true,
+                    preserveState: false,
+                    onSuccess: () => resolve(),
+                    onError: () => {
+                        toast.error('That response can no longer be edited.');
+                        reject(new Error('edit failed'));
+                    },
+                },
+            );
+        });
 
     const canReopen = (ticket.status === 'resolved' || ticket.status === 'closed') && (isManager || auth.user.id === ticket.requester?.id);
     const canConfirmResolvedNow = canConfirmResolved && (isManager || auth.user.id === ticket.requester?.id);
@@ -484,45 +532,38 @@ export default function TicketShow({
                 </div>
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-                    <h2 className="mb-2 text-sm font-semibold">Comments</h2>
-                    <ul className="space-y-3">
-                        {comments.map((comment) => (
-                            <li
-                                key={comment.id}
-                                className={`rounded-lg border p-3 ${
-                                    comment.is_internal
-                                        ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30'
-                                        : 'border-sidebar-border/70 dark:border-sidebar-border'
-                                }`}
-                            >
-                                <div className="mb-1 flex items-center gap-2 text-xs">
-                                    <span className="font-semibold">{comment.user?.name ?? 'Deleted user'}</span>
-                                    {comment.is_internal && (
-                                        <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                                            <Lock className="size-3" /> Internal note
-                                        </span>
-                                    )}
-                                    <span className="text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</span>
-                                    {comment.gap_minutes !== null && (
-                                        <span className="text-muted-foreground">· responded {formatGap(comment.gap_minutes)} later</span>
-                                    )}
-                                </div>
-                                <p className="text-sm whitespace-pre-wrap">{comment.body}</p>
-                            </li>
-                        ))}
-                        {comments.length === 0 && <li className="text-muted-foreground text-sm">No comments yet.</li>}
-                    </ul>
+                    <h2 className="mb-2 text-sm font-semibold">Responses</h2>
+                    <CommentThread
+                        comments={comments}
+                        currentUserId={auth.user.id}
+                        nounSingular="response"
+                        onReply={(comment) => setReplyTo(comment as TicketComment)}
+                        onEdit={(id, body) => editComment(id, body)}
+                        renderMeta={(comment) =>
+                            comment.gap_minutes != null ? (
+                                <span className="text-muted-foreground">responded {formatGap(comment.gap_minutes)} later</span>
+                            ) : null
+                        }
+                    />
                     <form onSubmit={submitComment} className="mt-3 space-y-2">
+                        {replyTo && (
+                            <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                                Replying to {replyTo.user?.name ?? 'response'}
+                                <button type="button" aria-label="Cancel reply" onClick={() => setReplyTo(null)} className="hover:text-foreground">
+                                    ✕
+                                </button>
+                            </div>
+                        )}
                         <textarea
                             value={commentForm.data.body}
                             onChange={(e) => commentForm.setData('body', e.target.value)}
                             rows={2}
-                            placeholder="Write a comment…"
+                            placeholder="Write a response…"
                             className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-1 focus-visible:outline-none"
                         />
                         <div className="flex items-center gap-3">
                             <Button type="submit" size="sm" disabled={commentForm.processing}>
-                                Comment
+                                {replyTo ? 'Reply' : 'Respond'}
                             </Button>
                             {isManager && (
                                 <label className="flex items-center gap-1.5 text-xs">

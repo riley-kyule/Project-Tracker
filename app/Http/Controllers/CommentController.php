@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\Task;
+use App\Models\Ticket;
 use App\Services\AuditLogger;
 use App\Services\CommentService;
 use Illuminate\Http\RedirectResponse;
@@ -41,6 +42,29 @@ class CommentController extends Controller
             $validated['note_type'] ?? null,
             $validated['structured_fields'] ?? null,
         );
+
+        return back();
+    }
+
+    /** Author-only edit of a free-text comment, allowed for Comment::EDIT_WINDOW_MINUTES after posting. Serves both task and ticket comments. */
+    public function update(Request $request, Comment $comment): RedirectResponse
+    {
+        $parent = $comment->commentable;
+        abort_unless($parent instanceof Task || $parent instanceof Ticket, 404);
+        Gate::authorize('view', $parent);
+
+        abort_unless($comment->isEditableBy($request->user()), 403);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:10000'],
+        ]);
+
+        $comment->forceFill([
+            'body' => $validated['body'],
+            'edited_at' => now(),
+        ])->save();
+
+        AuditLogger::log($parent, 'comment_edited', [], ['comment_id' => $comment->id]);
 
         return back();
     }

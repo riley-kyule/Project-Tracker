@@ -254,4 +254,27 @@ class TicketLifecycleTest extends TestCase
         $this->assertStringNotContainsString('broken this twice', $response->getContent());
         $this->assertStringContainsString('We are looking into it.', $response->getContent());
     }
+
+    public function test_a_ticket_response_can_be_replied_to_as_a_thread()
+    {
+        $requester = User::factory()->create()->assignRole('Employee');
+        $tech = User::factory()->create()->assignRole('IT Technician');
+        $ticket = Ticket::factory()->create(['requester_id' => $requester->id, 'category_id' => $this->category()->id]);
+
+        $this->actingAs($tech)->post("/tickets/{$ticket->id}/comments", ['body' => 'Have you tried restarting?']);
+        $parent = $ticket->comments()->firstOrFail();
+
+        $this->actingAs($requester)
+            ->post("/tickets/{$ticket->id}/comments", ['body' => 'Yes, still broken.', 'parent_id' => $parent->id])
+            ->assertRedirect();
+
+        $this->assertSame(1, $parent->replies()->count());
+
+        // The requester may not hang a public reply off an internal note.
+        $this->actingAs($tech)->post("/tickets/{$ticket->id}/comments", ['body' => 'Escalating quietly.', 'is_internal' => true]);
+        $internal = $ticket->comments()->where('is_internal', true)->firstOrFail();
+        $this->actingAs($requester)
+            ->post("/tickets/{$ticket->id}/comments", ['body' => 'What is this?', 'parent_id' => $internal->id])
+            ->assertForbidden();
+    }
 }
