@@ -4,6 +4,7 @@ import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -110,19 +111,14 @@ function BulkReassignBar({ selectedIds, people, onDone }: { selectedIds: number[
     return (
         <div className="bg-muted/50 border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-center gap-2 rounded-xl border p-3">
             <span className="text-sm font-medium">{selectedIds.length} selected</span>
-            <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger className="w-48" aria-label="Reassign to">
-                    <SelectValue placeholder="Reassign to…" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value={ALL}>Unassign</SelectItem>
-                    {people.map((person) => (
-                        <SelectItem key={person.id} value={person.id.toString()}>
-                            {person.name}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+            <Combobox
+                className="w-48"
+                aria-label="Reassign to"
+                value={assigneeId === ALL ? '' : assigneeId}
+                onChange={(v) => setAssigneeId(v || ALL)}
+                placeholder="Reassign to…"
+                options={[{ value: ALL, label: 'Unassign' }, ...people.map((person) => ({ value: person.id.toString(), label: person.name }))]}
+            />
             <Button size="sm" onClick={submit} disabled={processing}>
                 Apply
             </Button>
@@ -235,19 +231,17 @@ export default function TasksReport({
                                 ))}
                             </SelectContent>
                         </Select>
-                        <Select value={selected.assignee_id ?? ALL} onValueChange={(value) => apply({ assignee_id: value })}>
-                            <SelectTrigger className="w-44" aria-label="Filter by assignee">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>All assignees</SelectItem>
-                                {people.map((person) => (
-                                    <SelectItem key={person.id} value={person.id.toString()}>
-                                        {person.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            className="w-44"
+                            aria-label="Filter by assignee"
+                            value={!selected.assignee_id || selected.assignee_id === ALL ? '' : selected.assignee_id}
+                            onChange={(value) => apply({ assignee_id: value || ALL })}
+                            placeholder="All assignees"
+                            options={[
+                                { value: ALL, label: 'All assignees' },
+                                ...people.map((person) => ({ value: person.id.toString(), label: person.name })),
+                            ]}
+                        />
                         <SaveFilterDialog currentFilters={currentFilters} />
                     </div>
                 </div>
