@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Trash2 } from 'lucide-react';
@@ -57,7 +58,7 @@ export default function HolidaysPage({ holidays }: { holidays: Holiday[] }) {
                             {holidays.map((h) => (
                                 <tr key={h.id} className="border-b last:border-0">
                                     <td className="px-3 py-2 font-medium">{h.name}</td>
-                                    <td className="px-3 py-2">{h.date}</td>
+                                    <td className="px-3 py-2">{fmtDate(h.date)}</td>
                                     <td className="px-3 py-2">{h.is_recurring && <Badge variant="outline">yearly</Badge>}</td>
                                     <td className="px-3 py-2 text-right">
                                         <Button

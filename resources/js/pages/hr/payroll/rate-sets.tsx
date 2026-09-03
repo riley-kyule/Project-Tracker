@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
@@ -235,10 +236,10 @@ export default function RateSetsPage({ rateSets }: { rateSets: RateSet[] }) {
                                     {rs.name} {!rs.is_active && <Badge variant="outline">inactive</Badge>}
                                 </div>
                                 <div className="text-muted-foreground text-xs">
-                                    From {rs.effective_from}
-                                    {rs.effective_to ? ` to ${rs.effective_to}` : ' (open)'} · personal relief {rs.payload.personal_relief_monthly} ·
-                                    NSSF {(rs.payload.nssf.rate * 100).toFixed(1)}% · SHIF {(rs.payload.shif.rate * 100).toFixed(2)}% · AHL{' '}
-                                    {(rs.payload.housing_levy.employee_rate * 100).toFixed(1)}%
+                                    From {fmtDate(rs.effective_from)}
+                                    {rs.effective_to ? ` to ${fmtDate(rs.effective_to)}` : ' (open)'} · personal relief{' '}
+                                    {rs.payload.personal_relief_monthly} · NSSF {(rs.payload.nssf.rate * 100).toFixed(1)}% · SHIF{' '}
+                                    {(rs.payload.shif.rate * 100).toFixed(2)}% · AHL {(rs.payload.housing_levy.employee_rate * 100).toFixed(1)}%
                                 </div>
                             </div>
                             <RateSetDialog rateSet={rs} />

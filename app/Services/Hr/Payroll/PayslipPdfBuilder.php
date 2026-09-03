@@ -14,13 +14,15 @@ class PayslipPdfBuilder
     public function store(Payslip $payslip): string
     {
         $payslip->loadMissing('employee.department', 'period');
+        $company = CompanySetting::current();
 
         $pdf = Pdf::loadView('hr.payslip', [
             'payslip' => $payslip,
             'employee' => $payslip->employee,
             'period' => $payslip->period,
-            'company' => CompanySetting::current(),
-            'appName' => config('app.name'),
+            'company' => $company,
+            'companyName' => $company->payslip_company_name ?: config('app.name'),
+            'logoData' => $this->logoDataUri($company->payslip_logo_path),
         ]);
 
         $path = "hr/payslips/{$payslip->payroll_period_id}/{$payslip->id}.pdf";
@@ -47,5 +49,17 @@ class PayslipPdfBuilder
         $name = str($payslip->employee->full_name)->slug();
 
         return "payslip-{$name}-{$payslip->period->year}-{$payslip->period->month}.pdf";
+    }
+
+    /** The letterhead logo as a base64 data URI dompdf can embed, or null. */
+    private function logoDataUri(?string $path): ?string
+    {
+        if (! $path || ! Storage::disk('local')->exists($path)) {
+            return null;
+        }
+
+        $mime = Storage::disk('local')->mimeType($path) ?: 'image/png';
+
+        return "data:{$mime};base64,".base64_encode(Storage::disk('local')->get($path));
     }
 }

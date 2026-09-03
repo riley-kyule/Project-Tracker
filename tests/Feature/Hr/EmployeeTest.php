@@ -145,6 +145,42 @@ class EmployeeTest extends TestCase
         ])->assertSessionHasErrors('user_id');
     }
 
+    public function test_an_existing_employee_can_be_linked_to_a_login_account_from_the_edit_page(): void
+    {
+        $hr = $this->hrManager();
+        $department = Department::factory()->create();
+        $employee = Employee::factory()->create(['user_id' => null, 'department_id' => $department->id, 'is_org_head' => true]);
+        $account = User::factory()->create();
+
+        // The edit form is populated from the show page — it must offer the account.
+        $this->actingAs($hr)->get("/hr/employees/{$employee->id}")->assertInertia(fn ($page) => $page
+            ->where('linkableUsers', fn ($users) => collect($users)->contains('id', $account->id)));
+
+        $this->actingAs($hr)->patch("/hr/employees/{$employee->id}", [
+            ...$employee->only(['staff_number', 'first_name', 'last_name', 'employment_type', 'employment_status', 'payment_method', 'department_id']),
+            'is_org_head' => true,
+            'user_id' => $account->id,
+        ])->assertRedirect();
+
+        $this->assertSame($account->id, $employee->fresh()->user_id);
+    }
+
+    public function test_an_employee_can_be_unlinked_from_its_login_account(): void
+    {
+        $hr = $this->hrManager();
+        $department = Department::factory()->create();
+        $account = User::factory()->create();
+        $employee = Employee::factory()->create(['user_id' => $account->id, 'department_id' => $department->id, 'is_org_head' => true]);
+
+        $this->actingAs($hr)->patch("/hr/employees/{$employee->id}", [
+            ...$employee->only(['staff_number', 'first_name', 'last_name', 'employment_type', 'employment_status', 'payment_method', 'department_id']),
+            'is_org_head' => true,
+            'user_id' => null,
+        ])->assertRedirect();
+
+        $this->assertNull($employee->fresh()->user_id);
+    }
+
     public function test_an_employee_can_view_their_own_linked_record_via_self_service(): void
     {
         $account = User::factory()->create()->assignRole('Employee');

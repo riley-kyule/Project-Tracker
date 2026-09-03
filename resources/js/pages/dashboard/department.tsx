@@ -1,5 +1,6 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 
@@ -35,12 +36,8 @@ function TaskList({ title, tasks }: { title: string; tasks: DeptTask[] }) {
                             {task.title}
                         </Link>
                         {task.assignee && <span className="text-muted-foreground text-xs">{task.assignee.name}</span>}
-                        {task.due_at && !task.completed_at && (
-                            <span className="text-muted-foreground ml-auto text-xs">{new Date(task.due_at).toLocaleDateString()}</span>
-                        )}
-                        {task.completed_at && (
-                            <span className="text-muted-foreground ml-auto text-xs">done {new Date(task.completed_at).toLocaleDateString()}</span>
-                        )}
+                        {task.due_at && !task.completed_at && <span className="text-muted-foreground ml-auto text-xs">{fmtDate(task.due_at)}</span>}
+                        {task.completed_at && <span className="text-muted-foreground ml-auto text-xs">done {fmtDate(task.completed_at)}</span>}
                     </li>
                 ))}
                 {tasks.length === 0 && <li className="text-muted-foreground py-1.5 text-sm">Nothing here.</li>}

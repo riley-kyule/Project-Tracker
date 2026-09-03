@@ -85,6 +85,7 @@ class PayrollPeriodController extends Controller
                 'employer_cost' => (float) $payrollPeriod->payslips()->sum('employer_cost'),
             ],
             'reports' => StatutoryReportBuilder::REPORTS,
+            'requiresSecondApproval' => (bool) CompanySetting::current()->payroll_requires_second_approval,
             'can' => [
                 'process' => request()->user()->can('process', $payrollPeriod),
                 'approve' => request()->user()->can('approve', $payrollPeriod),
@@ -148,15 +149,33 @@ class PayrollPeriodController extends Controller
     {
         Gate::authorize('markPaid', $payrollPeriod);
 
-        $payrollPeriod->update(['status' => PayrollPeriod::STATUS_PAID, 'paid_at' => now()]);
+        $update = ['status' => PayrollPeriod::STATUS_PAID, 'paid_at' => now()];
 
-        foreach ($payrollPeriod->payslips()->pluck('id') as $payslipId) {
-            SendPayslipNotification::dispatch($payslipId);
+        // When no second sign-off is required the HR Manager comes straight
+        // from "review" — record them as the approver too.
+        if ($payrollPeriod->status === PayrollPeriod::STATUS_REVIEW) {
+            $update['approved_by'] = request()->user()->id;
+            $update['approved_at'] = now();
         }
 
-        AuditLogger::log($payrollPeriod, 'payroll_paid', [], []);
+        $payrollPeriod->update($update);
 
-        return back()->with('success', 'Marked as paid — payslip notifications sent.');
+        // Payslip emails go out now, or are delayed until the pay date, per
+        // the payroll setting.
+        $sendAt = CompanySetting::current()->payslip_dispatch_timing === 'on_pay_date'
+            && $payrollPeriod->pay_date->isFuture()
+                ? $payrollPeriod->pay_date
+                : null;
+
+        foreach ($payrollPeriod->payslips()->pluck('id') as $payslipId) {
+            SendPayslipNotification::dispatch($payslipId)->delay($sendAt);
+        }
+
+        AuditLogger::log($payrollPeriod, 'payroll_paid', [], ['payslips_send_at' => $sendAt?->toDateString() ?? 'now']);
+
+        return back()->with('success', $sendAt
+            ? "Marked as paid — payslips will be emailed on {$sendAt->format('d/M/Y')}."
+            : 'Marked as paid — payslip emails sent.');
     }
 
     public function export(PayrollPeriod $payrollPeriod, string $report, StatutoryReportBuilder $builder): StreamedResponse

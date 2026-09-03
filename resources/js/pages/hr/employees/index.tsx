@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
@@ -358,7 +359,7 @@ export default function EmployeesIndex({ employees, departments, managers, linka
                                     <td className="px-3 py-2">
                                         <Badge variant={STATUS_VARIANT[e.employment_status] ?? 'outline'}>{label(e.employment_status)}</Badge>
                                     </td>
-                                    <td className="text-muted-foreground px-3 py-2">{e.contract_end_date ?? '—'}</td>
+                                    <td className="text-muted-foreground px-3 py-2">{e.contract_end_date ? fmtDate(e.contract_end_date) : '—'}</td>
                                 </tr>
                             ))}
                             {filtered.length === 0 && (

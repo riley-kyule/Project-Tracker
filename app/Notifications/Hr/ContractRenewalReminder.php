@@ -33,7 +33,7 @@ class ContractRenewalReminder extends Notification
     {
         [$address, $name] = CompanySetting::hrMailFrom("CONTRACT RENEWAL REMINDER - {$this->employee->full_name}");
 
-        $ends = $this->employee->contract_end_date?->toFormattedDateString();
+        $ends = $this->employee->contract_end_date?->format('d/M/Y');
 
         return (new MailMessage)
             ->from($address, $name)

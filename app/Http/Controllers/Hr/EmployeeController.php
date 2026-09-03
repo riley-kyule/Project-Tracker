@@ -155,6 +155,12 @@ class EmployeeController extends Controller
             'managers' => Employee::query()->active()->where('id', '!=', $employee->id)->orderBy('first_name')
                 ->get(['id', 'first_name', 'middle_name', 'last_name'])
                 ->map(fn (Employee $e) => ['id' => $e->id, 'name' => $e->full_name]),
+            // Login accounts that can be linked: any not already tied to another
+            // employee, plus this employee's own current one.
+            'linkableUsers' => User::query()
+                ->where(fn ($q) => $q->whereDoesntHave('employee')->orWhere('id', $employee->user_id))
+                ->orderBy('name')
+                ->get(['id', 'name', 'email']),
             'canManage' => request()->user()->can('hr.employees.manage'),
             'canManageCompensation' => request()->user()->can('manageCompensation', $employee),
             'canViewCompensation' => $canViewComp,

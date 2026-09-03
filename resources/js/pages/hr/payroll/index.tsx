@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Plus, Sliders } from 'lucide-react';
+import { Cog, Plus, Sliders } from 'lucide-react';
 import { useState } from 'react';
 
 type PeriodRow = {
@@ -107,6 +108,9 @@ export default function PayrollIndex({ periods }: { periods: PeriodRow[] }) {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h1 className="text-xl font-semibold">Payroll</h1>
                     <div className="flex gap-2">
+                        <Link href="/hr/payroll/settings" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
+                            <Cog className="h-4 w-4" /> Settings
+                        </Link>
                         <Link href="/hr/payroll/rate-sets" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
                             <Sliders className="h-4 w-4" /> Statutory rates
                         </Link>
@@ -133,7 +137,7 @@ export default function PayrollIndex({ periods }: { periods: PeriodRow[] }) {
                                             {p.label}
                                         </Link>
                                     </td>
-                                    <td className="px-3 py-2">{p.pay_date}</td>
+                                    <td className="px-3 py-2">{fmtDate(p.pay_date)}</td>
                                     <td className="px-3 py-2">
                                         <Badge variant={STATUS_VARIANT[p.status] ?? 'outline'}>{p.status}</Badge>
                                     </td>

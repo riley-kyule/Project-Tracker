@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Download } from 'lucide-react';
@@ -41,7 +42,7 @@ export default function MyPayslips({ payslips }: { payslips: PayslipRow[] }) {
                             {payslips.map((p) => (
                                 <tr key={p.id} className="border-t">
                                     <td className="px-3 py-2 font-medium">{p.period}</td>
-                                    <td className="px-3 py-2">{p.pay_date}</td>
+                                    <td className="px-3 py-2">{fmtDate(p.pay_date)}</td>
                                     <td className="px-3 py-2">{money(p.gross_pay, p.currency)}</td>
                                     <td className="px-3 py-2">{money(p.total_deductions, p.currency)}</td>
                                     <td className="px-3 py-2 font-medium">{money(p.net_pay, p.currency)}</td>

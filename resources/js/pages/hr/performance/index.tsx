@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
@@ -141,7 +142,8 @@ export default function PerformanceIndex({ cycles, selectedCycleId, reviews, can
                             <div>
                                 <h2 className="text-sm font-semibold">{selected.name}</h2>
                                 <p className="text-muted-foreground text-xs">
-                                    {label(selected.type)} · {selected.period_start} – {selected.period_end} · {selected.reviews_count} reviews
+                                    {label(selected.type)} · {fmtDate(selected.period_start)} – {fmtDate(selected.period_end)} ·{' '}
+                                    {selected.reviews_count} reviews
                                 </p>
                             </div>
                             {canManage && selected.status === 'draft' && (

@@ -32,7 +32,7 @@ class LeaveRequestSubmitted extends Notification
             ->from($address, $name)
             ->subject("Leave request: {$r->employee->full_name} — {$r->leaveType->name}")
             ->line("{$r->employee->full_name} has requested {$r->days} day(s) of {$r->leaveType->name}.")
-            ->line("Dates: {$r->start_date->toFormattedDateString()} to {$r->end_date->toFormattedDateString()}.")
+            ->line("Dates: {$r->start_date->format('d/M/Y')} to {$r->end_date->format('d/M/Y')}.")
             ->when($r->is_emergency, fn (MailMessage $m) => $m->line('Flagged as emergency leave.'))
             ->when($r->reason, fn (MailMessage $m) => $m->line("Reason: {$r->reason}"))
             ->action('Review request', route('hr.leave.index'));

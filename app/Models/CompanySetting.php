@@ -25,6 +25,11 @@ class CompanySetting extends Model
         'payroll_currency',
         'default_pay_day',
         'payslip_footer_note',
+        'payslip_company_name',
+        'payslip_company_address',
+        'payslip_logo_path',
+        'payslip_dispatch_timing',
+        'payroll_requires_second_approval',
         'nita_levy_enabled',
         'epe_api_url',
         'epe_site_key',
@@ -60,6 +65,7 @@ class CompanySetting extends Model
             'google_drive_token_expires_at' => 'datetime',
             'business_hours_days' => 'array',
             'nita_levy_enabled' => 'boolean',
+            'payroll_requires_second_approval' => 'boolean',
             'default_pay_day' => 'integer',
         ];
     }

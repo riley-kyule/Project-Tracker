@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Download } from 'lucide-react';
@@ -84,7 +85,7 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                     <Card className="p-4">
                         <h2 className="mb-3 text-sm font-semibold">Personal</h2>
                         <div className="grid grid-cols-2 gap-3">
-                            <Field label="Date of birth" value={employee.date_of_birth} />
+                            <Field label="Date of birth" value={fmtDate(employee.date_of_birth)} />
                             <Field label="Gender" value={employee.gender} />
                             <Field label="Marital status" value={employee.marital_status} />
                             <Field label="National ID" value={employee.national_id_number} />
@@ -108,9 +109,9 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Type" value={label(employee.employment_type)} />
                             <Field label="Reports to" value={employee.manager?.name} />
-                            <Field label="Date hired" value={employee.date_hired} />
-                            <Field label="Contract start" value={employee.contract_start_date} />
-                            <Field label="Contract end" value={employee.contract_end_date} />
+                            <Field label="Date hired" value={fmtDate(employee.date_hired)} />
+                            <Field label="Contract start" value={fmtDate(employee.contract_start_date)} />
+                            <Field label="Contract end" value={fmtDate(employee.contract_end_date)} />
                         </div>
                     </Card>
                     <Card className="p-4">
@@ -157,8 +158,8 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                                         <td className="py-1.5 pr-3">{c.title}</td>
                                         <td className="py-1.5 pr-3">{c.department?.name ?? '—'}</td>
                                         <td className="py-1.5 pr-3">{label(c.employment_type)}</td>
-                                        <td className="py-1.5 pr-3">{c.start_date}</td>
-                                        <td className="py-1.5 pr-3">{c.end_date ?? '—'}</td>
+                                        <td className="py-1.5 pr-3">{fmtDate(c.start_date)}</td>
+                                        <td className="py-1.5 pr-3">{c.end_date ? fmtDate(c.end_date) : '—'}</td>
                                     </tr>
                                 ))}
                                 {employee.contracts.length === 0 && (
@@ -181,7 +182,7 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                                 <div key={a.id} className="rounded border p-3 text-sm">
                                     <span className="font-medium">{a.asset?.name ?? '—'}</span>
                                     <span className="text-muted-foreground ml-2">{a.asset?.asset_tag}</span>
-                                    <div className="text-muted-foreground text-xs">Since {new Date(a.assigned_at).toLocaleDateString()}</div>
+                                    <div className="text-muted-foreground text-xs">Since {fmtDate(a.assigned_at)}</div>
                                 </div>
                             ))}
                             {employee.assets.length === 0 && <p className="text-muted-foreground text-sm">None.</p>}

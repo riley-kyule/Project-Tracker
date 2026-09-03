@@ -8,6 +8,7 @@ import {
     Activity,
     Banknote,
     BarChart3,
+    Briefcase,
     Building2,
     CalendarDays,
     Crown,
@@ -15,7 +16,6 @@ import {
     Gauge,
     IdCard,
     KanbanSquare,
-    Laptop,
     LayoutGrid,
     LifeBuoy,
     LineChart,
@@ -23,7 +23,6 @@ import {
     Mail,
     Sliders,
     Tag,
-    Target,
     UserCog,
     Users,
     UsersRound,
@@ -58,6 +57,14 @@ export function AppSidebar() {
 
     const isExec = auth.roles.includes('CEO') || auth.roles.includes('Administrator');
 
+    const hrmsChildren: NavItem[] = [
+        ...(auth.permissions.includes('hr.employees.view') ? [{ title: 'People', url: '/hr/employees' }] : []),
+        ...(auth.permissions.includes('hr.assets.view') ? [{ title: 'Assets', url: '/hr/assets' }] : []),
+        ...(auth.permissions.includes('hr.leave.view') ? [{ title: 'Leave', url: '/hr/leave' }] : []),
+        ...(auth.permissions.includes('hr.payroll.view') ? [{ title: 'Payroll', url: '/hr/payroll' }] : []),
+        ...(auth.permissions.includes('hr.performance.view') ? [{ title: 'Performance', url: '/hr/performance' }] : []),
+    ];
+
     const adminNavItems: NavItem[] = [
         ...(isExec ? [{ title: 'CEO Dashboard', url: '/dashboards/ceo', icon: Crown }] : []),
         ...(auth.managesDepartment ? [{ title: 'My Department', url: '/dashboards/department', icon: UsersRound }] : []),
@@ -66,13 +73,9 @@ export function AppSidebar() {
         ...(auth.permissions.includes('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
         ...(auth.permissions.includes('tickets.manage') ? [{ title: 'SLA Policies', url: '/admin/sla-policies', icon: Sliders }] : []),
         ...(auth.permissions.includes('wordpress.manage') ? [{ title: 'WordPress Users', url: '/admin/wordpress-users', icon: UserCog }] : []),
-        ...(auth.permissions.includes('hr.employees.view') ? [{ title: 'People', url: '/hr/employees', icon: IdCard }] : []),
-        ...(auth.permissions.includes('hr.assets.view') ? [{ title: 'Assets', url: '/hr/assets', icon: Laptop }] : []),
-        ...(auth.permissions.includes('hr.leave.view') ? [{ title: 'Leave', url: '/hr/leave', icon: CalendarDays }] : []),
-        ...(auth.permissions.includes('hr.payroll.view') ? [{ title: 'Payroll', url: '/hr/payroll', icon: Banknote }] : []),
-        ...(auth.permissions.includes('hr.performance.view') ? [{ title: 'Performance', url: '/hr/performance', icon: Target }] : []),
-        ...(auth.hasEmployeeRecord ? [{ title: 'My HR', url: '/hr/me/profile', icon: IdCard }] : []),
-        ...(auth.hasEmployeeRecord ? [{ title: 'My Leave', url: '/hr/me/leave', icon: CalendarDays }] : []),
+        ...(hrmsChildren.length > 0 ? [{ title: 'HRMS', url: '/hr/employees', icon: Briefcase, items: hrmsChildren }] : []),
+        ...(auth.hasEmployeeRecord ? [{ title: 'My Employee Data', url: '/hr/me/profile', icon: IdCard }] : []),
+        ...(auth.hasEmployeeRecord ? [{ title: 'Leave Application', url: '/hr/me/leave', icon: CalendarDays }] : []),
         ...(auth.hasEmployeeRecord ? [{ title: 'My Payslips', url: '/hr/me/payslips', icon: Banknote }] : []),
         ...(auth.permissions.includes('departments.view') ? [{ title: 'Departments', url: '/admin/departments', icon: Building2 }] : []),
         ...(auth.permissions.includes('labels.manage') ? [{ title: 'Labels', url: '/admin/labels', icon: Tag }] : []),

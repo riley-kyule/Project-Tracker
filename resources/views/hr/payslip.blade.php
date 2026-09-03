@@ -20,11 +20,29 @@
 </head>
 @php $c = $payslip->currency; $money = fn ($v) => $c . ' ' . number_format((float) $v, 2); @endphp
 <body>
-    <h1>{{ $appName }} — Payslip</h1>
-    <div class="meta">
-        {{ $period->label }} &nbsp;·&nbsp; Pay date {{ $period->pay_date->format('d M Y') }}
-        @if ($company->company_kra_pin) &nbsp;·&nbsp; Employer KRA PIN {{ $company->company_kra_pin }} @endif
-    </div>
+    <table class="cols" style="margin-bottom:6px">
+        <tr>
+            @if ($logoData)
+                <td style="width:70px"><img src="{{ $logoData }}" style="max-height:56px;max-width:64px"></td>
+            @endif
+            <td>
+                <h1 style="margin:0">{{ $companyName }}</h1>
+                @if ($company->payslip_company_address)
+                    <span class="muted" style="white-space:pre-line">{{ $company->payslip_company_address }}</span>
+                @endif
+            </td>
+            <td style="text-align:right;vertical-align:top">
+                <strong>PAYSLIP</strong><br>
+                <span class="muted">
+                    {{ $period->label }}<br>
+                    Pay date {{ $period->pay_date->format('d/M/Y') }}
+                    @if ($company->company_kra_pin)<br>Employer KRA PIN {{ $company->company_kra_pin }}@endif
+                </span>
+            </td>
+        </tr>
+    </table>
+    <hr style="border:0;border-top:1px solid #d1d5db;margin:0 0 12px">
+
 
     <table class="cols">
         <tr>

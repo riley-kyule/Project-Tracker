@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
@@ -104,8 +105,8 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
                 <div>
                     <h1 className="text-xl font-semibold">My Leave</h1>
                     <p className="text-muted-foreground text-sm">
-                        {employee.department ?? '—'} · entitlement period from {employee.period.start}
-                        {employee.period.end ? ` to ${employee.period.end}` : ''}
+                        {employee.department ?? '—'} · entitlement period from {fmtDate(employee.period.start)}
+                        {employee.period.end ? ` to ${fmtDate(employee.period.end)}` : ''}
                     </p>
                 </div>
 
@@ -155,12 +156,14 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
                         </div>
 
                         {holidays.length > 0 && (
-                            <p className="text-muted-foreground text-xs">Public holiday(s) in range (not counted): {holidays.join(', ')}</p>
+                            <p className="text-muted-foreground text-xs">
+                                Public holiday(s) in range (not counted): {holidays.map(fmtDate).join(', ')}
+                            </p>
                         )}
                         {showBlockedWarning && (
                             <div className="rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                                A colleague in your department is already on leave on: {blocked.join(', ')}. Pick other dates, tick “emergency leave”,
-                                or ask HR to override.
+                                A colleague in your department is already on leave on: {blocked.map(fmtDate).join(', ')}. Pick other dates, tick
+                                “emergency leave”, or ask HR to override.
                             </div>
                         )}
 
@@ -205,7 +208,7 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
                                             {r.type} {r.is_emergency && <Badge variant="secondary">emergency</Badge>}
                                         </td>
                                         <td className="py-1.5 pr-3">
-                                            {r.start_date} → {r.end_date}
+                                            {fmtDate(r.start_date)} → {fmtDate(r.end_date)}
                                         </td>
                                         <td className="py-1.5 pr-3">{r.days}</td>
                                         <td className="py-1.5 pr-3">

@@ -4,6 +4,7 @@ namespace Tests\Feature\Hr;
 
 use App\Jobs\ProcessPayrollRun;
 use App\Jobs\SendPayslipNotification;
+use App\Models\CompanySetting;
 use App\Models\Employee;
 use App\Models\PayrollPeriod;
 use App\Models\Payslip;
@@ -89,12 +90,12 @@ class PayrollTest extends TestCase
 
     public function test_the_full_workflow_from_create_to_paid(): void
     {
+        // Default: HR Manager approval is enough — no separate sign-off step.
         Queue::fake();
         $this->seed(HrSeeder::class);
         $this->employeeOnSalary(50000, ['user_id' => User::factory()->create()->id]);
 
         $hr = $this->payrollManager();
-        $ceo = User::factory()->create()->assignRole('CEO');
 
         $this->actingAs($hr)->post('/hr/payroll', ['year' => 2026, 'month' => 5])->assertRedirect();
         $period = PayrollPeriod::firstWhere(['year' => 2026, 'month' => 5]);
@@ -107,7 +108,32 @@ class PayrollTest extends TestCase
         app(PayrollRunner::class)->run($period->fresh());
         $period->update(['status' => 'review']);
 
-        // HR Manager cannot approve — that's CEO/Admin only.
+        // HR Manager dispatches straight from review — this records the approval too.
+        $this->actingAs($hr)->post("/hr/payroll/{$period->id}/mark-paid")->assertRedirect();
+        $period->refresh();
+        $this->assertSame('paid', $period->status);
+        $this->assertSame($hr->id, $period->approved_by);
+        Queue::assertPushed(SendPayslipNotification::class);
+    }
+
+    public function test_second_approval_toggle_requires_a_distinct_sign_off(): void
+    {
+        Queue::fake();
+        $this->seed(HrSeeder::class);
+        CompanySetting::current()->update(['payroll_requires_second_approval' => true]);
+        $this->employeeOnSalary(50000, ['user_id' => User::factory()->create()->id]);
+
+        $hr = $this->payrollManager();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($hr)->post('/hr/payroll', ['year' => 2026, 'month' => 5])->assertRedirect();
+        $period = PayrollPeriod::firstWhere(['year' => 2026, 'month' => 5]);
+        $this->actingAs($hr)->post("/hr/payroll/{$period->id}/process")->assertRedirect();
+        app(PayrollRunner::class)->run($period->fresh());
+        $period->update(['status' => 'review']);
+
+        // HR Manager can no longer pay directly, nor approve.
+        $this->actingAs($hr)->post("/hr/payroll/{$period->id}/mark-paid")->assertForbidden();
         $this->actingAs($hr)->post("/hr/payroll/{$period->id}/approve")->assertForbidden();
 
         $this->actingAs($ceo)->post("/hr/payroll/{$period->id}/approve")->assertRedirect();

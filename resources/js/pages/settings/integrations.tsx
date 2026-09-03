@@ -23,13 +23,6 @@ type IntegrationSettings = {
     mail_encryption: string | null;
     mail_from_address: string | null;
     mail_from_name: string | null;
-    company_kra_pin: string | null;
-    nssf_employer_number: string | null;
-    shif_employer_number: string | null;
-    payroll_currency: string | null;
-    default_pay_day: number | null;
-    payslip_footer_note: string | null;
-    nita_levy_enabled: boolean;
     epe_api_url: string | null;
     epe_site_key: string | null;
     backup_frequency: string | null;
@@ -81,13 +74,6 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
         mail_encryption: settings.mail_encryption ?? NONE,
         mail_from_address: settings.mail_from_address ?? '',
         mail_from_name: settings.mail_from_name ?? '',
-        company_kra_pin: settings.company_kra_pin ?? '',
-        nssf_employer_number: settings.nssf_employer_number ?? '',
-        shif_employer_number: settings.shif_employer_number ?? '',
-        payroll_currency: settings.payroll_currency ?? 'KES',
-        default_pay_day: settings.default_pay_day ?? 28,
-        payslip_footer_note: settings.payslip_footer_note ?? '',
-        nita_levy_enabled: settings.nita_levy_enabled ?? true,
         epe_api_url: settings.epe_api_url ?? '',
         epe_site_key: settings.epe_site_key ?? '',
         backup_frequency: settings.backup_frequency ?? NONE,
@@ -106,7 +92,6 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
             backup_frequency: form.backup_frequency === NONE ? null : form.backup_frequency,
             backup_time: form.backup_time === '' ? null : form.backup_time,
             backup_retention_count: Number(form.backup_retention_count),
-            default_pay_day: Number(form.default_pay_day),
         }));
         patch('/settings/integrations', {
             preserveScroll: true,
@@ -301,75 +286,6 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                     </p>
                                 </div>
                             )}
-                        </div>
-
-                        <div className="space-y-4 border-t pt-6">
-                            <h3 className="text-sm font-semibold">Payroll</h3>
-                            <p className="text-muted-foreground text-sm">Employer identifiers printed on statutory reports and payslips.</p>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="company-kra-pin">Company KRA PIN</Label>
-                                    <Input
-                                        id="company-kra-pin"
-                                        value={data.company_kra_pin}
-                                        onChange={(e) => setData('company_kra_pin', e.target.value)}
-                                    />
-                                    <InputError message={errors.company_kra_pin} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="nssf-emp">NSSF employer number</Label>
-                                    <Input
-                                        id="nssf-emp"
-                                        value={data.nssf_employer_number}
-                                        onChange={(e) => setData('nssf_employer_number', e.target.value)}
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="shif-emp">SHA/SHIF employer number</Label>
-                                    <Input
-                                        id="shif-emp"
-                                        value={data.shif_employer_number}
-                                        onChange={(e) => setData('shif_employer_number', e.target.value)}
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pay-day">Default pay day (day of month)</Label>
-                                    <Input
-                                        id="pay-day"
-                                        type="number"
-                                        min={1}
-                                        max={31}
-                                        value={data.default_pay_day}
-                                        onChange={(e) => setData('default_pay_day', Number(e.target.value))}
-                                    />
-                                    <InputError message={errors.default_pay_day} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="payroll-currency">Payroll currency</Label>
-                                    <Input
-                                        id="payroll-currency"
-                                        value={data.payroll_currency}
-                                        onChange={(e) => setData('payroll_currency', e.target.value.toUpperCase())}
-                                        maxLength={3}
-                                    />
-                                </div>
-                                <div className="grid gap-2 sm:col-span-2">
-                                    <Label htmlFor="payslip-footer">Payslip footer note</Label>
-                                    <Input
-                                        id="payslip-footer"
-                                        value={data.payslip_footer_note}
-                                        onChange={(e) => setData('payslip_footer_note', e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    checked={data.nita_levy_enabled}
-                                    onChange={(e) => setData('nita_levy_enabled', e.target.checked)}
-                                />
-                                Apply the NITA levy (employer, KES 50/employee/month)
-                            </label>
                         </div>
 
                         <div className="space-y-4 border-t pt-6">

@@ -34,7 +34,7 @@ class LeaveRequestDecided extends Notification
         return (new MailMessage)
             ->from($address, $name)
             ->subject('Leave request '.($approved ? 'approved' : 'rejected'))
-            ->line("Your {$r->leaveType->name} request for {$r->start_date->toFormattedDateString()}–{$r->end_date->toFormattedDateString()} was ".($approved ? 'approved' : 'rejected').'.')
+            ->line("Your {$r->leaveType->name} request for {$r->start_date->format('d/M/Y')}–{$r->end_date->format('d/M/Y')} was ".($approved ? 'approved' : 'rejected').'.')
             ->when($r->decision_note, fn (MailMessage $m) => $m->line("Note: {$r->decision_note}"))
             ->action('View my leave', route('hr.me.leave'));
     }

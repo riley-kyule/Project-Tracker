@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Download, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -144,6 +145,7 @@ type PageProps = {
     employee: Employee;
     departments: Ref[];
     managers: Ref[];
+    linkableUsers: { id: number; name: string; email: string }[];
     canManage: boolean;
     canManageCompensation: boolean;
     canViewCompensation: boolean;
@@ -174,9 +176,20 @@ function Field({ label: l, value }: { label: string; value: React.ReactNode }) {
     );
 }
 
-function EditProfileDialog({ employee, departments, managers }: { employee: Employee; departments: Ref[]; managers: Ref[] }) {
+function EditProfileDialog({
+    employee,
+    departments,
+    managers,
+    linkableUsers,
+}: {
+    employee: Employee;
+    departments: Ref[];
+    managers: Ref[];
+    linkableUsers: { id: number; name: string; email: string }[];
+}) {
     const [open, setOpen] = useState(false);
     const { data, setData, patch, processing, errors, transform } = useForm({
+        user_id: employee.user_id ? String(employee.user_id) : NONE,
         staff_number: employee.staff_number,
         first_name: employee.first_name,
         middle_name: employee.middle_name ?? '',
@@ -222,6 +235,7 @@ function EditProfileDialog({ employee, departments, managers }: { employee: Empl
             const out: Record<string, unknown> = { ...form };
             out.department_id = form.department_id === NONE ? null : Number(form.department_id);
             out.manager_id = form.is_org_head || form.manager_id === NONE ? null : Number(form.manager_id);
+            out.user_id = form.user_id === NONE ? null : Number(form.user_id);
             for (const k of Object.keys(out)) {
                 if (out[k] === '') out[k] = null;
             }
@@ -250,6 +264,27 @@ function EditProfileDialog({ employee, departments, managers }: { employee: Empl
                     <DialogTitle>Edit {employee.full_name}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="grid gap-4 sm:grid-cols-3">
+                    <div className="grid gap-1.5 sm:col-span-3">
+                        <Label htmlFor="link-user">Linked login account</Label>
+                        <Select value={data.user_id} onValueChange={(v) => setData('user_id', v)}>
+                            <SelectTrigger id="link-user">
+                                <SelectValue placeholder="Not linked" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>Not linked — no system login</SelectItem>
+                                {linkableUsers.map((u) => (
+                                    <SelectItem key={u.id} value={String(u.id)}>
+                                        {u.name} ({u.email})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.user_id} />
+                        <p className="text-muted-foreground text-xs">
+                            Links this record to the person's sign-in account — enables their self-service pages (My Employee Data, Leave Application,
+                            My Payslips).
+                        </p>
+                    </div>
                     {text('staff_number', 'Staff number')}
                     {text('first_name', 'First name')}
                     {text('middle_name', 'Middle name')}
@@ -997,6 +1032,7 @@ export default function EmployeeShow({
     employee,
     departments,
     managers,
+    linkableUsers,
     canManage,
     canManageCompensation,
     canViewCompensation,
@@ -1034,7 +1070,9 @@ export default function EmployeeShow({
                             {employee.user && <span className="text-muted-foreground text-xs">· login: {employee.user.email}</span>}
                         </div>
                     </div>
-                    {canManage && <EditProfileDialog employee={employee} departments={departments} managers={managers} />}
+                    {canManage && (
+                        <EditProfileDialog employee={employee} departments={departments} managers={managers} linkableUsers={linkableUsers} />
+                    )}
                 </div>
 
                 <div className="flex flex-wrap gap-1 border-b">
@@ -1056,7 +1094,7 @@ export default function EmployeeShow({
                         <Card className="p-4">
                             <h2 className="mb-3 text-sm font-semibold">Personal</h2>
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Date of birth" value={employee.date_of_birth} />
+                                <Field label="Date of birth" value={fmtDate(employee.date_of_birth)} />
                                 <Field label="Gender" value={employee.gender} />
                                 <Field label="Marital status" value={employee.marital_status} />
                                 <Field label="National ID" value={employee.national_id_number} />
@@ -1082,13 +1120,13 @@ export default function EmployeeShow({
                             <div className="grid grid-cols-2 gap-3">
                                 <Field label="Type" value={label(employee.employment_type)} />
                                 <Field label="Reports to" value={employee.manager?.name} />
-                                <Field label="Date hired" value={employee.date_hired} />
-                                <Field label="Contract start" value={employee.contract_start_date} />
-                                <Field label="Contract end" value={employee.contract_end_date} />
-                                <Field label="Probation end" value={employee.probation_end_date} />
+                                <Field label="Date hired" value={fmtDate(employee.date_hired)} />
+                                <Field label="Contract start" value={fmtDate(employee.contract_start_date)} />
+                                <Field label="Contract end" value={fmtDate(employee.contract_end_date)} />
+                                <Field label="Probation end" value={fmtDate(employee.probation_end_date)} />
                                 {employee.employment_status === 'terminated' && (
                                     <>
-                                        <Field label="Termination date" value={employee.termination_date} />
+                                        <Field label="Termination date" value={fmtDate(employee.termination_date)} />
                                         <Field label="Termination reason" value={employee.termination_reason} />
                                     </>
                                 )}
@@ -1173,8 +1211,8 @@ export default function EmployeeShow({
                                             <td className="py-1.5 pr-3">{c.title}</td>
                                             <td className="py-1.5 pr-3">{c.department?.name ?? '—'}</td>
                                             <td className="py-1.5 pr-3">{label(c.employment_type)}</td>
-                                            <td className="py-1.5 pr-3">{c.start_date}</td>
-                                            <td className="py-1.5 pr-3">{c.end_date ?? '—'}</td>
+                                            <td className="py-1.5 pr-3">{fmtDate(c.start_date)}</td>
+                                            <td className="py-1.5 pr-3">{c.end_date ? fmtDate(c.end_date) : '—'}</td>
                                             <td className="py-1.5 pr-3">{c.reason ? label(c.reason) : '—'}</td>
                                             {canManage && (
                                                 <td className="py-1.5">
@@ -1270,11 +1308,9 @@ export default function EmployeeShow({
                                                 )}
                                             </td>
                                             <td className="text-muted-foreground py-1.5 pr-3">{a.asset?.asset_tag ?? '—'}</td>
-                                            <td className="py-1.5 pr-3">{new Date(a.assigned_at).toLocaleDateString()}</td>
-                                            <td className="py-1.5 pr-3">{a.expected_return_at ?? '—'}</td>
-                                            <td className="py-1.5 pr-3">
-                                                {a.returned_at ? new Date(a.returned_at).toLocaleDateString() : <Badge>Held</Badge>}
-                                            </td>
+                                            <td className="py-1.5 pr-3">{fmtDate(a.assigned_at)}</td>
+                                            <td className="py-1.5 pr-3">{a.expected_return_at ? fmtDate(a.expected_return_at) : '—'}</td>
+                                            <td className="py-1.5 pr-3">{a.returned_at ? fmtDate(a.returned_at) : <Badge>Held</Badge>}</td>
                                         </tr>
                                     ))}
                                     {employee.assets.length === 0 && (
@@ -1386,7 +1422,7 @@ export default function EmployeeShow({
                                                 g.weight != null ? `weight ${g.weight}%` : null,
                                                 `progress ${g.progress_pct}%`,
                                                 g.rating != null ? `rating ${g.rating}` : null,
-                                                g.due_on ? `due ${g.due_on}` : null,
+                                                g.due_on ? `due ${fmtDate(g.due_on)}` : null,
                                             ]
                                                 .filter(Boolean)
                                                 .join(' · ')}
@@ -1431,7 +1467,7 @@ export default function EmployeeShow({
                                         <span className="font-medium">
                                             {c.currency} {c.basic_salary.toLocaleString(undefined, { minimumFractionDigits: 2 })} basic
                                         </span>
-                                        <span className="text-muted-foreground">from {c.effective_from}</span>
+                                        <span className="text-muted-foreground">from {fmtDate(c.effective_from)}</span>
                                     </div>
                                     {c.allowances.length > 0 && (
                                         <div className="text-muted-foreground mt-1 text-xs">

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
@@ -404,10 +405,10 @@ export default function AssetShow({ asset, categories, employees, canManage }: P
                         <Field label="Manufacturer" value={asset.manufacturer} />
                         <Field label="Model" value={asset.model} />
                         <Field label="Location" value={asset.location} />
-                        <Field label="Purchase date" value={asset.purchase_date} />
+                        <Field label="Purchase date" value={fmtDate(asset.purchase_date)} />
                         <Field label="Purchase cost" value={asset.purchase_cost ? `KES ${asset.purchase_cost}` : null} />
                         <Field label="Supplier" value={asset.supplier} />
-                        <Field label="Warranty expiry" value={asset.warranty_expiry} />
+                        <Field label="Warranty expiry" value={fmtDate(asset.warranty_expiry)} />
                     </div>
                     {asset.description && <p className="text-muted-foreground mt-3 text-sm">{asset.description}</p>}
                 </Card>
@@ -430,11 +431,9 @@ export default function AssetShow({ asset, categories, employees, canManage }: P
                                 {asset.assignments.map((a) => (
                                     <tr key={a.id} className="border-t">
                                         <td className="py-1.5 pr-3">{a.employee?.name ?? '—'}</td>
-                                        <td className="py-1.5 pr-3">{new Date(a.assigned_at).toLocaleDateString()}</td>
-                                        <td className="py-1.5 pr-3">{a.expected_return_at ?? '—'}</td>
-                                        <td className="py-1.5 pr-3">
-                                            {a.returned_at ? new Date(a.returned_at).toLocaleDateString() : <Badge>Open</Badge>}
-                                        </td>
+                                        <td className="py-1.5 pr-3">{fmtDate(a.assigned_at)}</td>
+                                        <td className="py-1.5 pr-3">{a.expected_return_at ? fmtDate(a.expected_return_at) : '—'}</td>
+                                        <td className="py-1.5 pr-3">{a.returned_at ? fmtDate(a.returned_at) : <Badge>Open</Badge>}</td>
                                         <td className="py-1.5 pr-3">
                                             {(a.condition_out ? label(a.condition_out) : '—') +
                                                 ' / ' +

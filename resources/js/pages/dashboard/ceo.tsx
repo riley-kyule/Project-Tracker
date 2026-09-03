@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate, fmtDateTime } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { LayoutDashboard, Star } from 'lucide-react';
@@ -222,7 +223,7 @@ function TaskList({ id, title, tasks, icon }: { id?: string; title: string; task
                             {task.title}
                         </Link>
                         <span className="text-muted-foreground text-xs">{task.assignee?.name ?? 'Unassigned'}</span>
-                        {task.due_at && <span className="text-muted-foreground ml-auto text-xs">{new Date(task.due_at).toLocaleDateString()}</span>}
+                        {task.due_at && <span className="text-muted-foreground ml-auto text-xs">{fmtDate(task.due_at)}</span>}
                     </li>
                 ))}
                 {tasks.length === 0 && <li className="text-muted-foreground py-1.5 text-sm">Nothing here.</li>}
@@ -385,7 +386,7 @@ export default function CeoDashboard({
                         <ul className="space-y-1 text-xs">
                             {leaveOverview.open.map((r) => (
                                 <li key={r.id} className="text-muted-foreground">
-                                    <span className="text-foreground font-medium">{r.employee}</span> · {r.type} · {r.start_date}
+                                    <span className="text-foreground font-medium">{r.employee}</span> · {r.type} · {fmtDate(r.start_date)}
                                 </li>
                             ))}
                             {leaveOverview.open.length === 0 && <li className="text-muted-foreground">Nothing pending.</li>}
@@ -396,7 +397,8 @@ export default function CeoDashboard({
                         <ul className="space-y-1 text-xs">
                             {leaveOverview.upcoming.map((r) => (
                                 <li key={r.id} className="text-muted-foreground">
-                                    <span className="text-foreground font-medium">{r.employee}</span> · {r.type} · {r.start_date}–{r.end_date}
+                                    <span className="text-foreground font-medium">{r.employee}</span> · {r.type} · {fmtDate(r.start_date)}–
+                                    {fmtDate(r.end_date)}
                                 </li>
                             ))}
                             {leaveOverview.upcoming.length === 0 && <li className="text-muted-foreground">None scheduled.</li>}
@@ -407,7 +409,7 @@ export default function CeoDashboard({
                         <ul className="space-y-1 text-xs">
                             {leaveOverview.holidays.map((h) => (
                                 <li key={h.date} className="text-muted-foreground">
-                                    <span className="text-foreground font-medium">{h.date}</span> · {h.name}
+                                    <span className="text-foreground font-medium">{fmtDate(h.date)}</span> · {h.name}
                                 </li>
                             ))}
                             {leaveOverview.holidays.length === 0 && <li className="text-muted-foreground">None in the next 60 days.</li>}
@@ -433,7 +435,7 @@ export default function CeoDashboard({
                                     {entry.auditable_type.split('\\').pop()}
                                 </Badge>
                                 {' · '}
-                                {new Date(entry.created_at).toLocaleString()}
+                                {fmtDateTime(entry.created_at)}
                             </li>
                         ))}
                     </ul>

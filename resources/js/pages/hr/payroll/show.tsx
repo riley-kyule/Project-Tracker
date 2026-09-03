@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 
@@ -39,6 +40,7 @@ type PageProps = {
     payslips: Payslip[];
     totals: { gross: number; paye: number; net: number; employer_cost: number };
     reports: string[];
+    requiresSecondApproval: boolean;
     can: { process: boolean; approve: boolean; markPaid: boolean };
 };
 
@@ -48,7 +50,7 @@ function reportLabel(r: string) {
     return r.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function PayrollShow({ period, payslips, totals, reports, can }: PageProps) {
+export default function PayrollShow({ period, payslips, totals, reports, requiresSecondApproval, can }: PageProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Payroll', href: '/hr/payroll' },
         { title: period.label, href: `/hr/payroll/${period.id}` },
@@ -67,7 +69,7 @@ export default function PayrollShow({ period, payslips, totals, reports, can }: 
                     <div>
                         <h1 className="text-xl font-semibold">{period.label}</h1>
                         <p className="text-muted-foreground text-sm">
-                            {period.start_date} – {period.end_date} · pay date {period.pay_date}
+                            {fmtDate(period.start_date)} – {fmtDate(period.end_date)} · pay date {fmtDate(period.pay_date)}
                             {period.rate_set ? ` · rates: ${period.rate_set.name}` : ''}
                         </p>
                         <Badge className="mt-1">{period.status}</Badge>
@@ -83,7 +85,11 @@ export default function PayrollShow({ period, payslips, totals, reports, can }: 
                             </Button>
                         )}
                         {can.approve && <Button onClick={() => act('approve')}>Approve</Button>}
-                        {can.markPaid && <Button onClick={() => act('mark-paid', 'Mark as paid and send payslip notifications?')}>Mark paid</Button>}
+                        {can.markPaid && (
+                            <Button onClick={() => act('mark-paid', 'Send payslips to every employee?')}>
+                                {requiresSecondApproval || period.status === 'approved' ? 'Send payslips' : 'Approve & send payslips'}
+                            </Button>
+                        )}
                     </div>
                 </div>
 

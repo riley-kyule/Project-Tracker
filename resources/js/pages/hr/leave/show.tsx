@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate, fmtDateTime } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -73,7 +74,7 @@ export default function LeaveRequestShow({ request, canDecide, canCancel }: Page
                 </div>
 
                 <Card className="grid grid-cols-2 gap-3 p-4">
-                    <Field label="Dates" value={`${request.start_date} → ${request.end_date}`} />
+                    <Field label="Dates" value={`${fmtDate(request.start_date)} → ${fmtDate(request.end_date)}`} />
                     <Field label="Working days" value={request.days} />
                     <Field label="Reason" value={request.reason} />
                     <Field label="Contact while away" value={request.contact_during_leave} />
@@ -89,7 +90,7 @@ export default function LeaveRequestShow({ request, canDecide, canCancel }: Page
                             <div key={i} className="border-t py-1.5 text-sm first:border-0">
                                 <span className="font-medium">{a.approver ?? 'Unknown'}</span> {a.action}
                                 {a.note ? ` — ${a.note}` : ''}
-                                <span className="text-muted-foreground ml-2 text-xs">{new Date(a.acted_at).toLocaleString()}</span>
+                                <span className="text-muted-foreground ml-2 text-xs">{fmtDateTime(a.acted_at)}</span>
                             </div>
                         ))}
                     </Card>

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { CalendarCog, CalendarDays, ChevronLeft, ChevronRight, ListChecks, Plus } from 'lucide-react';
@@ -292,7 +293,7 @@ export default function LeaveIndex({
                         {hasOwnRecord && (
                             <Link
                                 href="/hr/me/leave"
-                                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+                                className="bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-md px-3 text-sm font-medium"
                             >
                                 <Plus className="h-4 w-4" /> New application
                             </Link>
@@ -329,7 +330,7 @@ export default function LeaveIndex({
                                     — {r.type} · {r.days} day(s)
                                     {r.is_emergency && <Badge className="ml-2">emergency</Badge>}
                                     <div className="text-muted-foreground text-xs">
-                                        {r.start_date} → {r.end_date}
+                                        {fmtDate(r.start_date)} → {fmtDate(r.end_date)}
                                         {r.reason ? ` · ${r.reason}` : ''}
                                     </div>
                                 </div>
