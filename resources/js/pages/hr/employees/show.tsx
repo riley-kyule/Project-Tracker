@@ -159,6 +159,7 @@ const BASE_TABS = ['Profile', 'Next of Kin', 'Contracts', 'Documents', 'Assets',
 const EMPLOYMENT_TYPES = ['permanent', 'contract', 'consultancy', 'casual', 'intern'];
 const STATUSES = ['active', 'on_probation', 'on_leave', 'suspended', 'terminated'];
 const DOC_CATEGORIES = ['contract', 'id_copy', 'kra', 'nssf', 'shif', 'certificate', 'other'];
+const MARITAL_STATUSES = ['single', 'married', 'divorced', 'widowed', 'separated'];
 
 function label(value: string) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -198,7 +199,9 @@ function EditProfileDialog({
         last_name: employee.last_name,
         date_of_birth: dateInput(employee.date_of_birth),
         gender: ['male', 'female'].includes((employee.gender ?? '').toLowerCase()) ? (employee.gender as string).toLowerCase() : NONE,
-        marital_status: employee.marital_status ?? '',
+        marital_status: MARITAL_STATUSES.includes((employee.marital_status ?? '').toLowerCase())
+            ? (employee.marital_status as string).toLowerCase()
+            : NONE,
         national_id_number: employee.national_id_number ?? '',
         kra_pin: employee.kra_pin ?? '',
         nssf_number: employee.nssf_number ?? '',
@@ -239,6 +242,7 @@ function EditProfileDialog({
             out.manager_id = form.is_org_head || form.manager_id === NONE ? null : Number(form.manager_id);
             out.user_id = form.user_id === NONE ? null : Number(form.user_id);
             out.gender = form.gender === NONE ? null : form.gender;
+            out.marital_status = form.marital_status === NONE ? null : form.marital_status;
             for (const k of Object.keys(out)) {
                 if (out[k] === '') out[k] = null;
             }
@@ -308,7 +312,23 @@ function EditProfileDialog({
                         </Select>
                         <InputError message={errors.gender} />
                     </div>
-                    {text('marital_status', 'Marital status')}
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="marital_status">Marital status</Label>
+                        <Select value={data.marital_status} onValueChange={(v) => setData('marital_status', v)}>
+                            <SelectTrigger id="marital_status">
+                                <SelectValue placeholder="Not specified" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>Not specified</SelectItem>
+                                {MARITAL_STATUSES.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {label(s)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.marital_status} />
+                    </div>
                     {text('national_id_number', 'National ID')}
                     {text('kra_pin', 'KRA PIN')}
                     {text('nssf_number', 'NSSF number')}
@@ -1104,7 +1124,7 @@ export default function EmployeeShow({
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Field label="Date of birth" value={fmtDate(employee.date_of_birth)} />
                                 <Field label="Gender" value={employee.gender ? label(employee.gender) : null} />
-                                <Field label="Marital status" value={employee.marital_status} />
+                                <Field label="Marital status" value={employee.marital_status ? label(employee.marital_status) : null} />
                                 <Field label="National ID" value={employee.national_id_number} />
                                 <Field label="Personal email" value={employee.personal_email} />
                                 <Field label="Phone" value={employee.phone} />

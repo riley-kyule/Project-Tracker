@@ -128,7 +128,7 @@ class EmployeeTest extends TestCase
         ])->assertSessionHasErrors('kra_pin');
     }
 
-    public function test_gender_only_accepts_male_or_female(): void
+    public function test_gender_and_marital_status_are_constrained_to_known_values(): void
     {
         $hr = $this->hrManager();
         $department = Department::factory()->create();
@@ -145,9 +145,12 @@ class EmployeeTest extends TestCase
         ];
 
         $this->actingAs($hr)->post('/hr/employees', [...$base, 'gender' => 'unspecified'])->assertSessionHasErrors('gender');
+        $this->actingAs($hr)->post('/hr/employees', [...$base, 'marital_status' => 'complicated'])->assertSessionHasErrors('marital_status');
 
-        $this->actingAs($hr)->post('/hr/employees', [...$base, 'gender' => 'female'])->assertRedirect();
-        $this->assertSame('female', Employee::firstWhere('staff_number', 'EMP-2050')->gender);
+        $this->actingAs($hr)->post('/hr/employees', [...$base, 'gender' => 'female', 'marital_status' => 'married'])->assertRedirect();
+        $employee = Employee::firstWhere('staff_number', 'EMP-2050');
+        $this->assertSame('female', $employee->gender);
+        $this->assertSame('married', $employee->marital_status);
     }
 
     public function test_a_user_can_only_be_linked_to_one_employee(): void

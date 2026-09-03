@@ -34,7 +34,7 @@ class StoreEmployeeRequest extends FormRequest
             'last_name' => ['required', 'string', 'max:100'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', Rule::in(['male', 'female'])],
-            'marital_status' => ['nullable', 'string', 'max:20'],
+            'marital_status' => ['nullable', Rule::in(['single', 'married', 'divorced', 'widowed', 'separated'])],
 
             'national_id_number' => ['nullable', 'string', 'max:20'],
             // KRA PINs are a letter, 9 digits, then a letter (e.g. A012345678Z).
