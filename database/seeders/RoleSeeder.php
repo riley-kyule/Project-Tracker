@@ -68,6 +68,14 @@ class RoleSeeder extends Seeder
             Permission::findOrCreate($permission);
         }
 
+        // An HR Manager is almost always also a department head, so the role
+        // carries the Department Manager capabilities (board/task/project
+        // management for departments they lead) on top of the HR module.
+        $departmentManager = [
+            'users.view', 'departments.view', 'boards.manage', 'tasks.create',
+            'reports.view', 'projects.manage', 'hr.employees.view', 'hr.leave.view', 'hr.leave.approve',
+        ];
+
         $rolePermissions = [
             // CEO holds every permission Administrator holds — an explicit product
             // decision reversing the prior separation-of-duties split (see
@@ -77,14 +85,18 @@ class RoleSeeder extends Seeder
             // it makes that parity impossible to accidentally drift apart again.
             'CEO' => $permissions,
             'Administrator' => $permissions,
-            // Full HR access including compensation and payroll processing;
-            // final payroll sign-off (hr.payroll.approve) stays with CEO/Admin.
-            'HR Manager' => [...array_diff($hrPermissions, ['hr.payroll.approve']), 'users.view', 'departments.view'],
+            // Full HR access including compensation and payroll processing,
+            // plus Department Manager capabilities; final payroll sign-off
+            // (hr.payroll.approve) stays with CEO/Admin.
+            'HR Manager' => array_values(array_unique([
+                ...$departmentManager,
+                ...array_diff($hrPermissions, ['hr.payroll.approve']),
+            ])),
             // People, leave and assets — but no salary or payroll visibility.
             'HR Staff' => [...$hrStaffPermissions, 'users.view', 'departments.view'],
             // Managers approve their team's leave and see (non-salary) employee
             // records for their reports; scoping lives in the policies.
-            'Department Manager' => ['users.view', 'departments.view', 'boards.manage', 'tasks.create', 'reports.view', 'projects.manage', 'hr.employees.view', 'hr.leave.view', 'hr.leave.approve'],
+            'Department Manager' => $departmentManager,
             'IT Technician' => ['departments.view', 'tasks.create', 'tickets.manage'],
             'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics'],
             'Customer Service' => ['departments.view', 'tasks.create'],
