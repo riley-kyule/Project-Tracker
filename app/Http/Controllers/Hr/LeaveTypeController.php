@@ -35,7 +35,9 @@ class LeaveTypeController extends Controller
     {
         Gate::authorize('adjustBalances', LeaveRequest::class);
 
-        $leaveType->update($request->validated());
+        // The code is a stable identifier (referenced by Leave settings and
+        // reports) — it's locked in the UI and ignored here even if posted.
+        $leaveType->update(collect($request->validated())->except('code')->all());
 
         return back()->with('success', 'Leave type updated.');
     }

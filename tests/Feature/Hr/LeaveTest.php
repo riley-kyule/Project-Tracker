@@ -261,4 +261,30 @@ class LeaveTest extends TestCase
         $user = User::factory()->create()->assignRole('Employee');
         $this->actingAs($user)->get('/hr/leave/settings')->assertForbidden();
     }
+
+    public function test_a_custom_leave_type_can_be_created_and_its_code_is_fixed_on_edit(): void
+    {
+        $hr = User::factory()->create()->assignRole('HR Manager');
+
+        $this->actingAs($hr)->post('/hr/leave/types', [
+            'name' => 'Sabbatical',
+            'code' => 'SABBATICAL',
+            'accrual_method' => 'none',
+            'is_paid' => false,
+        ])->assertRedirect();
+
+        $type = LeaveType::firstWhere('code', 'SABBATICAL');
+        $this->assertNotNull($type);
+
+        // A posted code change is ignored — the identifier stays put.
+        $this->actingAs($hr)->patch("/hr/leave/types/{$type->id}", [
+            'name' => 'Extended Sabbatical',
+            'code' => 'RENAMED',
+            'accrual_method' => 'none',
+        ])->assertRedirect();
+
+        $type->refresh();
+        $this->assertSame('SABBATICAL', $type->code);
+        $this->assertSame('Extended Sabbatical', $type->name);
+    }
 }

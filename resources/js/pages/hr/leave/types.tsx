@@ -38,12 +38,30 @@ const breadcrumbs: BreadcrumbItem[] = [
 const NONE = 'none';
 const ACCRUAL_METHODS = ['entitlement', 'monthly_accrual', 'none'];
 
+// The standard Kenya Employment Act leave categories. ANNUAL / SICK / EMERGENCY
+// are wired to behaviour (entitlement provisioning, the same-department overlap
+// exemptions in Leave settings), so they're offered as fixed choices; anything
+// else an org needs is entered through "Custom…".
+const CUSTOM_CODE = '__custom__';
+const STANDARD_CODES = [
+    { value: 'ANNUAL', label: 'Annual' },
+    { value: 'SICK', label: 'Sick' },
+    { value: 'COMPASSIONATE', label: 'Compassionate' },
+    { value: 'MATERNITY', label: 'Maternity' },
+    { value: 'PATERNITY', label: 'Paternity' },
+    { value: 'EMERGENCY', label: 'Emergency' },
+    { value: 'UNPAID', label: 'Unpaid' },
+    { value: 'STUDY', label: 'Study' },
+];
+
 function label(value: string) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function TypeDialog({ type }: { type?: LeaveType }) {
+function TypeDialog({ type, existingCodes = [] }: { type?: LeaveType; existingCodes?: string[] }) {
     const [open, setOpen] = useState(false);
+    const stdValues = STANDARD_CODES.map((c) => c.value);
+    const [useCustom, setUseCustom] = useState(!!type && !stdValues.includes(type.code));
     const { data, setData, post, patch, processing, errors, reset, transform } = useForm({
         name: type?.name ?? '',
         code: type?.code ?? '',
@@ -105,7 +123,49 @@ function TypeDialog({ type }: { type?: LeaveType }) {
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="lt-code">Code</Label>
-                        <Input id="lt-code" value={data.code} onChange={(e) => setData('code', e.target.value.toUpperCase())} />
+                        {type ? (
+                            <>
+                                <Input id="lt-code" value={data.code} disabled />
+                                <p className="text-muted-foreground text-xs">
+                                    Identifies this type in rules and reports — fixed once the type exists.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <Select
+                                    value={useCustom ? CUSTOM_CODE : data.code}
+                                    onValueChange={(v) => {
+                                        if (v === CUSTOM_CODE) {
+                                            setUseCustom(true);
+                                            setData('code', '');
+                                        } else {
+                                            setUseCustom(false);
+                                            setData('code', v);
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger id="lt-code">
+                                        <SelectValue placeholder="Select a code" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {STANDARD_CODES.filter((c) => !existingCodes.includes(c.value)).map((c) => (
+                                            <SelectItem key={c.value} value={c.value}>
+                                                {c.label} ({c.value})
+                                            </SelectItem>
+                                        ))}
+                                        <SelectItem value={CUSTOM_CODE}>Custom…</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {useCustom && (
+                                    <Input
+                                        aria-label="Custom code"
+                                        placeholder="e.g. SABBATICAL"
+                                        value={data.code}
+                                        onChange={(e) => setData('code', e.target.value.toUpperCase())}
+                                    />
+                                )}
+                            </>
+                        )}
                         <InputError message={errors.code} />
                     </div>
                     <div className="grid gap-1.5">
@@ -192,13 +252,15 @@ function TypeDialog({ type }: { type?: LeaveType }) {
 }
 
 export default function LeaveTypesPage({ leaveTypes }: { leaveTypes: LeaveType[] }) {
+    const existingCodes = leaveTypes.map((t) => t.code);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave types" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Leave types</h1>
-                    <TypeDialog />
+                    <TypeDialog existingCodes={existingCodes} />
                 </div>
                 <div className="overflow-x-auto rounded-lg border">
                     <table className="w-full text-sm">
