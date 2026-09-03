@@ -18,8 +18,14 @@ class ImportAssetsTest extends TestCase
     {
         $header = 'ID,Item Code,Asset Name,Location,Company,Purchase Date,Item Name,Asset Category,Asset Type,Asset Owner,'
             .'Available for Use Date,Total Asset Cost,Custodian,Status,Department,Purchase Amount';
+
+        return $this->write($header."\n".$body."\n");
+    }
+
+    private function write(string $contents): string
+    {
         $path = tempnam(sys_get_temp_dir(), 'ewms-assets');
-        file_put_contents($path, $header."\n".$body."\n");
+        file_put_contents($path, $contents);
 
         return $path;
     }
@@ -114,6 +120,67 @@ class ImportAssetsTest extends TestCase
         $this->actingAs($viewer)->post('/hr/assets/import', ['file' => $file])->assertForbidden();
         unlink($path);
         $this->assertSame(0, Asset::count());
+    }
+
+    public function test_it_imports_the_serial_keyed_layout_with_dd_mm_yyyy_dates(): void
+    {
+        $path = $this->write(
+            "Serial Number,Asset Name,Location,Purchase Date,Asset Category,Asset Owner,Available for Use Date,Total Asset Cost,Department\n"
+            ."FVFHP0ESQ05N,Macbook Pro,Bullpen,31/08/2026,Laptops,Company,01/09/2026,60000,I.T - EXOTIC\n"
+            ."C02XV09CJG5,iMac (2017),CEO Boardroom,01/01/2018,Desktops,Company,13/11/2025,40000,\n"
+        );
+
+        $this->artisan('ewms:hr-import-assets', ['path' => $path])->assertSuccessful();
+        unlink($path);
+
+        $mac = Asset::firstWhere('serial_number', 'FVFHP0ESQ05N');
+        $this->assertSame('FVFHP0ESQ05N', $mac->asset_tag);
+        $this->assertSame('2026-08-31', $mac->purchase_date->toDateString());
+        $this->assertSame('Laptop', $mac->category->name);
+        $this->assertSame(Asset::STATUS_IN_STOCK, $mac->status);
+
+        $imac = Asset::firstWhere('serial_number', 'C02XV09CJG5');
+        $this->assertSame('2018-01-01', $imac->purchase_date->toDateString());
+        $this->assertSame('Desktop', $imac->category->name);
+    }
+
+    public function test_switching_export_layout_updates_the_same_row_via_serial(): void
+    {
+        // First: the ID-keyed export.
+        $idPath = $this->csv('ACC-ASS-2026-00038,FVFHP0ESQ05N,Macbook Pro,Bullpen,EOA,2026-08-31,Macbook Pro,Laptops,Existing Asset,Company,2026-09-01,60000.0,,Submitted,,0.0');
+        $this->artisan('ewms:hr-import-assets', ['path' => $idPath])->assertSuccessful();
+        unlink($idPath);
+
+        // Then: the serial-keyed export, new location, no ID column.
+        $serialPath = $this->write(
+            "Serial Number,Asset Name,Location,Purchase Date,Asset Category,Asset Owner,Available for Use Date,Total Asset Cost,Department\n"
+            ."FVFHP0ESQ05N,Macbook Pro,Marketing,31/08/2026,Laptops,Company,01/09/2026,60000,\n"
+        );
+        $this->artisan('ewms:hr-import-assets', ['path' => $serialPath])->assertSuccessful();
+        unlink($serialPath);
+
+        $this->assertSame(1, Asset::count());
+        $asset = Asset::first();
+        $this->assertSame('ACC-ASS-2026-00038', $asset->asset_tag); // original tag kept
+        $this->assertSame('Marketing', $asset->location); // updated
+    }
+
+    public function test_a_serial_mangled_by_excel_is_flagged_but_still_imported(): void
+    {
+        $path = $this->write(
+            "Serial Number,Asset Name,Location,Purchase Date,Asset Category,Asset Owner,Available for Use Date,Total Asset Cost,Department\n"
+            ."4.42632E+15,TECNO SPARK 50,Field,26/05/2026,Phones,Company,26/05/2026,20500,CS\n"
+        );
+
+        $hr = User::factory()->create()->assignRole('HR Manager');
+        $file = new UploadedFile($path, 'assets.csv', 'text/csv', null, true);
+
+        $response = $this->actingAs($hr)->post('/hr/assets/import', ['file' => $file]);
+        $response->assertRedirect();
+        $response->assertSessionHas('error', fn ($m) => str_contains($m, 'Excel'));
+        unlink($path);
+
+        $this->assertSame(1, Asset::where('name', 'TECNO SPARK 50')->count());
     }
 
     public function test_dry_run_writes_nothing(): void

@@ -22,6 +22,12 @@ class AssetImportResult
     /** @var list<string> */
     public array $skipped = [];
 
+    /** @var list<string> non-fatal notes (e.g. a serial mangled by Excel) */
+    public array $warnings = [];
+
+    /** @var list<string> one "tag  name → custodian" line per row, for CLI output */
+    public array $preview = [];
+
     /** @var array<string, int> staff number → asset count */
     public array $unmatchedCustodians = [];
 
@@ -47,5 +53,11 @@ class AssetImportResult
     public function hasUnmatched(): bool
     {
         return $this->unmatchedCustodians !== [];
+    }
+
+    /** @return list<string> everything a human should look at, most useful first */
+    public function notices(): array
+    {
+        return [...$this->warnings, ...$this->skipped];
     }
 }

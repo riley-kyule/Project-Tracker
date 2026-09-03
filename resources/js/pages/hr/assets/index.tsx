@@ -276,9 +276,9 @@ function ImportAssetsDialog() {
                 </DialogHeader>
                 <form onSubmit={submit} className="grid gap-4">
                     <p className="text-muted-foreground text-sm">
-                        Upload an ERP asset export. Rows are matched on the asset ID, so re-uploading updates existing records rather than duplicating
-                        them. Custodians are linked by staff number — any that don&apos;t match an employee yet are reported so you can import those
-                        staff and upload again.
+                        Upload an ERP asset export. Rows are matched on the asset ID or serial number, so re-uploading updates existing records rather
+                        than duplicating them. Where the file has a custodian column, staff are linked by staff number — any that don&apos;t match an
+                        employee yet are reported so you can import those staff and upload again.
                     </p>
                     <div className="grid gap-1.5">
                         <Label htmlFor="import-file">CSV file</Label>

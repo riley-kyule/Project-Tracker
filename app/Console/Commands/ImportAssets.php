@@ -33,7 +33,12 @@ class ImportAssets extends Command
             return self::FAILURE;
         }
 
-        foreach ($result->skipped as $line) {
+        foreach ($result->preview as $line) {
+            $this->line("  {$line}");
+        }
+
+        foreach ($result->notices() as $line) {
+            $this->newLine();
             $this->warn($line);
         }
 

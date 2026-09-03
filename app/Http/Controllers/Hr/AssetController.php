@@ -99,13 +99,18 @@ class AssetController extends Controller
             return back()->with('error', $result->fatalError);
         }
 
+        $problems = [];
         if ($result->hasUnmatched()) {
-            return back()
-                ->with('success', $result->summary())
-                ->with('error', "No staff match these custodians yet: {$result->unmatchedList()}. Import those employees, then upload the file again to link them.");
+            $problems[] = "No staff match these custodians yet: {$result->unmatchedList()} — import those employees, then upload again to link them.";
+        }
+        if ($result->warnings !== []) {
+            $problems[] = implode(' ', array_slice($result->warnings, 0, 5))
+                .(count($result->warnings) > 5 ? ' …and '.(count($result->warnings) - 5).' more.' : '');
         }
 
-        return back()->with('success', $result->summary());
+        return back()
+            ->with('success', $result->summary())
+            ->with('error', $problems === [] ? null : implode(' ', $problems));
     }
 
     public function store(StoreAssetRequest $request): RedirectResponse

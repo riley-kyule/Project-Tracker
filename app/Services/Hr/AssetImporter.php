@@ -11,15 +11,19 @@ use Illuminate\Support\Str;
 
 /**
  * Imports the company asset register from an ERP export (ERPNext "Asset" list
- * CSV). Matches on the ERP asset ID → `assets.asset_tag`, so it is safe to
- * re-run: existing rows are updated in place, never duplicated. Custodians are
- * linked by `employees.staff_number`; an unmatched custodian is reported and
- * the asset left unassigned, so a later run (once the staff are imported)
- * wires up the assignment.
+ * CSV). Rows are keyed by the ERP asset ID when present, otherwise by serial
+ * number, and matched against either `assets.asset_tag` or
+ * `assets.serial_number` — so it is safe to re-run and to switch between
+ * export layouts: existing rows are updated in place, never duplicated.
  *
- * Header columns used (order-independent, others ignored): ID, Item Code,
- * Asset Name, Item Name, Location, Asset Category, Purchase Date, Available
- * for Use Date, Total Asset Cost, Purchase Amount, Custodian, Status.
+ * Custodians (when the export has that column) are linked by
+ * `employees.staff_number`; an unmatched custodian is reported and the asset
+ * left unassigned, so a later run (once the staff are imported) wires it up.
+ *
+ * Header columns used (order-independent, others ignored): ID, Item Code /
+ * Serial Number, Asset Name, Item Name, Location, Asset Category, Purchase
+ * Date, Available for Use Date, Total Asset Cost, Purchase Amount, Custodian,
+ * Status. Dates may be ISO (2026-08-31) or DD/MM/YYYY (31/08/2026).
  */
 class AssetImporter
 {
@@ -56,12 +60,13 @@ class AssetImporter
         $result = new AssetImportResult;
 
         $header = fgetcsv($handle);
-        if ($header === false || ! in_array('ID', $header, true)) {
-            $result->fatalError = 'The file needs a header row with an "ID" column (the ERP asset ID).';
+        $header = $header === false ? [] : array_map(fn ($h) => is_string($h) ? trim($h) : $h, $header);
+
+        if (array_intersect(['ID', 'Serial Number', 'Item Code'], $header) === []) {
+            $result->fatalError = 'The file needs a header row with an "ID", "Serial Number", or "Item Code" column.';
 
             return $result;
         }
-        $header = array_map(fn ($h) => is_string($h) ? trim($h) : $h, $header);
 
         $rowNumber = 1;
         while (($values = fgetcsv($handle)) !== false) {
@@ -83,21 +88,29 @@ class AssetImporter
     /** @param  array<string, string|null>  $row */
     private function importRow(array $row, int $rowNumber, bool $dryRun, AssetImportResult $result): void
     {
-        $tag = $row['ID'] ?? null;
+        $serial = ($row['Item Code'] ?? $row['Serial Number'] ?? '') ?: null;
+        $tag = ($row['ID'] ?? '') ?: $serial;
+
         if (blank($tag)) {
-            $result->skipped[] = "Row {$rowNumber}: no ID";
+            $result->skipped[] = "Row {$rowNumber}: no ID or serial number";
 
             return;
         }
 
         $result->rowsSeen++;
 
+        if ($serial !== null && preg_match('/^\d(?:\.\d+)?E\+?\d+$/i', $serial)) {
+            $result->warnings[] = "Row {$rowNumber}: serial \"{$serial}\" looks mangled by Excel — re-export it as text, then re-upload.";
+        }
+
         $name = ($row['Asset Name'] ?? '') ?: (($row['Item Name'] ?? '') ?: $tag);
         $custodian = $row['Custodian'] ?? '';
 
+        $result->preview[] = "{$tag}  {$name}".($custodian ? "  → {$custodian}" : '');
+
         $attributes = [
             'name' => $name,
-            'serial_number' => ($row['Item Code'] ?? '') ?: null,
+            'serial_number' => $serial,
             'manufacturer' => $this->guessManufacturer($name),
             'purchase_date' => $this->date($row['Purchase Date'] ?? null),
             'purchase_cost' => $this->cost($row['Total Asset Cost'] ?? null, $row['Purchase Amount'] ?? null),
@@ -109,10 +122,18 @@ class AssetImporter
             return;
         }
 
-        DB::transaction(function () use ($tag, $row, $attributes, $custodian, $result) {
+        DB::transaction(function () use ($tag, $serial, $row, $attributes, $custodian, $result) {
             $categoryId = $this->resolveCategoryId($row['Asset Category'] ?? null);
 
-            $asset = Asset::withTrashed()->firstWhere('asset_tag', $tag);
+            $asset = Asset::withTrashed()
+                ->where(function ($q) use ($tag, $serial) {
+                    $q->where('asset_tag', $tag);
+                    if ($serial !== null) {
+                        $q->orWhere('serial_number', $serial);
+                    }
+                })
+                ->first();
+
             if ($asset) {
                 $asset->fill([...$attributes, 'asset_category_id' => $categoryId ?? $asset->asset_category_id])->save();
                 $result->updated++;
@@ -189,6 +210,15 @@ class AssetImporter
     {
         if (blank($value)) {
             return null;
+        }
+        $value = trim($value);
+
+        // DD/MM/YYYY (the app + ERP convention) — parse explicitly; strtotime
+        // would read a slashed date as US month/day.
+        foreach (['d/m/Y', 'j/n/Y', 'd-m-Y'] as $format) {
+            if (Carbon::hasFormat($value, $format)) {
+                return Carbon::createFromFormat('!'.$format, $value)->toDateString();
+            }
         }
 
         try {
