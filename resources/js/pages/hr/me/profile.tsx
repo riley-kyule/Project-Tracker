@@ -84,7 +84,7 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                 <div className="grid gap-4 md:grid-cols-2">
                     <Card className="p-4">
                         <h2 className="mb-3 text-sm font-semibold">Personal</h2>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <Field label="Date of birth" value={fmtDate(employee.date_of_birth)} />
                             <Field label="Gender" value={employee.gender} />
                             <Field label="Marital status" value={employee.marital_status} />
@@ -97,7 +97,7 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                     </Card>
                     <Card className="p-4">
                         <h2 className="mb-3 text-sm font-semibold">Statutory</h2>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <Field label="KRA PIN" value={employee.kra_pin} />
                             <Field label="NSSF number" value={employee.nssf_number} />
                             <Field label="SHA/SHIF number" value={employee.shif_number} />
@@ -106,7 +106,7 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                     </Card>
                     <Card className="p-4">
                         <h2 className="mb-3 text-sm font-semibold">Employment</h2>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <Field label="Type" value={label(employee.employment_type)} />
                             <Field label="Reports to" value={employee.manager?.name} />
                             <Field label="Date hired" value={fmtDate(employee.date_hired)} />
@@ -116,7 +116,7 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                     </Card>
                     <Card className="p-4">
                         <h2 className="mb-3 text-sm font-semibold">Payment</h2>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <Field label="Method" value={label(employee.payment_method)} />
                             <Field label="Bank" value={employee.bank_name} />
                             <Field label="Branch" value={employee.bank_branch} />

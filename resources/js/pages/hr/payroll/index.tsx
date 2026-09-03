@@ -65,7 +65,7 @@ function CreatePeriodDialog() {
                     <DialogTitle>New payroll period</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="year">Year</Label>
                             <Input id="year" type="number" value={data.year} onChange={(e) => setData('year', Number(e.target.value))} />

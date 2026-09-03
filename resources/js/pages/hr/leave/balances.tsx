@@ -116,36 +116,38 @@ export default function LeaveBalancesPage({ employees }: { employees: Row[] }) {
                             )}
                         </div>
                         {emp.balances.length > 0 && (
-                            <table className="w-full text-sm">
-                                <thead className="text-muted-foreground text-left">
-                                    <tr>
-                                        <th className="px-3 py-1.5 font-medium">Type</th>
-                                        <th className="px-3 py-1.5 font-medium">Entitled</th>
-                                        <th className="px-3 py-1.5 font-medium">Carried</th>
-                                        <th className="px-3 py-1.5 font-medium">Taken</th>
-                                        <th className="px-3 py-1.5 font-medium">Pending</th>
-                                        <th className="px-3 py-1.5 font-medium">Adj.</th>
-                                        <th className="px-3 py-1.5 font-medium">Available</th>
-                                        <th />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {emp.balances.map((b) => (
-                                        <tr key={b.id} className="border-t">
-                                            <td className="px-3 py-1.5">{b.type}</td>
-                                            <td className="px-3 py-1.5">{b.entitled_days}</td>
-                                            <td className="px-3 py-1.5">{b.carried_over_days}</td>
-                                            <td className="px-3 py-1.5">{b.taken_days}</td>
-                                            <td className="px-3 py-1.5">{b.pending_days}</td>
-                                            <td className="px-3 py-1.5">{b.adjustment_days}</td>
-                                            <td className="px-3 py-1.5 font-medium">{b.available_days}</td>
-                                            <td className="px-3 py-1.5 text-right">
-                                                <AdjustDialog balance={b} employeeName={emp.name} />
-                                            </td>
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[36rem] text-sm">
+                                    <thead className="text-muted-foreground text-left">
+                                        <tr>
+                                            <th className="px-3 py-1.5 font-medium">Type</th>
+                                            <th className="px-3 py-1.5 font-medium">Entitled</th>
+                                            <th className="px-3 py-1.5 font-medium">Carried</th>
+                                            <th className="px-3 py-1.5 font-medium">Taken</th>
+                                            <th className="px-3 py-1.5 font-medium">Pending</th>
+                                            <th className="px-3 py-1.5 font-medium">Adj.</th>
+                                            <th className="px-3 py-1.5 font-medium">Available</th>
+                                            <th />
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {emp.balances.map((b) => (
+                                            <tr key={b.id} className="border-t">
+                                                <td className="px-3 py-1.5">{b.type}</td>
+                                                <td className="px-3 py-1.5">{b.entitled_days}</td>
+                                                <td className="px-3 py-1.5">{b.carried_over_days}</td>
+                                                <td className="px-3 py-1.5">{b.taken_days}</td>
+                                                <td className="px-3 py-1.5">{b.pending_days}</td>
+                                                <td className="px-3 py-1.5">{b.adjustment_days}</td>
+                                                <td className="px-3 py-1.5 font-medium">{b.available_days}</td>
+                                                <td className="px-3 py-1.5 text-right">
+                                                    <AdjustDialog balance={b} employeeName={emp.name} />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
                 ))}

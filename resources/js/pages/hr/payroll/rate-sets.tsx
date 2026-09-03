@@ -111,7 +111,7 @@ function RateSetDialog({ rateSet }: { rateSet?: RateSet }) {
                     <DialogTitle>{rateSet ? 'Edit' : 'New'} statutory rate set</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="grid gap-4">
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <div className="grid gap-1.5">
                             <Label>Name</Label>
                             <Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
@@ -173,7 +173,7 @@ function RateSetDialog({ rateSet }: { rateSet?: RateSet }) {
                         </Button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {num('Personal relief / month', p.personal_relief_monthly, (v) => setP({ personal_relief_monthly: v }))}
                         {num('Insurance relief rate', p.insurance_relief.rate, (v) => setP({ insurance_relief: { ...p.insurance_relief, rate: v } }))}
                         {num('Insurance relief cap', p.insurance_relief.cap_monthly, (v) =>

@@ -525,7 +525,7 @@ function RenewContractDialog({ employeeId }: { employeeId: number }) {
                     defaults for the new period.
                 </p>
                 <form onSubmit={submit} className="mt-3 grid gap-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="r-start">New start date *</Label>
                             <DateField id="r-start" value={data.start_date} onChange={(v) => setData('start_date', v)} />
@@ -635,7 +635,7 @@ function ContractDialog({ employeeId, departments }: { employeeId: number; depar
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="c-start">Start date</Label>
                             <DateField id="c-start" value={data.start_date} onChange={(v) => setData('start_date', v)} />
@@ -757,7 +757,7 @@ function RecurringItemDialog({ employeeId }: { employeeId: number }) {
                     <DialogTitle>Add recurring pay item</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="ri-kind">Kind</Label>
                             <Select value={data.kind} onValueChange={(v) => setData('kind', v)}>
@@ -788,7 +788,7 @@ function RecurringItemDialog({ employeeId }: { employeeId: number }) {
                         <Input id="ri-name" value={data.name} onChange={(e) => setData('name', e.target.value)} />
                         <InputError message={errors.name} />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="ri-amount">Amount</Label>
                             <Input id="ri-amount" type="number" step="0.01" value={data.amount} onChange={(e) => setData('amount', e.target.value)} />
@@ -867,7 +867,7 @@ function CompensationDialog({ employeeId }: { employeeId: number }) {
                     <DialogTitle>Add compensation record</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="comp-from">Effective from</Label>
                             <DateField id="comp-from" value={data.effective_from} onChange={(v) => setData('effective_from', v)} />
@@ -1005,7 +1005,7 @@ function GoalDialog({ employeeId }: { employeeId: number }) {
                         <Label htmlFor="g-desc">Description</Label>
                         <Input id="g-desc" value={data.description} onChange={(e) => setData('description', e.target.value)} />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="g-weight">Weight (%)</Label>
                             <Input id="g-weight" type="number" value={data.weight} onChange={(e) => setData('weight', e.target.value)} />
@@ -1093,7 +1093,7 @@ export default function EmployeeShow({
                     <div className="grid gap-4 md:grid-cols-2">
                         <Card className="p-4">
                             <h2 className="mb-3 text-sm font-semibold">Personal</h2>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Field label="Date of birth" value={fmtDate(employee.date_of_birth)} />
                                 <Field label="Gender" value={employee.gender} />
                                 <Field label="Marital status" value={employee.marital_status} />
@@ -1108,7 +1108,7 @@ export default function EmployeeShow({
                         </Card>
                         <Card className="p-4">
                             <h2 className="mb-3 text-sm font-semibold">Statutory</h2>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Field label="KRA PIN" value={employee.kra_pin} />
                                 <Field label="NSSF number" value={employee.nssf_number} />
                                 <Field label="SHA/SHIF number" value={employee.shif_number} />
@@ -1117,7 +1117,7 @@ export default function EmployeeShow({
                         </Card>
                         <Card className="p-4">
                             <h2 className="mb-3 text-sm font-semibold">Employment</h2>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Field label="Type" value={label(employee.employment_type)} />
                                 <Field label="Reports to" value={employee.manager?.name} />
                                 <Field label="Date hired" value={fmtDate(employee.date_hired)} />
@@ -1134,7 +1134,7 @@ export default function EmployeeShow({
                         </Card>
                         <Card className="p-4">
                             <h2 className="mb-3 text-sm font-semibold">Payment</h2>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Field label="Method" value={label(employee.payment_method)} />
                                 <Field label="Bank" value={employee.bank_name} />
                                 <Field label="Branch" value={employee.bank_branch} />

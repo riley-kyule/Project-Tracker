@@ -169,7 +169,7 @@ function FileLeaveDialog({ employees, leaveTypes }: { employees: Ref[]; leaveTyp
                         </Select>
                         <InputError message={errors.leave_type_id} />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="fl-start">Start</Label>
                             <DateField id="fl-start" value={data.start_date} onChange={(v) => setData('start_date', v)} />
@@ -235,38 +235,40 @@ function MonthCalendar({
                     </Link>
                 </div>
             </div>
-            <div className="grid grid-cols-7 gap-px text-xs">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-                    <div key={d} className="text-muted-foreground p-1 text-center font-medium">
-                        {d}
-                    </div>
-                ))}
-                {days.map((d) => {
-                    const key = ymd(d);
-                    const inMonth = d.getMonth() === monthDate.getMonth();
-                    const isHoliday = holidays.includes(key);
-                    const dayEvents = eventsOn(key);
-                    return (
-                        <div
-                            key={key}
-                            className={`min-h-16 rounded border p-1 ${inMonth ? '' : 'opacity-40'} ${isHoliday ? 'bg-amber-50 dark:bg-amber-950/30' : ''}`}
-                        >
-                            <div className="text-muted-foreground text-right text-[10px]">{d.getDate()}</div>
-                            {isHoliday && <div className="truncate text-[10px] text-amber-700 dark:text-amber-400">Holiday</div>}
-                            {dayEvents.slice(0, 3).map((e) => (
-                                <div
-                                    key={e.id}
-                                    className={`mt-0.5 truncate rounded px-1 text-[10px] ${e.status === 'pending' ? 'border border-dashed' : 'text-white'}`}
-                                    style={e.status === 'approved' ? { backgroundColor: e.color ?? '#2563eb' } : undefined}
-                                    title={`${e.employee} — ${e.type} (${e.status})`}
-                                >
-                                    {e.employee.split(' ')[0]} · {e.code}
-                                </div>
-                            ))}
-                            {dayEvents.length > 3 && <div className="text-muted-foreground text-[10px]">+{dayEvents.length - 3}</div>}
+            <div className="overflow-x-auto">
+                <div className="grid min-w-[36rem] grid-cols-7 gap-px text-xs">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                        <div key={d} className="text-muted-foreground p-1 text-center font-medium">
+                            {d}
                         </div>
-                    );
-                })}
+                    ))}
+                    {days.map((d) => {
+                        const key = ymd(d);
+                        const inMonth = d.getMonth() === monthDate.getMonth();
+                        const isHoliday = holidays.includes(key);
+                        const dayEvents = eventsOn(key);
+                        return (
+                            <div
+                                key={key}
+                                className={`min-h-16 rounded border p-1 ${inMonth ? '' : 'opacity-40'} ${isHoliday ? 'bg-amber-50 dark:bg-amber-950/30' : ''}`}
+                            >
+                                <div className="text-muted-foreground text-right text-[10px]">{d.getDate()}</div>
+                                {isHoliday && <div className="truncate text-[10px] text-amber-700 dark:text-amber-400">Holiday</div>}
+                                {dayEvents.slice(0, 3).map((e) => (
+                                    <div
+                                        key={e.id}
+                                        className={`mt-0.5 truncate rounded px-1 text-[10px] ${e.status === 'pending' ? 'border border-dashed' : 'text-white'}`}
+                                        style={e.status === 'approved' ? { backgroundColor: e.color ?? '#2563eb' } : undefined}
+                                        title={`${e.employee} — ${e.type} (${e.status})`}
+                                    >
+                                        {e.employee.split(' ')[0]} · {e.code}
+                                    </div>
+                                ))}
+                                {dayEvents.length > 3 && <div className="text-muted-foreground text-[10px]">+{dayEvents.length - 3}</div>}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </Card>
     );

@@ -73,7 +73,7 @@ export default function LeaveRequestShow({ request, canDecide, canCancel }: Page
                     </div>
                 </div>
 
-                <Card className="grid grid-cols-2 gap-3 p-4">
+                <Card className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
                     <Field label="Dates" value={`${fmtDate(request.start_date)} → ${fmtDate(request.end_date)}`} />
                     <Field label="Working days" value={request.days} />
                     <Field label="Reason" value={request.reason} />
