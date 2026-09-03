@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -117,19 +118,16 @@ function NewUserDialog({ departments, roles }: { departments: DepartmentOption[]
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="new-department_id">Department</Label>
-                        <Select value={data.department_id} onValueChange={(value) => setData('department_id', value)}>
-                            <SelectTrigger id="new-department_id">
-                                <SelectValue placeholder="No department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={NONE}>No department</SelectItem>
-                                {departments.map((department) => (
-                                    <SelectItem key={department.id} value={department.id.toString()}>
-                                        {department.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="new-department_id"
+                            value={data.department_id === NONE ? '' : data.department_id}
+                            onChange={(value) => setData('department_id', value || NONE)}
+                            placeholder="No department"
+                            options={[
+                                { value: NONE, label: 'No department' },
+                                ...departments.map((d) => ({ value: d.id.toString(), label: d.name })),
+                            ]}
+                        />
                         <InputError message={errors.department_id} />
                     </div>
                     <div className="grid gap-2">
@@ -199,38 +197,32 @@ function EditUserDialog({ user, users, departments, roles }: { user: UserRow; us
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor={`edit-department_id-${user.id}`}>Department</Label>
-                        <Select value={data.department_id} onValueChange={(value) => setData('department_id', value)}>
-                            <SelectTrigger id={`edit-department_id-${user.id}`}>
-                                <SelectValue placeholder="No department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={NONE}>No department</SelectItem>
-                                {departments.map((department) => (
-                                    <SelectItem key={department.id} value={department.id.toString()}>
-                                        {department.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id={`edit-department_id-${user.id}`}
+                            value={data.department_id === NONE ? '' : data.department_id}
+                            onChange={(value) => setData('department_id', value || NONE)}
+                            placeholder="No department"
+                            options={[
+                                { value: NONE, label: 'No department' },
+                                ...departments.map((d) => ({ value: d.id.toString(), label: d.name })),
+                            ]}
+                        />
                         <InputError message={errors.department_id} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor={`edit-manager_id-${user.id}`}>Manager</Label>
-                        <Select value={data.manager_id} onValueChange={(value) => setData('manager_id', value)}>
-                            <SelectTrigger id={`edit-manager_id-${user.id}`}>
-                                <SelectValue placeholder="No manager" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={NONE}>No manager</SelectItem>
-                                {users
+                        <Combobox
+                            id={`edit-manager_id-${user.id}`}
+                            value={data.manager_id === NONE ? '' : data.manager_id}
+                            onChange={(value) => setData('manager_id', value || NONE)}
+                            placeholder="No manager"
+                            options={[
+                                { value: NONE, label: 'No manager' },
+                                ...users
                                     .filter((candidate) => candidate.id !== user.id)
-                                    .map((candidate) => (
-                                        <SelectItem key={candidate.id} value={candidate.id.toString()}>
-                                            {candidate.name}
-                                        </SelectItem>
-                                    ))}
-                            </SelectContent>
-                        </Select>
+                                    .map((candidate) => ({ value: candidate.id.toString(), label: candidate.name })),
+                            ]}
+                        />
                         <InputError message={errors.manager_id} />
                     </div>
                     <div className="grid gap-2">

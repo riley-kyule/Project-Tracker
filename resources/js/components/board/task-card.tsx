@@ -2,6 +2,7 @@ import { TaskCollaboration } from '@/components/board/task-collaboration';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -309,27 +310,22 @@ export function TaskDialog({
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="task-assignee">Assignee</Label>
-                            <Select
-                                value={form.primary_assignee_id}
-                                onValueChange={(value) => {
-                                    setField('primary_assignee_id', value);
-                                    save({ primary_assignee_id: value === NONE ? null : Number(value) }, { immediate: true });
+                            {/* Not board-scoped, same reasoning as allMembers everywhere else — assigning
+                                someone outside this board's department is itself how they get access to it. */}
+                            <Combobox
+                                id="task-assignee"
+                                value={form.primary_assignee_id === NONE ? '' : form.primary_assignee_id}
+                                onChange={(value) => {
+                                    const next = value || NONE;
+                                    setField('primary_assignee_id', next);
+                                    save({ primary_assignee_id: next === NONE ? null : Number(next) }, { immediate: true });
                                 }}
-                            >
-                                <SelectTrigger id="task-assignee">
-                                    <SelectValue placeholder="Unassigned" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NONE}>Unassigned</SelectItem>
-                                    {/* Not board-scoped, same reasoning as allMembers everywhere else — assigning
-                                        someone outside this board's department is itself how they get access to it. */}
-                                    {allMembers.map((member) => (
-                                        <SelectItem key={member.id} value={member.id.toString()}>
-                                            {member.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                placeholder="Unassigned"
+                                options={[
+                                    { value: NONE, label: 'Unassigned' },
+                                    ...allMembers.map((member) => ({ value: member.id.toString(), label: member.name })),
+                                ]}
+                            />
                             <InputError message={errors.primary_assignee_id} />
                         </div>
                         <div className="grid gap-2">

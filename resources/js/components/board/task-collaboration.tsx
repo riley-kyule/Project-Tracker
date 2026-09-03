@@ -2,6 +2,7 @@ import { type Member } from '@/components/board/task-card';
 import { CommentThread } from '@/components/comments/comment-thread';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -718,20 +719,16 @@ export function TaskCollaboration({
                     )}
                 </ul>
                 <div className="flex flex-wrap gap-2">
-                    <Select value={newCollaboratorId} onValueChange={setNewCollaboratorId}>
-                        <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a collaborator">
-                            <SelectValue placeholder="Add a person…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {allMembers
-                                .filter((member) => !detail.assignees.some((person) => person.id === member.id))
-                                .map((member) => (
-                                    <SelectItem key={member.id} value={member.id.toString()}>
-                                        {member.name}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
+                    <Combobox
+                        className="h-8 flex-1 text-sm"
+                        aria-label="Add a collaborator"
+                        value={newCollaboratorId}
+                        onChange={setNewCollaboratorId}
+                        placeholder="Add a person…"
+                        options={allMembers
+                            .filter((member) => !detail.assignees.some((person) => person.id === member.id))
+                            .map((member) => ({ value: member.id.toString(), label: member.name }))}
+                    />
                     <Select value={newCollaboratorType} onValueChange={(value) => setNewCollaboratorType(value as typeof newCollaboratorType)}>
                         <SelectTrigger className="h-8 w-32 text-sm" aria-label="Collaboration type">
                             <SelectValue />
@@ -811,20 +808,16 @@ export function TaskCollaboration({
                                 )}
                             </ul>
                             <div className="flex gap-2">
-                                <Select value={newGranteeId} onValueChange={setNewGranteeId}>
-                                    <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Grant confidential access to">
-                                        <SelectValue placeholder="Grant access to…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {members
-                                            .filter((member) => !detail.confidentialGrants.some((grantee) => grantee.id === member.id))
-                                            .map((member) => (
-                                                <SelectItem key={member.id} value={member.id.toString()}>
-                                                    {member.name}
-                                                </SelectItem>
-                                            ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    className="h-8 flex-1 text-sm"
+                                    aria-label="Grant confidential access to"
+                                    value={newGranteeId}
+                                    onChange={setNewGranteeId}
+                                    placeholder="Grant access to…"
+                                    options={members
+                                        .filter((member) => !detail.confidentialGrants.some((grantee) => grantee.id === member.id))
+                                        .map((member) => ({ value: member.id.toString(), label: member.name }))}
+                                />
                                 <Button
                                     type="button"
                                     size="sm"
@@ -881,21 +874,19 @@ export function TaskCollaboration({
                     </p>
                 )}
                 <div className="mt-2 flex gap-2">
-                    <Select value={newDependencyId} onValueChange={setNewDependencyId}>
-                        <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a prerequisite task">
-                            <SelectValue placeholder="Add a prerequisite task…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value={NO_DEPENDENCY}>Choose a task…</SelectItem>
-                            {boardTasks
-                                .filter((candidate) => candidate.id !== taskId && !detail.dependencies.some((d) => d.predecessor.id === candidate.id))
-                                .map((candidate) => (
-                                    <SelectItem key={candidate.id} value={candidate.id.toString()}>
-                                        T-{candidate.task_number} {candidate.title}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
+                    <Combobox
+                        className="h-8 flex-1 text-sm"
+                        aria-label="Add a prerequisite task"
+                        value={newDependencyId === NO_DEPENDENCY ? '' : newDependencyId}
+                        onChange={(v) => setNewDependencyId(v || NO_DEPENDENCY)}
+                        placeholder="Add a prerequisite task…"
+                        options={boardTasks
+                            .filter((candidate) => candidate.id !== taskId && !detail.dependencies.some((d) => d.predecessor.id === candidate.id))
+                            .map((candidate) => ({
+                                value: candidate.id.toString(),
+                                label: `T-${candidate.task_number} ${candidate.title}`,
+                            }))}
+                    />
                     <Button
                         type="button"
                         size="sm"
@@ -934,21 +925,19 @@ export function TaskCollaboration({
                     {detail.relations.length === 0 && <li className="text-muted-foreground text-sm">No related tasks.</li>}
                 </ul>
                 <div className="mt-2 flex gap-2">
-                    <Select value={newRelationId} onValueChange={setNewRelationId}>
-                        <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Link a related task">
-                            <SelectValue placeholder="Link a related task…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value={NO_DEPENDENCY}>Choose a task…</SelectItem>
-                            {boardTasks
-                                .filter((candidate) => candidate.id !== taskId && !detail.relations.some((r) => r.task.id === candidate.id))
-                                .map((candidate) => (
-                                    <SelectItem key={candidate.id} value={candidate.id.toString()}>
-                                        T-{candidate.task_number} {candidate.title}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
+                    <Combobox
+                        className="h-8 flex-1 text-sm"
+                        aria-label="Link a related task"
+                        value={newRelationId === NO_DEPENDENCY ? '' : newRelationId}
+                        onChange={(v) => setNewRelationId(v || NO_DEPENDENCY)}
+                        placeholder="Link a related task…"
+                        options={boardTasks
+                            .filter((candidate) => candidate.id !== taskId && !detail.relations.some((r) => r.task.id === candidate.id))
+                            .map((candidate) => ({
+                                value: candidate.id.toString(),
+                                label: `T-${candidate.task_number} ${candidate.title}`,
+                            }))}
+                    />
                     <Button
                         type="button"
                         size="sm"
@@ -1168,18 +1157,14 @@ export function TaskCollaboration({
                 <h3 className="mb-2 text-sm font-semibold">Approval</h3>
                 {detail.approval.status === null && (
                     <div className="flex flex-wrap gap-2">
-                        <Select value={reviewerId} onValueChange={setReviewerId}>
-                            <SelectTrigger className="h-8 w-48 text-sm" aria-label="Choose a reviewer">
-                                <SelectValue placeholder="Choose a reviewer…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {members.map((member) => (
-                                    <SelectItem key={member.id} value={member.id.toString()}>
-                                        {member.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            className="h-8 w-48 text-sm"
+                            aria-label="Choose a reviewer"
+                            value={reviewerId}
+                            onChange={setReviewerId}
+                            placeholder="Choose a reviewer…"
+                            options={members.map((member) => ({ value: member.id.toString(), label: member.name }))}
+                        />
                         <Button
                             type="button"
                             size="sm"
@@ -1241,18 +1226,14 @@ export function TaskCollaboration({
                         <p className="text-destructive text-sm">
                             Sent back by {detail.approval.approver?.name}: {detail.approval.note}
                         </p>
-                        <Select value={reviewerId} onValueChange={setReviewerId}>
-                            <SelectTrigger className="mt-2 h-8 w-48 text-sm" aria-label="Re-request approval from">
-                                <SelectValue placeholder="Re-request from…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {members.map((member) => (
-                                    <SelectItem key={member.id} value={member.id.toString()}>
-                                        {member.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            className="mt-2 h-8 w-48 text-sm"
+                            aria-label="Re-request approval from"
+                            value={reviewerId}
+                            onChange={setReviewerId}
+                            placeholder="Re-request from…"
+                            options={members.map((member) => ({ value: member.id.toString(), label: member.name }))}
+                        />
                         <Button
                             type="button"
                             size="sm"

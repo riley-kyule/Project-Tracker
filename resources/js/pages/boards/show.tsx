@@ -1,6 +1,7 @@
 import { TaskCard, TaskDialog, type BoardTask, type Can, type ColumnOption, type LabelOption, type Member } from '@/components/board/task-card';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -309,19 +310,16 @@ function BulkAssignDialog({
                     <DialogTitle>Assign {selectedIds.length} task(s)</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                    <Select value={assigneeId} onValueChange={setAssigneeId}>
-                        <SelectTrigger className="w-full" aria-label="Assignee">
-                            <SelectValue placeholder="Assignee" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value={UNASSIGNED}>Unassign</SelectItem>
-                            {allMembers.map((member) => (
-                                <SelectItem key={member.id} value={member.id.toString()}>
-                                    {member.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Combobox
+                        aria-label="Assignee"
+                        value={assigneeId === UNASSIGNED ? '' : assigneeId}
+                        onChange={(v) => setAssigneeId(v || UNASSIGNED)}
+                        placeholder="Assignee"
+                        options={[
+                            { value: UNASSIGNED, label: 'Unassign' },
+                            ...allMembers.map((member) => ({ value: member.id.toString(), label: member.name })),
+                        ]}
+                    />
                     <Button onClick={submit} disabled={processing}>
                         Assign
                     </Button>
@@ -371,18 +369,13 @@ function BulkCollaboratorDialog({
                     <DialogTitle>Add a collaborator to {selectedIds.length} task(s)</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                    <Select value={userId} onValueChange={setUserId}>
-                        <SelectTrigger className="w-full" aria-label="Person">
-                            <SelectValue placeholder="Person" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {allMembers.map((member) => (
-                                <SelectItem key={member.id} value={member.id.toString()}>
-                                    {member.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Combobox
+                        aria-label="Person"
+                        value={userId}
+                        onChange={setUserId}
+                        placeholder="Person"
+                        options={allMembers.map((member) => ({ value: member.id.toString(), label: member.name }))}
+                    />
                     <Select value={assignmentType} onValueChange={(value) => setAssignmentType(value as typeof assignmentType)}>
                         <SelectTrigger className="w-full" aria-label="Collaboration type">
                             <SelectValue />
@@ -441,18 +434,13 @@ function BulkApprovalDialog({
                     <DialogTitle>Request approval for {selectedIds.length} task(s)</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                    <Select value={reviewerId} onValueChange={setReviewerId}>
-                        <SelectTrigger className="w-full" aria-label="Reviewer">
-                            <SelectValue placeholder="Reviewer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {allMembers.map((member) => (
-                                <SelectItem key={member.id} value={member.id.toString()}>
-                                    {member.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Combobox
+                        aria-label="Reviewer"
+                        value={reviewerId}
+                        onChange={setReviewerId}
+                        placeholder="Reviewer"
+                        options={allMembers.map((member) => ({ value: member.id.toString(), label: member.name }))}
+                    />
                     <Button onClick={submit} disabled={processing || !reviewerId}>
                         Submit
                     </Button>
@@ -1048,19 +1036,17 @@ export default function BoardShow({
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full sm:w-48"
                         />
-                        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                            <SelectTrigger className="w-40" aria-label="Filter by assignee">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>All assignees</SelectItem>
-                                {members.map((member) => (
-                                    <SelectItem key={member.id} value={member.id.toString()}>
-                                        {member.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            className="w-40"
+                            aria-label="Filter by assignee"
+                            value={assigneeFilter === ALL ? '' : assigneeFilter}
+                            onChange={(v) => setAssigneeFilter(v || ALL)}
+                            placeholder="All assignees"
+                            options={[
+                                { value: ALL, label: 'All assignees' },
+                                ...members.map((member) => ({ value: member.id.toString(), label: member.name })),
+                            ]}
+                        />
                         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                             <SelectTrigger className="w-36" aria-label="Filter by priority">
                                 <SelectValue />

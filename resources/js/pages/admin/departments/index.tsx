@@ -3,6 +3,7 @@ import { SortableHeader, toggleSort, type SortState } from '@/components/sortabl
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -151,36 +152,24 @@ function DepartmentDialog({
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="manager_id">Head of department</Label>
-                        <Select value={data.manager_id} onValueChange={(value) => setData('manager_id', value)}>
-                            <SelectTrigger id="manager_id">
-                                <SelectValue placeholder="No manager" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={NONE}>No manager</SelectItem>
-                                {managers.map((manager) => (
-                                    <SelectItem key={manager.id} value={manager.id.toString()}>
-                                        {manager.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="manager_id"
+                            value={data.manager_id === NONE ? '' : data.manager_id}
+                            onChange={(value) => setData('manager_id', value || NONE)}
+                            placeholder="No manager"
+                            options={[{ value: NONE, label: 'No manager' }, ...managers.map((m) => ({ value: m.id.toString(), label: m.name }))]}
+                        />
                         <InputError message={errors.manager_id} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="assistant_manager_id">Assistant manager</Label>
-                        <Select value={data.assistant_manager_id} onValueChange={(value) => setData('assistant_manager_id', value)}>
-                            <SelectTrigger id="assistant_manager_id">
-                                <SelectValue placeholder="No assistant" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={NONE}>No assistant</SelectItem>
-                                {managers.map((manager) => (
-                                    <SelectItem key={manager.id} value={manager.id.toString()}>
-                                        {manager.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="assistant_manager_id"
+                            value={data.assistant_manager_id === NONE ? '' : data.assistant_manager_id}
+                            onChange={(value) => setData('assistant_manager_id', value || NONE)}
+                            placeholder="No assistant"
+                            options={[{ value: NONE, label: 'No assistant' }, ...managers.map((m) => ({ value: m.id.toString(), label: m.name }))]}
+                        />
                         <InputError message={errors.assistant_manager_id} />
                     </div>
                     <div className="grid gap-2">
@@ -303,20 +292,16 @@ function DepartmentMembersDialog({ department, allUsers }: { department: Departm
                     {department.members.length === 0 && <li className="text-muted-foreground text-sm">No additional members yet.</li>}
                 </ul>
                 <div className="flex gap-2">
-                    <Select value={newMemberId} onValueChange={setNewMemberId}>
-                        <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a department member">
-                            <SelectValue placeholder="Add a person…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {allUsers
-                                .filter((user) => !department.members.some((m) => m.id === user.id))
-                                .map((user) => (
-                                    <SelectItem key={user.id} value={user.id.toString()}>
-                                        {user.name}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
+                    <Combobox
+                        className="h-8 flex-1 text-sm"
+                        aria-label="Add a department member"
+                        value={newMemberId === NONE ? '' : newMemberId}
+                        onChange={(v) => setNewMemberId(v || NONE)}
+                        placeholder="Add a person…"
+                        options={allUsers
+                            .filter((user) => !department.members.some((m) => m.id === user.id))
+                            .map((user) => ({ value: user.id.toString(), label: user.name }))}
+                    />
                     <Button type="button" size="sm" variant="secondary" disabled={newMemberId === NONE} onClick={addMember}>
                         Add
                     </Button>

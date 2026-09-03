@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Combobox } from '@/components/ui/combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { fmtDate } from '@/lib/utils';
@@ -248,20 +249,16 @@ export default function ProjectShow({
                     </ul>
                     {canManage && (
                         <div className="flex gap-2">
-                            <Select value={newMemberId} onValueChange={setNewMemberId}>
-                                <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a person to this project">
-                                    <SelectValue placeholder="Add a person…" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {allUsers
-                                        .filter((user) => !project.members.some((m) => m.id === user.id) && user.id !== project.owner.id)
-                                        .map((user) => (
-                                            <SelectItem key={user.id} value={user.id.toString()}>
-                                                {user.name}
-                                            </SelectItem>
-                                        ))}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                className="h-8 flex-1 text-sm"
+                                aria-label="Add a person to this project"
+                                value={newMemberId === NO_SELECTION ? '' : newMemberId}
+                                onChange={(v) => setNewMemberId(v || NO_SELECTION)}
+                                placeholder="Add a person…"
+                                options={allUsers
+                                    .filter((user) => !project.members.some((m) => m.id === user.id) && user.id !== project.owner.id)
+                                    .map((user) => ({ value: user.id.toString(), label: user.name }))}
+                            />
                             <Button type="button" size="sm" variant="secondary" disabled={newMemberId === NO_SELECTION} onClick={addMember}>
                                 Add
                             </Button>
@@ -292,20 +289,16 @@ export default function ProjectShow({
                     </ul>
                     {canManage && (
                         <div className="flex gap-2">
-                            <Select value={newDepartmentId} onValueChange={setNewDepartmentId}>
-                                <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Add a department to this project">
-                                    <SelectValue placeholder="Add a department…" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {allDepartments
-                                        .filter((department) => !project.departments.some((d) => d.id === department.id))
-                                        .map((department) => (
-                                            <SelectItem key={department.id} value={department.id.toString()}>
-                                                {department.name}
-                                            </SelectItem>
-                                        ))}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                className="h-8 flex-1 text-sm"
+                                aria-label="Add a department to this project"
+                                value={newDepartmentId === NO_SELECTION ? '' : newDepartmentId}
+                                onChange={(v) => setNewDepartmentId(v || NO_SELECTION)}
+                                placeholder="Add a department…"
+                                options={allDepartments
+                                    .filter((department) => !project.departments.some((d) => d.id === department.id))
+                                    .map((department) => ({ value: department.id.toString(), label: department.name }))}
+                            />
                             <Button type="button" size="sm" variant="secondary" disabled={newDepartmentId === NO_SELECTION} onClick={addDepartment}>
                                 Add
                             </Button>
@@ -353,18 +346,17 @@ export default function ProjectShow({
                     </ul>
                     {canManage && (
                         <div className="mt-2 flex gap-2">
-                            <Select value={taskToLinkId} onValueChange={setTaskToLinkId}>
-                                <SelectTrigger className="h-8 flex-1 text-sm" aria-label="Link an existing task to this project">
-                                    <SelectValue placeholder="Link an existing task…" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {unlinkedTasks.map((candidate) => (
-                                        <SelectItem key={candidate.id} value={candidate.id.toString()}>
-                                            T-{candidate.task_number} {candidate.title}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                className="h-8 flex-1 text-sm"
+                                aria-label="Link an existing task to this project"
+                                value={taskToLinkId === NO_SELECTION ? '' : taskToLinkId}
+                                onChange={(v) => setTaskToLinkId(v || NO_SELECTION)}
+                                placeholder="Link an existing task…"
+                                options={unlinkedTasks.map((candidate) => ({
+                                    value: candidate.id.toString(),
+                                    label: `T-${candidate.task_number} ${candidate.title}`,
+                                }))}
+                            />
                             <Button type="button" size="sm" variant="secondary" disabled={taskToLinkId === NO_SELECTION} onClick={linkTask}>
                                 Link
                             </Button>

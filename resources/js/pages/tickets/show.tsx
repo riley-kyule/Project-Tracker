@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -413,18 +414,15 @@ export default function TicketShow({
 
                 {isManager && (
                     <div className="flex flex-wrap items-center gap-2">
-                        <Select value={ticket.assignee?.id.toString() ?? ''} disabled={assigning} onValueChange={(value) => assign(Number(value))}>
-                            <SelectTrigger className="w-56" aria-label="Assign technician">
-                                <SelectValue placeholder="Assign technician…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {technicians.map((technician) => (
-                                    <SelectItem key={technician.id} value={technician.id.toString()}>
-                                        {technician.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            className="w-56"
+                            aria-label="Assign technician"
+                            value={ticket.assignee?.id.toString() ?? ''}
+                            disabled={assigning}
+                            onChange={(value) => value && assign(Number(value))}
+                            placeholder="Assign technician…"
+                            options={technicians.map((technician) => ({ value: technician.id.toString(), label: technician.name }))}
+                        />
                         {allowedTransitions
                             .filter((status) => status !== 'resolved')
                             .map((status) => (

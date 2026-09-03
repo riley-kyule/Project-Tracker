@@ -4,6 +4,7 @@ import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -125,18 +126,13 @@ function NewTicketDialog({ categories, canCreateForOthers, users }: { categories
                             {onBehalf && (
                                 <div className="grid gap-2">
                                     <Label htmlFor="ticket-requester">Requester</Label>
-                                    <Select value={data.requester_id} onValueChange={(value) => setData('requester_id', value)}>
-                                        <SelectTrigger id="ticket-requester">
-                                            <SelectValue placeholder="Who is this ticket for?" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {users.map((user) => (
-                                                <SelectItem key={user.id} value={user.id.toString()}>
-                                                    {user.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Combobox
+                                        id="ticket-requester"
+                                        value={data.requester_id}
+                                        onChange={(value) => setData('requester_id', value)}
+                                        placeholder="Who is this ticket for?"
+                                        options={users.map((user) => ({ value: user.id.toString(), label: user.name }))}
+                                    />
                                     <InputError message={errors.requester_id} />
                                 </div>
                             )}
