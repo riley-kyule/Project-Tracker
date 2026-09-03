@@ -8,6 +8,10 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
+/**
+ * Sent to an employee when their payslip is published (payroll marked paid).
+ * Sender name: "PAYSLIP - {employee}".
+ */
 class PayslipReady extends Notification
 {
     use Queueable;
@@ -21,8 +25,8 @@ class PayslipReady extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        [$address, $name] = CompanySetting::hrMailFrom();
-        $p = $this->payslip->loadMissing('period');
+        $p = $this->payslip->loadMissing('period', 'employee');
+        [$address, $name] = CompanySetting::hrMailFrom("PAYSLIP - {$p->employee->full_name}");
 
         return (new MailMessage)
             ->from($address, $name)

@@ -19,7 +19,6 @@ class CompanySetting extends Model
         'mail_encryption',
         'mail_from_address',
         'mail_from_name',
-        'hr_from_name',
         'company_kra_pin',
         'nssf_employer_number',
         'shif_employer_number',
@@ -71,19 +70,18 @@ class CompanySetting extends Model
     }
 
     /**
-     * Sender identity for HR-module mail: the HR sender name (falling back to
-     * the global one) over the same configured "from" address as everything
-     * else. Returned as [address, name] for a Mailable envelope's `from`.
+     * Sender identity for an HR-module email: the given context-specific
+     * display name (e.g. "LEAVE REQUEST - Jane Doe") over the same configured
+     * "from" address as every other email the app sends. `[address, name]`
+     * for a Mailable envelope / MailMessage `from()`.
      *
      * @return array{0: string, 1: string}
      */
-    public static function hrMailFrom(): array
+    public static function hrMailFrom(string $senderName): array
     {
-        $settings = static::current();
-
         return [
-            $settings->mail_from_address ?? config('mail.from.address'),
-            $settings->hr_from_name ?: ($settings->mail_from_name ?: config('mail.from.name')),
+            static::current()->mail_from_address ?: config('mail.from.address'),
+            $senderName,
         ];
     }
 

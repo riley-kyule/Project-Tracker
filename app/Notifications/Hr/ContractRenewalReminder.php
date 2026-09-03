@@ -12,8 +12,8 @@ use Illuminate\Notifications\Notification;
 /**
  * Heads-up that an employee's contract is approaching its end date, sent at
  * fixed milestones (see {@see SendContractRenewalReminders})
- * to the employee, the CEO and the HR Manager. Mail goes out under the HR
- * sender identity — {@see CompanySetting::hrMailFrom()}.
+ * to the employee, the CEO and the HR Manager.
+ * Sender name: "CONTRACT RENEWAL REMINDER - {employee}".
  */
 class ContractRenewalReminder extends Notification
 {
@@ -31,7 +31,7 @@ class ContractRenewalReminder extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        [$address, $name] = CompanySetting::hrMailFrom();
+        [$address, $name] = CompanySetting::hrMailFrom("CONTRACT RENEWAL REMINDER - {$this->employee->full_name}");
 
         $ends = $this->employee->contract_end_date?->toFormattedDateString();
 

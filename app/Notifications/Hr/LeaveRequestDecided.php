@@ -8,7 +8,10 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-/** Sent to the requester once their leave request is approved or rejected. */
+/**
+ * Sent to the requester once their leave request is approved or rejected.
+ * Sender name: "LEAVE APPROVED - {employee}" / "LEAVE REJECTED - {employee}".
+ */
 class LeaveRequestDecided extends Notification
 {
     use Queueable;
@@ -22,9 +25,11 @@ class LeaveRequestDecided extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        [$address, $name] = CompanySetting::hrMailFrom();
-        $r = $this->leaveRequest->loadMissing('leaveType');
+        $r = $this->leaveRequest->loadMissing('leaveType', 'employee');
         $approved = $r->status === LeaveRequest::STATUS_APPROVED;
+        [$address, $name] = CompanySetting::hrMailFrom(
+            'LEAVE '.($approved ? 'APPROVED' : 'REJECTED')." - {$r->employee->full_name}",
+        );
 
         return (new MailMessage)
             ->from($address, $name)

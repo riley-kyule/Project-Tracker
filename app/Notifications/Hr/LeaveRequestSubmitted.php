@@ -10,7 +10,7 @@ use Illuminate\Notifications\Notification;
 
 /**
  * Sent to the requester's line manager and HR when a leave request is filed.
- * Mail goes out under the HR sender identity — {@see CompanySetting::hrMailFrom()}.
+ * Sender name: "LEAVE REQUEST - {employee}", From address unchanged.
  */
 class LeaveRequestSubmitted extends Notification
 {
@@ -25,8 +25,8 @@ class LeaveRequestSubmitted extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        [$address, $name] = CompanySetting::hrMailFrom();
         $r = $this->leaveRequest->loadMissing('employee', 'leaveType');
+        [$address, $name] = CompanySetting::hrMailFrom("LEAVE REQUEST - {$r->employee->full_name}");
 
         return (new MailMessage)
             ->from($address, $name)

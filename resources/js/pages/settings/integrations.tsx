@@ -23,7 +23,6 @@ type IntegrationSettings = {
     mail_encryption: string | null;
     mail_from_address: string | null;
     mail_from_name: string | null;
-    hr_from_name: string | null;
     company_kra_pin: string | null;
     nssf_employer_number: string | null;
     shif_employer_number: string | null;
@@ -82,7 +81,6 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
         mail_encryption: settings.mail_encryption ?? NONE,
         mail_from_address: settings.mail_from_address ?? '',
         mail_from_name: settings.mail_from_name ?? '',
-        hr_from_name: settings.hr_from_name ?? '',
         company_kra_pin: settings.company_kra_pin ?? '',
         nssf_employer_number: settings.nssf_employer_number ?? '',
         shif_employer_number: settings.shif_employer_number ?? '',
@@ -296,20 +294,11 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                                         />
                                         <InputError message={errors.mail_from_name} />
                                     </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="hr-from-name">HR sender name</Label>
-                                        <Input
-                                            id="hr-from-name"
-                                            value={data.hr_from_name}
-                                            onChange={(e) => setData('hr_from_name', e.target.value)}
-                                            placeholder="e.g. Exotic HR"
-                                        />
-                                        <p className="text-muted-foreground text-xs">
-                                            Used as the sender name on HR emails (leave, contract renewals, payslips). Falls back to the From name
-                                            above. The From address stays the same.
-                                        </p>
-                                        <InputError message={errors.hr_from_name} />
-                                    </div>
+                                    <p className="text-muted-foreground text-xs sm:col-span-2">
+                                        HR emails send from this same address with a context-specific sender name — e.g.
+                                        <span className="font-medium"> LEAVE REQUEST&nbsp;-&nbsp;Jane Doe</span>,
+                                        <span className="font-medium"> PAYSLIP&nbsp;-&nbsp;Jane Doe</span> — set automatically per email.
+                                    </p>
                                 </div>
                             )}
                         </div>
