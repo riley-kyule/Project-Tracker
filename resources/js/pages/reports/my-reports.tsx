@@ -11,7 +11,7 @@ import { Head, router } from '@inertiajs/react';
 import { Download } from 'lucide-react';
 import { useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'My Reports', href: '/my-reports' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'My System Reports', href: '/my-reports' }];
 
 type AssignedWebsite = { id: number; name: string; domain: string | null; team: 'marketing' | 'customer_service' };
 type ReportWebsite = { id: number; name: string; domain: string | null };
@@ -104,9 +104,9 @@ export default function MyReports({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="My Reports" />
+            <Head title="My System Reports" />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">My Reports</h1>
+                <h1 className="text-xl font-semibold">My System Reports</h1>
 
                 {assigned_websites.length === 0 ? (
                     <div className="text-muted-foreground rounded-xl border border-dashed p-6 text-sm">

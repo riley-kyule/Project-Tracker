@@ -43,6 +43,7 @@ const QUICK_LINKS = [
     { href: '#employee-workload', label: 'Employee workload' },
     { href: '#ceo-priority', label: 'CEO priority' },
     { href: '#upcoming-deadlines', label: 'Upcoming deadlines' },
+    { href: '#leave-overview', label: 'Leave overview' },
     { href: '#traffic-data', label: 'Traffic & marketing' },
     { href: '#wordpress-staff', label: 'WordPress staff' },
     { href: '#recent-activity', label: 'Recent activity' },
@@ -275,20 +276,15 @@ export default function CeoDashboard({
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">Company overview</h1>
 
-                {/* Exceptions first (UI_UX_SPEC): what needs attention right now. */}
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {/* Headline numbers — what needs attention right now. The rest
+                    live in the sections below (and the links on each tile). */}
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <StatCard label="Overdue" value={counts.overdue} href="/reports/tasks?filter=overdue" alert />
                     <StatCard label="Blocked" value={counts.blocked} href="/reports/tasks?filter=blocked" alert />
                     <StatCard label="Awaiting review" value={counts.awaiting_review} href="/reports/tasks?filter=awaiting_review" />
-                    <StatCard label="Due today" value={counts.due_today} href="/reports/tasks?filter=due_today" />
-                    <StatCard label="CEO priority" value={counts.ceo_priority} href="/reports/tasks?filter=ceo_priority" />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                    <StatCard label="Completed today" value={counts.completed_today} />
-                    <StatCard label="Completed this week" value={counts.completed_week} href="/reports/tasks?filter=completed_week" />
-                    <StatCard label="Completed tasks" value={counts.completed_total} />
+                    <StatCard label="Open leave requests" value={leaveOverview.open_count} href="/hr/leave" />
                     <StatCard label="Critical tickets" value={counts.critical_tickets} href="/tickets?priority=critical" alert />
-                    <StatCard label="Overdue tickets" value={counts.overdue_tickets} href="/dashboards/it" alert />
+                    <StatCard label="Completed this week" value={counts.completed_week} href="/reports/tasks?filter=completed_week" />
                 </div>
 
                 <QuickLinks />

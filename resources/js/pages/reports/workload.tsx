@@ -16,7 +16,7 @@ type WorkloadRow = {
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Reports', href: '/reports/tasks' },
+    { title: 'Task Reports', href: '/reports/tasks' },
     { title: 'Workload', href: '/reports/workload' },
 ];
 
@@ -67,7 +67,7 @@ export default function WorkloadReport({
                     <h1 className="text-xl font-semibold">Workload &amp; exceptions</h1>
                     <span className="text-muted-foreground text-sm">{people.length} people</span>
                     <Link href="/reports/tasks" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
-                        Task report →
+                        Task Reports →
                     </Link>
                     <Link href="/reports/remote-support" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
                         Remote support →

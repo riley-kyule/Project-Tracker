@@ -8,7 +8,7 @@ import { Download, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Reports', href: '/reports/tasks' },
+    { title: 'Task Reports', href: '/reports/tasks' },
     { title: 'Remote support', href: '/reports/remote-support' },
 ];
 
@@ -78,7 +78,7 @@ export default function RemoteSupportReport({
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">Remote support report</h1>
                     <Link href="/reports/tasks" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
-                        Task report →
+                        Task Reports →
                     </Link>
                     <Link href="/reports/workload" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
                         Workload →

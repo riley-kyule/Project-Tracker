@@ -38,7 +38,7 @@ const statusLabels: Record<Delivery['status'], string> = {
     failed: 'Failed',
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Report Deliveries', href: '/admin/report-deliveries' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'System Report Log', href: '/admin/report-deliveries' }];
 
 function reportLabel(snapshot: Delivery['snapshot']): string {
     if (!snapshot) return 'Unknown report';
@@ -82,10 +82,10 @@ export default function ReportDeliveries({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Report Deliveries" />
+            <Head title="System Report Log" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-xl font-semibold">Report Deliveries</h1>
+                    <h1 className="text-xl font-semibold">System Report Log</h1>
                     <span className="text-muted-foreground text-sm">{deliveries.total} total</span>
                     <Select value={selected.status ?? ALL} onValueChange={applyStatus}>
                         <SelectTrigger className="ml-auto w-40" aria-label="Filter by status">

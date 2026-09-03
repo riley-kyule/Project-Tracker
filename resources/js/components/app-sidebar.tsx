@@ -47,7 +47,7 @@ export function AppSidebar() {
         ...(isExec ? [{ title: 'CEO Dashboard', url: '/dashboards/ceo', icon: Crown }] : []),
         ...(auth.managesDepartment ? [{ title: 'My Department', url: '/dashboards/department', icon: UsersRound }] : []),
         ...(has('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
-        ...(has('reports.view') ? [{ title: 'Reports', url: '/reports/tasks', icon: BarChart3 }] : []),
+        ...(has('reports.view') ? [{ title: 'Task Reports', url: '/reports/tasks', icon: BarChart3 }] : []),
         ...(auth.canViewMarketingStatistics ? [{ title: 'Marketing Statistics', url: '/marketing-statistics', icon: LineChart }] : []),
     ];
 
@@ -63,7 +63,7 @@ export function AppSidebar() {
         ...(auth.hasEmployeeRecord ? [{ title: 'My Employee Data', url: '/hr/me/profile', icon: IdCard }] : []),
         ...(auth.hasEmployeeRecord ? [{ title: 'Leave Application', url: '/hr/me/leave', icon: CalendarDays }] : []),
         ...(auth.hasEmployeeRecord ? [{ title: 'My Payslips', url: '/hr/me/payslips', icon: Banknote }] : []),
-        ...(auth.hasWebsiteAssignments ? [{ title: 'My Reports', url: '/my-reports', icon: FileText }] : []),
+        ...(auth.hasWebsiteAssignments ? [{ title: 'My System Reports', url: '/my-reports', icon: FileText }] : []),
     ];
 
     const admin: NavItem[] = [
@@ -73,7 +73,7 @@ export function AppSidebar() {
         ...(has('labels.manage') ? [{ title: 'Labels', url: '/admin/labels', icon: Tag }] : []),
         ...(has('users.view') ? [{ title: 'Users', url: '/admin/users', icon: UserCog }] : []),
         ...(has('system.deploy') ? [{ title: 'Queue Health', url: '/admin/queue-health', icon: Activity }] : []),
-        ...(has('system.deploy') ? [{ title: 'Report Deliveries', url: '/admin/report-deliveries', icon: Mail }] : []),
+        ...(has('system.deploy') ? [{ title: 'System Report Log', url: '/admin/report-deliveries', icon: Mail }] : []),
     ];
 
     const groups: NavGroup[] = [

@@ -34,7 +34,7 @@ type ReportTask = {
     department: { id: number; name: string } | null;
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Reports', href: '/reports/tasks' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Task Reports', href: '/reports/tasks' }];
 
 const filterLabels: Record<string, string> = {
     all: 'All open',
@@ -194,10 +194,10 @@ export default function TasksReport({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Task report" />
+            <Head title="Task Reports" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-xl font-semibold">Task report</h1>
+                    <h1 className="text-xl font-semibold">Task Reports</h1>
                     <span className="text-muted-foreground text-sm">{tasks.total} tasks</span>
                     <Link href="/reports/workload" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
                         Workload →
