@@ -1,3 +1,4 @@
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
@@ -57,6 +58,19 @@ export default function QueueHealth({
     // Keep this operational-health page reasonably fresh without requiring a manual refresh.
     usePoll(30000);
 
+    const { sorted, sort, onSort } = useClientSort(pendingByQueue, (row, column) => {
+        switch (column) {
+            case 'queue':
+                return row.queue;
+            case 'total':
+                return row.total;
+            case 'oldest_available_at':
+                return row.oldest_available_at;
+            default:
+                return null;
+        }
+    });
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Queue Health" />
@@ -77,13 +91,19 @@ export default function QueueHealth({
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="text-muted-foreground text-left">
-                                        <th className="p-2 font-medium">Queue</th>
-                                        <th className="p-2 font-medium">Pending</th>
-                                        <th className="p-2 font-medium">Oldest waiting since</th>
+                                        <SortableHeader column="queue" sort={sort} onSort={onSort} className="p-2">
+                                            Queue
+                                        </SortableHeader>
+                                        <SortableHeader column="total" sort={sort} onSort={onSort} className="p-2">
+                                            Pending
+                                        </SortableHeader>
+                                        <SortableHeader column="oldest_available_at" sort={sort} onSort={onSort} className="p-2">
+                                            Oldest waiting since
+                                        </SortableHeader>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {pendingByQueue.map((row) => (
+                                    {sorted.map((row) => (
                                         <tr key={row.queue} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                             <td className="p-2 font-mono text-xs">{row.queue}</td>
                                             <td className="p-2">{row.total}</td>

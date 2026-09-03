@@ -2,6 +2,7 @@ import { CategoryPieChart } from '@/components/marketing-statistics/category-pie
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
 import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { TrendChart } from '@/components/marketing-statistics/trend-chart';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type Kpi, type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { Deferred } from '@inertiajs/react';
@@ -29,6 +30,11 @@ function BreakdownCardShell({ title, children }: { title: string; children?: Rea
 }
 
 function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: [string, string][] }) {
+    const { sorted, sort, onSort } = useClientSort(rows, (row, column) => {
+        const v = row[column];
+        return v == null ? null : typeof v === 'number' ? v : String(v);
+    });
+
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
             <h3 className="mb-3 text-sm font-semibold">{title}</h3>
@@ -36,15 +42,21 @@ function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-muted-foreground text-left">
-                            {columns.map(([key, label]) => (
-                                <th key={key} className={key === columns[0][0] ? 'py-1.5 font-medium' : 'py-1.5 text-right font-medium'}>
+                            {columns.map(([key, label], i) => (
+                                <SortableHeader
+                                    key={key}
+                                    column={key}
+                                    sort={sort}
+                                    onSort={onSort}
+                                    className={i === 0 ? 'py-1.5' : 'py-1.5 [&>button]:ml-auto'}
+                                >
                                     {label}
-                                </th>
+                                </SortableHeader>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map((row, i) => (
+                        {sorted.map((row, i) => (
                             <tr key={i} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                 {columns.map(([key], colIndex) => {
                                     const display =

@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -254,6 +255,21 @@ function TypeDialog({ type, existingCodes = [] }: { type?: LeaveType; existingCo
 export default function LeaveTypesPage({ leaveTypes }: { leaveTypes: LeaveType[] }) {
     const existingCodes = leaveTypes.map((t) => t.code);
 
+    const { sorted, sort, onSort } = useClientSort(leaveTypes, (t, column) => {
+        switch (column) {
+            case 'name':
+                return t.name;
+            case 'code':
+                return t.code;
+            case 'default_days':
+                return t.default_days == null ? null : Number(t.default_days);
+            case 'accrual_method':
+                return t.accrual_method;
+            default:
+                return null;
+        }
+    });
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave types" />
@@ -266,16 +282,24 @@ export default function LeaveTypesPage({ leaveTypes }: { leaveTypes: LeaveType[]
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
-                                <th className="px-3 py-2 font-medium">Name</th>
-                                <th className="px-3 py-2 font-medium">Code</th>
-                                <th className="px-3 py-2 font-medium">Default days</th>
-                                <th className="px-3 py-2 font-medium">Accrual</th>
+                                <SortableHeader column="name" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Name
+                                </SortableHeader>
+                                <SortableHeader column="code" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Code
+                                </SortableHeader>
+                                <SortableHeader column="default_days" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Default days
+                                </SortableHeader>
+                                <SortableHeader column="accrual_method" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Accrual
+                                </SortableHeader>
                                 <th className="px-3 py-2 font-medium">Flags</th>
                                 <th className="px-3 py-2" />
                             </tr>
                         </thead>
                         <tbody>
-                            {leaveTypes.map((t) => (
+                            {sorted.map((t) => (
                                 <tr key={t.id} className="border-t">
                                     <td className="px-3 py-2 font-medium">
                                         {t.name} {!t.is_active && <Badge variant="outline">inactive</Badge>}

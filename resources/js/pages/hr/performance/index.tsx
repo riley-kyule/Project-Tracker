@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -114,6 +115,21 @@ function CycleDialog() {
 export default function PerformanceIndex({ cycles, selectedCycleId, reviews, canManage }: PageProps) {
     const selected = cycles.find((c) => c.id === selectedCycleId);
 
+    const { sorted, sort, onSort } = useClientSort(reviews, (r, column) => {
+        switch (column) {
+            case 'employee':
+                return r.employee;
+            case 'reviewer':
+                return r.reviewer ?? null;
+            case 'status':
+                return r.status;
+            case 'overall_rating':
+                return r.overall_rating;
+            default:
+                return null;
+        }
+    });
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Performance" />
@@ -160,14 +176,22 @@ export default function PerformanceIndex({ cycles, selectedCycleId, reviews, can
                             <table className="w-full text-sm">
                                 <thead className="text-muted-foreground text-left">
                                     <tr>
-                                        <th className="py-1 pr-3">Employee</th>
-                                        <th className="py-1 pr-3">Reviewer</th>
-                                        <th className="py-1 pr-3">Status</th>
-                                        <th className="py-1 pr-3">Rating</th>
+                                        <SortableHeader column="employee" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                            Employee
+                                        </SortableHeader>
+                                        <SortableHeader column="reviewer" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                            Reviewer
+                                        </SortableHeader>
+                                        <SortableHeader column="status" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                            Status
+                                        </SortableHeader>
+                                        <SortableHeader column="overall_rating" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                            Rating
+                                        </SortableHeader>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {reviews.map((r) => (
+                                    {sorted.map((r) => (
                                         <tr key={r.id} className="border-t">
                                             <td className="py-1.5 pr-3">
                                                 <Link href={`/hr/performance/reviews/${r.id}`} className="text-primary hover:underline">

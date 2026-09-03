@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -99,6 +100,21 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
 
     const showBlockedWarning = blocked.length > 0 && !data.is_emergency;
 
+    const { sorted, sort, onSort } = useClientSort(requests, (r, column) => {
+        switch (column) {
+            case 'type':
+                return r.type;
+            case 'start_date':
+                return r.start_date;
+            case 'days':
+                return r.days;
+            case 'status':
+                return r.status;
+            default:
+                return null;
+        }
+    });
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Leave" />
@@ -194,16 +210,24 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
                         <table className="w-full text-sm">
                             <thead className="text-muted-foreground text-left">
                                 <tr>
-                                    <th className="py-1 pr-3">Type</th>
-                                    <th className="py-1 pr-3">Dates</th>
-                                    <th className="py-1 pr-3">Days</th>
-                                    <th className="py-1 pr-3">Status</th>
+                                    <SortableHeader column="type" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        Type
+                                    </SortableHeader>
+                                    <SortableHeader column="start_date" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        Dates
+                                    </SortableHeader>
+                                    <SortableHeader column="days" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        Days
+                                    </SortableHeader>
+                                    <SortableHeader column="status" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        Status
+                                    </SortableHeader>
                                     <th className="py-1 pr-3">Note</th>
                                     <th />
                                 </tr>
                             </thead>
                             <tbody>
-                                {requests.map((r) => (
+                                {sorted.map((r) => (
                                     <tr key={r.id} className="border-t">
                                         <td className="py-1.5 pr-3">
                                             {r.type} {r.is_emergency && <Badge variant="secondary">emergency</Badge>}

@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -277,6 +278,27 @@ export default function EmployeesIndex({ employees, departments, managers, linka
         });
     }, [employees, search, statusFilter, includeTerminated]);
 
+    const { sorted, sort, onSort } = useClientSort(filtered, (e, column) => {
+        switch (column) {
+            case 'full_name':
+                return e.full_name;
+            case 'staff_number':
+                return e.staff_number;
+            case 'job_title':
+                return e.job_title ?? null;
+            case 'department':
+                return e.department?.name ?? null;
+            case 'employment_type':
+                return e.employment_type;
+            case 'employment_status':
+                return e.employment_status;
+            case 'contract_end_date':
+                return e.contract_end_date ?? null;
+            default:
+                return null;
+        }
+    });
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="People" />
@@ -319,17 +341,31 @@ export default function EmployeesIndex({ employees, departments, managers, linka
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
-                                <th className="px-3 py-2 font-medium">Name</th>
-                                <th className="px-3 py-2 font-medium">Staff #</th>
-                                <th className="px-3 py-2 font-medium">Role</th>
-                                <th className="px-3 py-2 font-medium">Department</th>
-                                <th className="px-3 py-2 font-medium">Type</th>
-                                <th className="px-3 py-2 font-medium">Status</th>
-                                <th className="px-3 py-2 font-medium">Contract ends</th>
+                                <SortableHeader column="full_name" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Name
+                                </SortableHeader>
+                                <SortableHeader column="staff_number" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Staff #
+                                </SortableHeader>
+                                <SortableHeader column="job_title" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Role
+                                </SortableHeader>
+                                <SortableHeader column="department" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Department
+                                </SortableHeader>
+                                <SortableHeader column="employment_type" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Type
+                                </SortableHeader>
+                                <SortableHeader column="employment_status" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Status
+                                </SortableHeader>
+                                <SortableHeader column="contract_end_date" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Contract ends
+                                </SortableHeader>
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map((e) => (
+                            {sorted.map((e) => (
                                 <tr key={e.id} className="hover:bg-muted/30 border-t">
                                     <td className="px-3 py-2">
                                         <Link href={`/hr/employees/${e.id}`} className="text-primary font-medium hover:underline">

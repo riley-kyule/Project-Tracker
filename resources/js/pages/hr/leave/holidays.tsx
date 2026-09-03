@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,6 +26,8 @@ export default function HolidaysPage({ holidays }: { holidays: Holiday[] }) {
         e.preventDefault();
         post('/hr/leave/holidays', { preserveScroll: true, onSuccess: () => reset() });
     };
+
+    const { sorted, sort, onSort } = useClientSort(holidays, (h, column) => (column === 'name' ? h.name : column === 'date' ? h.date : null));
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -55,8 +58,20 @@ export default function HolidaysPage({ holidays }: { holidays: Holiday[] }) {
 
                 <div className="overflow-x-auto rounded-lg border">
                     <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-left">
+                            <tr>
+                                <SortableHeader column="name" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Name
+                                </SortableHeader>
+                                <SortableHeader column="date" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Date
+                                </SortableHeader>
+                                <th className="px-3 py-2" />
+                                <th className="px-3 py-2" />
+                            </tr>
+                        </thead>
                         <tbody>
-                            {holidays.map((h) => (
+                            {sorted.map((h) => (
                                 <tr key={h.id} className="border-b last:border-0">
                                     <td className="px-3 py-2 font-medium">{h.name}</td>
                                     <td className="px-3 py-2">{fmtDate(h.date)}</td>

@@ -1,4 +1,5 @@
 import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type MarketingFilters, type MarketingWebsite } from '@/types/marketing-statistics';
@@ -20,6 +21,21 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function SourceCard({ title, source, websiteNames }: { title: string; source: SourceFreshness; websiteNames: Map<string, string> }) {
+    const { sorted, sort, onSort } = useClientSort(source.sites, (site, column) => {
+        switch (column) {
+            case 'website':
+                return websiteNames.get(site.website_id) ?? site.website_id;
+            case 'latest_date':
+                return site.latest_date;
+            case 'days_behind':
+                return site.days_behind;
+            case 'status':
+                return site.status;
+            default:
+                return null;
+        }
+    });
+
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
             <div className="mb-2 flex items-center justify-between">
@@ -36,14 +52,22 @@ function SourceCard({ title, source, websiteNames }: { title: string; source: So
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-muted-foreground text-left">
-                                <th className="py-1.5 font-medium">Website</th>
-                                <th className="py-1.5 font-medium">Latest data</th>
-                                <th className="py-1.5 text-right font-medium">Days behind</th>
-                                <th className="py-1.5 text-right font-medium">Status</th>
+                                <SortableHeader column="website" sort={sort} onSort={onSort} className="py-1.5">
+                                    Website
+                                </SortableHeader>
+                                <SortableHeader column="latest_date" sort={sort} onSort={onSort} className="py-1.5">
+                                    Latest data
+                                </SortableHeader>
+                                <SortableHeader column="days_behind" sort={sort} onSort={onSort} className="py-1.5 [&>button]:ml-auto">
+                                    Days behind
+                                </SortableHeader>
+                                <SortableHeader column="status" sort={sort} onSort={onSort} className="py-1.5 [&>button]:ml-auto">
+                                    Status
+                                </SortableHeader>
                             </tr>
                         </thead>
                         <tbody>
-                            {source.sites.map((site) => (
+                            {sorted.map((site) => (
                                 <tr key={site.website_id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                     <td className="py-1.5">{websiteNames.get(site.website_id) ?? site.website_id}</td>
                                     <td className="py-1.5">{site.latest_date ?? '—'}</td>

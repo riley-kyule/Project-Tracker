@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -102,6 +103,23 @@ function CreatePeriodDialog() {
 }
 
 export default function PayrollIndex({ periods }: { periods: PeriodRow[] }) {
+    const { sorted, sort, onSort } = useClientSort(periods, (p, column) => {
+        switch (column) {
+            case 'label':
+                return p.year * 100 + p.month;
+            case 'pay_date':
+                return p.pay_date;
+            case 'status':
+                return p.status;
+            case 'payslips_count':
+                return p.payslips_count;
+            case 'net_total':
+                return p.net_total;
+            default:
+                return null;
+        }
+    });
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Payroll" />
@@ -123,15 +141,25 @@ export default function PayrollIndex({ periods }: { periods: PeriodRow[] }) {
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
-                                <th className="px-3 py-2 font-medium">Period</th>
-                                <th className="px-3 py-2 font-medium">Pay date</th>
-                                <th className="px-3 py-2 font-medium">Status</th>
-                                <th className="px-3 py-2 font-medium">Payslips</th>
-                                <th className="px-3 py-2 font-medium">Net total</th>
+                                <SortableHeader column="label" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Period
+                                </SortableHeader>
+                                <SortableHeader column="pay_date" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Pay date
+                                </SortableHeader>
+                                <SortableHeader column="status" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Status
+                                </SortableHeader>
+                                <SortableHeader column="payslips_count" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Payslips
+                                </SortableHeader>
+                                <SortableHeader column="net_total" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Net total
+                                </SortableHeader>
                             </tr>
                         </thead>
                         <tbody>
-                            {periods.map((p) => (
+                            {sorted.map((p) => (
                                 <tr key={p.id} className="hover:bg-muted/30 border-t">
                                     <td className="px-3 py-2">
                                         <Link href={`/hr/payroll/${p.id}`} className="text-primary font-medium hover:underline">

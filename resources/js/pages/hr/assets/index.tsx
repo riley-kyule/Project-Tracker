@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
@@ -320,6 +321,25 @@ export default function AssetsIndex({ assets, categories, canManage }: PageProps
         });
     }, [assets, search, statusFilter]);
 
+    const { sorted, sort, onSort } = useClientSort(filtered, (a, column) => {
+        switch (column) {
+            case 'asset_tag':
+                return a.asset_tag;
+            case 'name':
+                return a.name;
+            case 'category':
+                return a.category?.name ?? null;
+            case 'serial_number':
+                return a.serial_number ?? null;
+            case 'status':
+                return a.status;
+            case 'custodian':
+                return a.custodian?.name ?? null;
+            default:
+                return null;
+        }
+    });
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Assets" />
@@ -364,16 +384,28 @@ export default function AssetsIndex({ assets, categories, canManage }: PageProps
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
-                                <th className="px-3 py-2 font-medium">Tag</th>
-                                <th className="px-3 py-2 font-medium">Name</th>
-                                <th className="px-3 py-2 font-medium">Category</th>
-                                <th className="px-3 py-2 font-medium">Serial</th>
-                                <th className="px-3 py-2 font-medium">Status</th>
-                                <th className="px-3 py-2 font-medium">Custodian</th>
+                                <SortableHeader column="asset_tag" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Tag
+                                </SortableHeader>
+                                <SortableHeader column="name" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Name
+                                </SortableHeader>
+                                <SortableHeader column="category" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Category
+                                </SortableHeader>
+                                <SortableHeader column="serial_number" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Serial
+                                </SortableHeader>
+                                <SortableHeader column="status" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Status
+                                </SortableHeader>
+                                <SortableHeader column="custodian" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Custodian
+                                </SortableHeader>
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map((a) => (
+                            {sorted.map((a) => (
                                 <tr key={a.id} className="hover:bg-muted/30 border-t">
                                     <td className="text-muted-foreground px-3 py-2">{a.asset_tag}</td>
                                     <td className="px-3 py-2">
