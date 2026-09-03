@@ -124,6 +124,7 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('hr')->name('hr.')->g
     // Assets
     Route::get('assets', [AssetController::class, 'index'])->name('assets.index');
     Route::post('assets', [AssetController::class, 'store'])->name('assets.store');
+    Route::post('assets/import', [AssetController::class, 'import'])->name('assets.import');
     Route::get('assets/{asset}', [AssetController::class, 'show'])->name('assets.show');
     Route::patch('assets/{asset}', [AssetController::class, 'update'])->name('assets.update');
     Route::delete('assets/{asset}', [AssetController::class, 'destroy'])->name('assets.destroy');

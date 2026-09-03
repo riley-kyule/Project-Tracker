@@ -9,7 +9,9 @@ use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\Employee;
 use App\Services\AuditLogger;
+use App\Services\Hr\AssetImporter;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -81,6 +83,29 @@ class AssetController extends Controller
                 ->map(fn (Employee $e) => ['id' => $e->id, 'name' => $e->full_name]),
             'canManage' => request()->user()->can('hr.assets.manage'),
         ]);
+    }
+
+    public function import(Request $request, AssetImporter $importer): RedirectResponse
+    {
+        Gate::authorize('create', Asset::class);
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
+        ]);
+
+        $result = $importer->importFile($request->file('file')->getRealPath());
+
+        if ($result->fatalError) {
+            return back()->with('error', $result->fatalError);
+        }
+
+        if ($result->hasUnmatched()) {
+            return back()
+                ->with('success', $result->summary())
+                ->with('error', "No staff match these custodians yet: {$result->unmatchedList()}. Import those employees, then upload the file again to link them.");
+        }
+
+        return back()->with('success', $result->summary());
     }
 
     public function store(StoreAssetRequest $request): RedirectResponse

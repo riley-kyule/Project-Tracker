@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Plus, Upload } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 
 type Category = { id: number; name: string; is_active: boolean };
 
@@ -245,6 +245,63 @@ function CategoryDialog({ categories }: { categories: Category[] }) {
     );
 }
 
+function ImportAssetsDialog() {
+    const [open, setOpen] = useState(false);
+    const fileRef = useRef<HTMLInputElement>(null);
+    const { setData, post, processing, errors, reset, data } = useForm<{ file: File | null }>({ file: null });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        post('/hr/assets/import', {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setOpen(false);
+                reset();
+                if (fileRef.current) fileRef.current.value = '';
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline">
+                    <Upload className="mr-1 h-4 w-4" /> Import CSV
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Import assets from a CSV</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="grid gap-4">
+                    <p className="text-muted-foreground text-sm">
+                        Upload an ERP asset export. Rows are matched on the asset ID, so re-uploading updates existing records rather than duplicating
+                        them. Custodians are linked by staff number — any that don&apos;t match an employee yet are reported so you can import those
+                        staff and upload again.
+                    </p>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="import-file">CSV file</Label>
+                        <Input
+                            id="import-file"
+                            ref={fileRef}
+                            type="file"
+                            accept=".csv,text/csv,text/plain"
+                            onChange={(e) => setData('file', e.target.files?.[0] ?? null)}
+                        />
+                        <InputError message={errors.file} />
+                    </div>
+                    <div>
+                        <Button type="submit" disabled={processing || !data.file}>
+                            Import
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function AssetsIndex({ assets, categories, canManage }: PageProps) {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -274,6 +331,7 @@ export default function AssetsIndex({ assets, categories, canManage }: PageProps
                     </div>
                     {canManage && (
                         <div className="flex gap-2">
+                            <ImportAssetsDialog />
                             <CategoryDialog categories={categories} />
                             <CreateAssetDialog categories={categories} />
                         </div>

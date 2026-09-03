@@ -5,7 +5,9 @@ namespace Tests\Feature\Hr;
 use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\Employee;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class ImportAssetsTest extends TestCase
@@ -78,6 +80,40 @@ class ImportAssetsTest extends TestCase
         $asset->refresh();
         $this->assertSame(Asset::STATUS_ASSIGNED, $asset->status);
         $this->assertSame($emp->id, $asset->currentAssignment->employee_id);
+    }
+
+    public function test_the_page_upload_imports_and_flags_unmatched_custodians(): void
+    {
+        $hr = User::factory()->create()->assignRole('HR Manager');
+        Employee::factory()->create(['staff_number' => 'HR-EMP-00001']);
+
+        $body = implode("\n", [
+            'ACC-ASS-2026-00004,PMKC0DQMM4,iPad Pro,CEO,EOA,2024-05-01,iPad Pro,Tablets,Existing Asset,Company,2024-05-01,67000.0,HR-EMP-00001,Submitted,,0.0',
+            'ACC-ASS-2026-00003,FYHPJX3HHX,MacBook Pro (2024),CEO,EOA,2025-11-10,MacBook Pro,Laptops,Existing Asset,Company,2025-11-10,200000.0,HR-EMP-00099,Submitted,,0.0',
+        ]);
+        $path = $this->csv($body);
+        $file = new UploadedFile($path, 'assets.csv', 'text/csv', null, true);
+
+        $response = $this->actingAs($hr)->post('/hr/assets/import', ['file' => $file]);
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $response->assertSessionHas('error', fn ($m) => str_contains($m, 'HR-EMP-00099'));
+        unlink($path);
+
+        $this->assertSame(2, Asset::count());
+        $this->assertSame(Asset::STATUS_ASSIGNED, Asset::firstWhere('asset_tag', 'ACC-ASS-2026-00004')->status);
+        $this->assertSame(Asset::STATUS_IN_STOCK, Asset::firstWhere('asset_tag', 'ACC-ASS-2026-00003')->status);
+    }
+
+    public function test_the_page_upload_is_gated_to_asset_managers(): void
+    {
+        $viewer = User::factory()->create()->assignRole('Employee');
+        $path = $this->csv('ACC-ASS-2026-00001,SER1,Thing,Loc,EOA,2026-01-01,Thing,Laptops,Existing Asset,Company,2026-01-01,100.0,,Submitted,,0.0');
+        $file = new UploadedFile($path, 'assets.csv', 'text/csv', null, true);
+
+        $this->actingAs($viewer)->post('/hr/assets/import', ['file' => $file])->assertForbidden();
+        unlink($path);
+        $this->assertSame(0, Asset::count());
     }
 
     public function test_dry_run_writes_nothing(): void
