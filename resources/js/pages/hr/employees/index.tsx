@@ -37,7 +37,7 @@ type PageProps = {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'People', href: '/hr/employees' }];
 
 const NONE = 'none';
-const EMPLOYMENT_TYPES = ['permanent', 'contract', 'casual', 'intern'];
+const EMPLOYMENT_TYPES = ['permanent', 'contract', 'consultancy', 'casual', 'intern'];
 const STATUSES = ['active', 'on_probation', 'on_leave', 'suspended', 'terminated'];
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {

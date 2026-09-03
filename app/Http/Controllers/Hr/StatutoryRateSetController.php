@@ -18,7 +18,14 @@ class StatutoryRateSetController extends Controller
         Gate::authorize('viewAny', StatutoryRateSet::class);
 
         return Inertia::render('hr/payroll/rate-sets', [
-            'rateSets' => StatutoryRateSet::query()->orderByDesc('effective_from')->get(),
+            'rateSets' => StatutoryRateSet::query()->orderByDesc('effective_from')->get()->map(fn (StatutoryRateSet $rs) => [
+                'id' => $rs->id,
+                'name' => $rs->name,
+                'effective_from' => $rs->effective_from->toDateString(),
+                'effective_to' => $rs->effective_to?->toDateString(),
+                'is_active' => $rs->is_active,
+                'payload' => $rs->payload,
+            ]),
         ]);
     }
 

@@ -18,7 +18,12 @@ class PublicHolidayController extends Controller
         Gate::authorize('adjustBalances', LeaveRequest::class);
 
         return Inertia::render('hr/leave/holidays', [
-            'holidays' => PublicHoliday::query()->orderBy('date')->get(),
+            'holidays' => PublicHoliday::query()->orderBy('date')->get()->map(fn (PublicHoliday $h) => [
+                'id' => $h->id,
+                'name' => $h->name,
+                'date' => $h->date->toDateString(),
+                'is_recurring' => $h->is_recurring,
+            ]),
         ]);
     }
 

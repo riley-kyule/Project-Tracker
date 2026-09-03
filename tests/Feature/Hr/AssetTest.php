@@ -31,6 +31,29 @@ class AssetTest extends TestCase
         $this->assertDatabaseHas('assets', ['asset_tag' => 'AST-9001']);
     }
 
+    public function test_an_asset_can_be_edited_and_dates_round_trip_as_ymd(): void
+    {
+        $hr = $this->hrManager();
+        $asset = Asset::factory()->create(['name' => 'Old name']);
+
+        $this->actingAs($hr)->patch("/hr/assets/{$asset->id}", [
+            'asset_tag' => $asset->asset_tag,
+            'name' => 'New name',
+            'status' => 'in_repair',
+            'condition' => 'fair',
+            'purchase_date' => '2025-06-15',
+            'warranty_expiry' => '2028-06-15',
+        ])->assertRedirect();
+
+        $asset->refresh();
+        $this->assertSame('New name', $asset->name);
+        $this->assertSame('2025-06-15', $asset->purchase_date->toDateString());
+
+        $this->actingAs($hr)->get("/hr/assets/{$asset->id}")->assertInertia(fn ($page) => $page
+            ->where('asset.purchase_date', '2025-06-15')
+            ->where('asset.warranty_expiry', '2028-06-15'));
+    }
+
     public function test_plain_employee_cannot_view_the_asset_register(): void
     {
         $user = User::factory()->create()->assignRole('Employee');

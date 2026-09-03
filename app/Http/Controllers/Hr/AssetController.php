@@ -56,9 +56,11 @@ class AssetController extends Controller
             'asset' => [
                 ...$asset->only([
                     'id', 'asset_tag', 'asset_category_id', 'name', 'description', 'serial_number',
-                    'manufacturer', 'model', 'purchase_date', 'purchase_cost', 'supplier',
-                    'warranty_expiry', 'status', 'condition', 'location', 'notes',
+                    'manufacturer', 'model', 'purchase_cost', 'supplier',
+                    'status', 'condition', 'location', 'notes',
                 ]),
+                'purchase_date' => $asset->purchase_date?->toDateString(),
+                'warranty_expiry' => $asset->warranty_expiry?->toDateString(),
                 'category' => $asset->category?->only(['id', 'name']),
                 'current_assignment_id' => $asset->currentAssignment?->id,
                 'assignments' => $asset->assignments->map(fn ($a) => [

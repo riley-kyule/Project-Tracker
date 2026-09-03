@@ -152,12 +152,17 @@ type PageProps = {
 
 const NONE = 'none';
 const BASE_TABS = ['Profile', 'Next of Kin', 'Contracts', 'Documents', 'Assets', 'Pay items', 'Performance'] as const;
-const EMPLOYMENT_TYPES = ['permanent', 'contract', 'casual', 'intern'];
+const EMPLOYMENT_TYPES = ['permanent', 'contract', 'consultancy', 'casual', 'intern'];
 const STATUSES = ['active', 'on_probation', 'on_leave', 'suspended', 'terminated'];
 const DOC_CATEGORIES = ['contract', 'id_copy', 'kra', 'nssf', 'shif', 'certificate', 'other'];
 
 function label(value: string) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Normalise a date value to what <input type="date"> expects (YYYY-MM-DD). */
+function dateInput(value: string | null | undefined) {
+    return (value ?? '').slice(0, 10);
 }
 
 function Field({ label: l, value }: { label: string; value: React.ReactNode }) {
@@ -176,7 +181,7 @@ function EditProfileDialog({ employee, departments, managers }: { employee: Empl
         first_name: employee.first_name,
         middle_name: employee.middle_name ?? '',
         last_name: employee.last_name,
-        date_of_birth: employee.date_of_birth ?? '',
+        date_of_birth: dateInput(employee.date_of_birth),
         gender: employee.gender ?? '',
         marital_status: employee.marital_status ?? '',
         national_id_number: employee.national_id_number ?? '',
@@ -195,12 +200,12 @@ function EditProfileDialog({ employee, departments, managers }: { employee: Empl
         employment_type: employee.employment_type,
         manager_id: employee.manager_id ? String(employee.manager_id) : NONE,
         is_org_head: employee.is_org_head,
-        date_hired: employee.date_hired ?? '',
-        contract_start_date: employee.contract_start_date ?? '',
-        contract_end_date: employee.contract_end_date ?? '',
-        probation_end_date: employee.probation_end_date ?? '',
+        date_hired: dateInput(employee.date_hired),
+        contract_start_date: dateInput(employee.contract_start_date),
+        contract_end_date: dateInput(employee.contract_end_date),
+        probation_end_date: dateInput(employee.probation_end_date),
         employment_status: employee.employment_status,
-        termination_date: employee.termination_date ?? '',
+        termination_date: dateInput(employee.termination_date),
         termination_reason: employee.termination_reason ?? '',
         bank_name: employee.bank_name ?? '',
         bank_branch: employee.bank_branch ?? '',

@@ -34,7 +34,7 @@ class Employee extends Model
 
     public const STATUS_TERMINATED = 'terminated';
 
-    public const EMPLOYMENT_TYPES = ['permanent', 'contract', 'casual', 'intern'];
+    public const EMPLOYMENT_TYPES = ['permanent', 'contract', 'consultancy', 'casual', 'intern'];
 
     public const PAYMENT_METHODS = ['bank', 'mpesa', 'cash', 'cheque'];
 

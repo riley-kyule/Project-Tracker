@@ -31,20 +31,26 @@ class ProfileController extends Controller
         return Inertia::render('hr/me/profile', [
             'employee' => [
                 ...$employee->only([
-                    'staff_number', 'first_name', 'middle_name', 'last_name', 'date_of_birth',
+                    'staff_number', 'first_name', 'middle_name', 'last_name',
                     'gender', 'marital_status', 'national_id_number', 'kra_pin', 'nssf_number',
                     'shif_number', 'insurance_membership_number', 'personal_email', 'phone',
                     'alt_phone', 'postal_address', 'physical_address', 'county', 'job_title',
-                    'employment_type', 'date_hired', 'contract_start_date', 'contract_end_date',
-                    'employment_status', 'bank_name', 'bank_branch', 'bank_account_number', 'payment_method',
+                    'employment_type', 'employment_status', 'bank_name', 'bank_branch',
+                    'bank_account_number', 'payment_method',
                 ]),
+                'date_of_birth' => $employee->date_of_birth?->toDateString(),
+                'date_hired' => $employee->date_hired?->toDateString(),
+                'contract_start_date' => $employee->contract_start_date?->toDateString(),
+                'contract_end_date' => $employee->contract_end_date?->toDateString(),
                 'full_name' => $employee->full_name,
                 'tenure_months' => $employee->tenure_months,
                 'department' => $employee->department?->only(['id', 'name']),
                 'manager' => $employee->manager ? ['name' => $employee->manager->full_name] : null,
                 'next_of_kin' => $employee->nextOfKin,
                 'contracts' => $employee->contracts->map(fn ($c) => [
-                    ...$c->only(['id', 'title', 'employment_type', 'start_date', 'end_date']),
+                    ...$c->only(['id', 'title', 'employment_type']),
+                    'start_date' => $c->start_date?->toDateString(),
+                    'end_date' => $c->end_date?->toDateString(),
                     'department' => $c->department?->only(['id', 'name']),
                 ]),
                 'assets' => $employee->currentAssets->map(fn ($a) => [

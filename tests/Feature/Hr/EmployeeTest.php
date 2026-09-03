@@ -47,6 +47,38 @@ class EmployeeTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['auditable_type' => $employee->getMorphClass(), 'event' => 'created']);
     }
 
+    public function test_create_form_dates_persist_and_round_trip_to_the_edit_form_as_ymd(): void
+    {
+        $hr = $this->hrManager();
+        $department = Department::factory()->create();
+
+        $this->actingAs($hr)->post('/hr/employees', [
+            'staff_number' => 'EMP-2020',
+            'first_name' => 'Date',
+            'last_name' => 'Keeper',
+            'employment_type' => 'consultancy',
+            'employment_status' => 'active',
+            'payment_method' => 'bank',
+            'department_id' => $department->id,
+            'is_org_head' => true,
+            'date_hired' => '2026-02-01',
+            'contract_start_date' => '2026-02-01',
+            'contract_end_date' => '2026-08-01',
+        ])->assertRedirect();
+
+        $employee = Employee::firstWhere('staff_number', 'EMP-2020');
+        $this->assertSame('2026-02-01', $employee->date_hired->toDateString());
+        $this->assertSame('2026-02-01', $employee->contract_start_date->toDateString());
+        $this->assertSame('consultancy', $employee->employment_type);
+
+        // The show page (which the edit form reads from) must serialise dates as
+        // plain Y-m-d, or the <input type="date"> fields render blank.
+        $this->actingAs($hr)->get("/hr/employees/{$employee->id}")->assertInertia(fn ($page) => $page
+            ->where('employee.date_hired', '2026-02-01')
+            ->where('employee.contract_start_date', '2026-02-01')
+            ->where('employee.contract_end_date', '2026-08-01'));
+    }
+
     public function test_department_and_manager_are_required_unless_org_head(): void
     {
         $hr = $this->hrManager();

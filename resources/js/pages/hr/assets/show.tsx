@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 
 type Ref = { id: number; name: string };
@@ -66,6 +67,128 @@ function Field({ label: l, value }: { label: string; value: React.ReactNode }) {
             <span className="text-muted-foreground text-xs">{l}</span>
             <span className="text-sm">{value ?? '—'}</span>
         </div>
+    );
+}
+
+const NONE = 'none';
+const STATUSES = ['in_stock', 'assigned', 'in_repair', 'retired', 'lost'];
+
+function EditAssetDialog({ asset, categories }: { asset: Asset; categories: Ref[] }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, patch, processing, errors, transform } = useForm({
+        asset_tag: asset.asset_tag,
+        name: asset.name,
+        asset_category_id: asset.asset_category_id ? String(asset.asset_category_id) : NONE,
+        serial_number: asset.serial_number ?? '',
+        manufacturer: asset.manufacturer ?? '',
+        model: asset.model ?? '',
+        purchase_date: (asset.purchase_date ?? '').slice(0, 10),
+        purchase_cost: asset.purchase_cost ?? '',
+        supplier: asset.supplier ?? '',
+        warranty_expiry: (asset.warranty_expiry ?? '').slice(0, 10),
+        status: asset.status,
+        condition: asset.condition,
+        location: asset.location ?? '',
+        description: asset.description ?? '',
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        transform((f) => ({
+            ...f,
+            asset_category_id: f.asset_category_id === NONE ? null : Number(f.asset_category_id),
+            purchase_cost: f.purchase_cost === '' ? null : Number(f.purchase_cost),
+            purchase_date: f.purchase_date || null,
+            warranty_expiry: f.warranty_expiry || null,
+        }));
+        patch(`/hr/assets/${asset.id}`, { preserveScroll: true, onSuccess: () => setOpen(false) });
+    };
+
+    const text = (name: keyof typeof data, l: string, type = 'text') => (
+        <div className="grid gap-1.5">
+            <Label htmlFor={`e-${name}`}>{l}</Label>
+            <Input id={`e-${name}`} type={type} value={data[name] as string} onChange={(ev) => setData(name, ev.target.value)} />
+            <InputError message={errors[name as keyof typeof errors]} />
+        </div>
+    );
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <Pencil className="mr-1 h-4 w-4" /> Edit
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Edit {asset.name}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+                    {text('asset_tag', 'Asset tag')}
+                    {text('name', 'Name')}
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="e-cat">Category</Label>
+                        <Select value={data.asset_category_id} onValueChange={(v) => setData('asset_category_id', v)}>
+                            <SelectTrigger id="e-cat">
+                                <SelectValue placeholder="None" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>None</SelectItem>
+                                {categories.map((c) => (
+                                    <SelectItem key={c.id} value={String(c.id)}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {text('serial_number', 'Serial number')}
+                    {text('manufacturer', 'Manufacturer')}
+                    {text('model', 'Model')}
+                    {text('purchase_date', 'Purchase date', 'date')}
+                    {text('purchase_cost', 'Purchase cost (KES)', 'number')}
+                    {text('supplier', 'Supplier')}
+                    {text('warranty_expiry', 'Warranty expiry', 'date')}
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="e-status">Status</Label>
+                        <Select value={data.status} onValueChange={(v) => setData('status', v)}>
+                            <SelectTrigger id="e-status">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {STATUSES.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {label(s)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="e-condition">Condition</Label>
+                        <Select value={data.condition} onValueChange={(v) => setData('condition', v)}>
+                            <SelectTrigger id="e-condition">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {CONDITIONS.map((c) => (
+                                    <SelectItem key={c} value={c}>
+                                        {label(c)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {text('location', 'Location')}
+                    {text('description', 'Description')}
+                    <div className="sm:col-span-2">
+                        <Button type="submit" disabled={processing}>
+                            Save
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -226,7 +349,7 @@ function ReturnDialog({ asset }: { asset: Asset }) {
     );
 }
 
-export default function AssetShow({ asset, employees, canManage }: PageProps) {
+export default function AssetShow({ asset, categories, employees, canManage }: PageProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Assets', href: '/hr/assets' },
         { title: asset.name, href: `/hr/assets/${asset.id}` },
@@ -260,6 +383,7 @@ export default function AssetShow({ asset, employees, canManage }: PageProps) {
                     {canManage && (
                         <div className="flex gap-2">
                             {open ? <ReturnDialog asset={asset} /> : <AssignDialog asset={asset} employees={employees} />}
+                            <EditAssetDialog asset={asset} categories={categories} />
                             <Button
                                 variant="outline"
                                 size="sm"

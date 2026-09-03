@@ -75,15 +75,22 @@ class EmployeeController extends Controller
             'employee' => [
                 ...$employee->only([
                     'id', 'user_id', 'staff_number', 'first_name', 'middle_name', 'last_name',
-                    'date_of_birth', 'gender', 'marital_status', 'national_id_number', 'kra_pin',
+                    'gender', 'marital_status', 'national_id_number', 'kra_pin',
                     'nssf_number', 'shif_number', 'insurance_membership_number', 'personal_email',
                     'phone', 'alt_phone', 'postal_address', 'physical_address', 'county',
-                    'department_id', 'job_title', 'employment_type', 'manager_id', 'is_org_head', 'date_hired',
-                    'contract_start_date', 'contract_end_date', 'probation_end_date',
-                    'employment_status', 'termination_date', 'termination_reason', 'rehire_eligible',
+                    'department_id', 'job_title', 'employment_type', 'manager_id', 'is_org_head',
+                    'employment_status', 'termination_reason', 'rehire_eligible',
                     'bank_name', 'bank_branch', 'bank_account_name', 'bank_account_number',
                     'payment_method', 'mpesa_number', 'notes',
                 ]),
+                // Date-cast columns must go out as Y-m-d, not ISO datetime, or
+                // the <input type="date"> fields on the edit form render blank.
+                'date_of_birth' => $employee->date_of_birth?->toDateString(),
+                'date_hired' => $employee->date_hired?->toDateString(),
+                'contract_start_date' => $employee->contract_start_date?->toDateString(),
+                'contract_end_date' => $employee->contract_end_date?->toDateString(),
+                'probation_end_date' => $employee->probation_end_date?->toDateString(),
+                'termination_date' => $employee->termination_date?->toDateString(),
                 'full_name' => $employee->full_name,
                 'tenure_months' => $employee->tenure_months,
                 'department' => $employee->department?->only(['id', 'name']),
@@ -91,7 +98,9 @@ class EmployeeController extends Controller
                 'user' => $employee->user?->only(['id', 'name', 'email']),
                 'next_of_kin' => $employee->nextOfKin,
                 'contracts' => $employee->contracts->map(fn ($c) => [
-                    ...$c->only(['id', 'title', 'employment_type', 'start_date', 'end_date', 'reason', 'notes']),
+                    ...$c->only(['id', 'title', 'employment_type', 'reason', 'notes']),
+                    'start_date' => $c->start_date?->toDateString(),
+                    'end_date' => $c->end_date?->toDateString(),
                     'department' => $c->department?->only(['id', 'name']),
                 ]),
                 'documents' => $employee->documents->map(fn ($d) => [
