@@ -112,7 +112,9 @@ class TicketController extends Controller
                 return;
             }
 
-            $comment->gap_minutes = $lastResponseAt?->diffInMinutes($comment->created_at);
+            $comment->gap_minutes = $lastResponseAt === null
+                ? null
+                : (int) round($lastResponseAt->diffInMinutes($comment->created_at));
             $lastResponseAt = $comment->created_at;
         });
 

@@ -1,11 +1,13 @@
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
@@ -122,7 +124,7 @@ function QuickCaptureDialog({ boards, currentUserId }: { boards: QuickCaptureBoa
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="quick-due">Due date (optional)</Label>
-                        <Input id="quick-due" type="date" value={data.due_at} onChange={(e) => setData('due_at', e.target.value)} className="w-40" />
+                        <DateField id="quick-due" value={data.due_at} onChange={(v) => setData('due_at', v)} className="w-40" />
                         <InputError message={errors.due_at} />
                     </div>
                     <Button type="submit" disabled={processing}>
@@ -221,7 +223,7 @@ export default function Dashboard({
                                                 className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}
                                             >
                                                 {isOverdue && <AlertCircle className="size-3.5" />}
-                                                {new Date(task.due_at).toLocaleDateString()}
+                                                {fmtDate(task.due_at)}
                                             </span>
                                         )}
                                     </li>

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Bookmark, Plus, X } from 'lucide-react';
@@ -329,9 +330,7 @@ export default function TasksReport({
                                         <td className="p-3">{task.assignee?.name ?? '—'}</td>
                                         <td className="p-3">{task.department?.name ?? '—'}</td>
                                         <td className="p-3 capitalize">{task.priority}</td>
-                                        <td className={`p-3 ${isOverdue ? 'text-destructive font-semibold' : ''}`}>
-                                            {task.due_at ? new Date(task.due_at).toLocaleDateString() : '—'}
-                                        </td>
+                                        <td className={`p-3 ${isOverdue ? 'text-destructive font-semibold' : ''}`}>{fmtDate(task.due_at)}</td>
                                     </tr>
                                 );
                             })}

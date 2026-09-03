@@ -208,8 +208,8 @@ class ReportController extends Controller
                     $ticket->priority,
                     $this->csvSafe($ticket->resolution_method),
                     $ticket->created_at->toDateTimeString(),
-                    $ticket->first_responded_at ? $ticket->created_at->diffInMinutes($ticket->first_responded_at) : null,
-                    $ticket->resolved_at ? $ticket->created_at->diffInMinutes($ticket->resolved_at) : null,
+                    $ticket->first_responded_at ? (int) round($ticket->created_at->diffInMinutes($ticket->first_responded_at)) : null,
+                    $ticket->resolved_at ? (int) round($ticket->created_at->diffInMinutes($ticket->resolved_at)) : null,
                     $ticket->time_spent_minutes,
                 ]);
             }

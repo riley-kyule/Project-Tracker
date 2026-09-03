@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { X } from 'lucide-react';
@@ -187,8 +188,7 @@ export default function ProjectShow({
                         <span className="text-muted-foreground">Home department:</span> {project.department?.name ?? 'Company-wide'}
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Deadline:</span>{' '}
-                        {project.deadline ? new Date(project.deadline).toLocaleDateString() : '—'}
+                        <span className="text-muted-foreground">Deadline:</span> {fmtDate(project.deadline)}
                     </div>
                     <div>
                         <span className="text-muted-foreground">Progress:</span> {project.progress_percentage}%
@@ -332,9 +332,7 @@ export default function ProjectShow({
                                         Done
                                     </Badge>
                                 ) : (
-                                    task.due_at && (
-                                        <span className="text-muted-foreground ml-auto text-xs">{new Date(task.due_at).toLocaleDateString()}</span>
-                                    )
+                                    task.due_at && <span className="text-muted-foreground ml-auto text-xs">{fmtDate(task.due_at)}</span>
                                 )}
                                 {canManage && (
                                     <button

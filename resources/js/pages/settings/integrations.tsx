@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { fmtDateTime } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
@@ -58,7 +59,7 @@ function LastBackupRun({ run }: { run: BackupRun | null }) {
                 {run.status}
             </Badge>
             <span className="text-muted-foreground capitalize">{run.frequency}</span>
-            <span className="text-muted-foreground">{new Date(run.started_at).toLocaleString()}</span>
+            <span className="text-muted-foreground">{fmtDateTime(run.started_at)}</span>
             {run.status === 'failed' && run.error_message && <span className="text-destructive">{run.error_message}</span>}
         </div>
     );

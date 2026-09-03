@@ -9,6 +9,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { fmtDateTime } from '@/lib/utils';
 import { router } from '@inertiajs/react';
 import { Bell } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -126,7 +127,7 @@ export function NotificationBell() {
                         >
                             <div className="flex flex-col gap-0.5">
                                 <span className="text-sm leading-snug">{notification.data.message}</span>
-                                <span className="text-muted-foreground text-xs">{new Date(notification.created_at).toLocaleString()}</span>
+                                <span className="text-muted-foreground text-xs">{fmtDateTime(notification.created_at)}</span>
                             </div>
                         </DropdownMenuItem>
                     ))}

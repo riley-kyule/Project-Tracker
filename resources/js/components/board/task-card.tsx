@@ -2,11 +2,13 @@ import { TaskCollaboration } from '@/components/board/task-collaboration';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAutosave, type SaveStatus } from '@/hooks/use-autosave';
+import { fmtDate } from '@/lib/utils';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlertCircle, Calendar, Check, CloudOff, Loader2, Lock, Star } from 'lucide-react';
@@ -154,7 +156,7 @@ export function TaskCard({
                 {task.due_at && (
                     <span className={`flex items-center gap-1 text-xs ${overdue(task) ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
                         {overdue(task) ? <AlertCircle className="size-3" aria-label="Overdue" /> : <Calendar className="size-3" />}
-                        {new Date(task.due_at).toLocaleDateString()}
+                        {fmtDate(task.due_at)}
                     </span>
                 )}
                 {task.assignee && (
@@ -187,11 +189,7 @@ function SaveIndicator({ status, onRetry }: { status: SaveStatus; onRetry: () =>
         );
     }
     return (
-        <button
-            type="button"
-            onClick={onRetry}
-            className="text-destructive ml-auto flex items-center gap-1 text-xs font-normal hover:underline"
-        >
+        <button type="button" onClick={onRetry} className="text-destructive ml-auto flex items-center gap-1 text-xs font-normal hover:underline">
             <CloudOff className="size-3" /> Couldn&rsquo;t save — retry
         </button>
     );
@@ -290,13 +288,7 @@ export function TaskDialog({
                 <div className="space-y-4">
                     <div className="grid gap-2">
                         <Label htmlFor="task-title">Title</Label>
-                        <Input
-                            id="task-title"
-                            value={form.title}
-                            onChange={(e) => saveTitle(e.target.value)}
-                            onBlur={flush}
-                            required
-                        />
+                        <Input id="task-title" value={form.title} onChange={(e) => saveTitle(e.target.value)} onBlur={flush} required />
                         <InputError message={errors.title} />
                     </div>
                     <div className="grid gap-2">
@@ -363,12 +355,7 @@ export function TaskDialog({
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="task-due">Due date</Label>
-                            <Input
-                                id="task-due"
-                                type="date"
-                                value={form.due_at}
-                                onChange={(e) => saveDue(e.target.value, form.due_time)}
-                            />
+                            <DateField id="task-due" value={form.due_at} onChange={(v) => saveDue(v, form.due_time)} />
                             <InputError message={errors.due_at} />
                         </div>
                         <div className="grid gap-2">
@@ -412,11 +399,7 @@ export function TaskDialog({
                                     <Button type="button" size="sm" onClick={markCompleted} className="w-fit">
                                         Mark as Completed
                                     </Button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setProgress(90)}
-                                        className="text-muted-foreground text-xs hover:underline"
-                                    >
+                                    <button type="button" onClick={() => setProgress(90)} className="text-muted-foreground text-xs hover:underline">
                                         Not done yet?
                                     </button>
                                 </div>

@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -136,7 +137,7 @@ function CreateAssetDialog({ categories }: { categories: Category[] }) {
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="purchase_date">Purchase date</Label>
-                        <Input id="purchase_date" type="date" value={data.purchase_date} onChange={(e) => setData('purchase_date', e.target.value)} />
+                        <DateField id="purchase_date" value={data.purchase_date} onChange={(v) => setData('purchase_date', v)} />
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="purchase_cost">Purchase cost (KES)</Label>
@@ -154,12 +155,7 @@ function CreateAssetDialog({ categories }: { categories: Category[] }) {
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="warranty_expiry">Warranty expiry</Label>
-                        <Input
-                            id="warranty_expiry"
-                            type="date"
-                            value={data.warranty_expiry}
-                            onChange={(e) => setData('warranty_expiry', e.target.value)}
-                        />
+                        <DateField id="warranty_expiry" value={data.warranty_expiry} onChange={(v) => setData('warranty_expiry', v)} />
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="status">Status</Label>

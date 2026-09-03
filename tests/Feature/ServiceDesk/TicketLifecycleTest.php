@@ -277,4 +277,22 @@ class TicketLifecycleTest extends TestCase
             ->post("/tickets/{$ticket->id}/comments", ['body' => 'What is this?', 'parent_id' => $internal->id])
             ->assertForbidden();
     }
+
+    public function test_response_gap_minutes_is_a_whole_number()
+    {
+        $requester = User::factory()->create()->assignRole('Employee');
+        $tech = User::factory()->create()->assignRole('IT Technician');
+        $ticket = Ticket::factory()->create([
+            'requester_id' => $requester->id,
+            'category_id' => $this->category()->id,
+            'created_at' => now()->subMinutes(90)->subSeconds(31),
+        ]);
+
+        $this->actingAs($tech)->post("/tickets/{$ticket->id}/comments", ['body' => 'On it.']);
+
+        $response = $this->actingAs($tech)->get("/tickets/{$ticket->id}")->assertOk();
+        $gap = $response->viewData('page')['props']['comments'][0]['gap_minutes'];
+        $this->assertIsInt($gap);
+        $this->assertSame(91, $gap);
+    }
 }

@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -108,7 +109,11 @@ function EditAssetDialog({ asset, categories }: { asset: Asset; categories: Ref[
     const text = (name: keyof typeof data, l: string, type = 'text') => (
         <div className="grid gap-1.5">
             <Label htmlFor={`e-${name}`}>{l}</Label>
-            <Input id={`e-${name}`} type={type} value={data[name] as string} onChange={(ev) => setData(name, ev.target.value)} />
+            {type === 'date' ? (
+                <DateField id={`e-${name}`} value={data[name] as string} onChange={(v) => setData(name, v)} />
+            ) : (
+                <Input id={`e-${name}`} type={type} value={data[name] as string} onChange={(ev) => setData(name, ev.target.value)} />
+            )}
             <InputError message={errors[name as keyof typeof errors]} />
         </div>
     );
@@ -242,12 +247,7 @@ function AssignDialog({ asset, employees }: { asset: Asset; employees: Ref[] }) 
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="expected_return_at">Expected return</Label>
-                        <Input
-                            id="expected_return_at"
-                            type="date"
-                            value={data.expected_return_at}
-                            onChange={(e) => setData('expected_return_at', e.target.value)}
-                        />
+                        <DateField id="expected_return_at" value={data.expected_return_at} onChange={(v) => setData('expected_return_at', v)} />
                         <InputError message={errors.expected_return_at} />
                     </div>
                     <div className="grid gap-1.5">

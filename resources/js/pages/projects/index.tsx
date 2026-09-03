@@ -1,11 +1,13 @@
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { AlertCircle, AlertTriangle, Plus } from 'lucide-react';
@@ -115,7 +117,7 @@ function NewProjectDialog({ departments, owners }: { departments: Option[]; owne
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="project-deadline">Deadline</Label>
-                        <Input id="project-deadline" type="date" value={data.deadline} onChange={(e) => setData('deadline', e.target.value)} />
+                        <DateField id="project-deadline" value={data.deadline} onChange={(v) => setData('deadline', v)} />
                         <InputError message={errors.deadline} />
                     </div>
                     <Button type="submit" disabled={processing}>
@@ -175,7 +177,7 @@ export default function ProjectsIndex({
                                             className={`ml-auto flex items-center gap-1 text-xs ${overdue ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}
                                         >
                                             {overdue && <AlertCircle className="size-3" aria-label="Overdue" />}
-                                            {new Date(project.deadline).toLocaleDateString()}
+                                            {fmtDate(project.deadline)}
                                         </span>
                                     )}
                                 </div>

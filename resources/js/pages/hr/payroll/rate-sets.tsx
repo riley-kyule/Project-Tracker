@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -118,12 +119,12 @@ function RateSetDialog({ rateSet }: { rateSet?: RateSet }) {
                         </div>
                         <div className="grid gap-1.5">
                             <Label>Effective from</Label>
-                            <Input type="date" value={data.effective_from} onChange={(e) => setData('effective_from', e.target.value)} />
+                            <DateField value={data.effective_from} onChange={(v) => setData('effective_from', v)} />
                             <InputError message={errors.effective_from} />
                         </div>
                         <div className="grid gap-1.5">
                             <Label>Effective to</Label>
-                            <Input type="date" value={data.effective_to} onChange={(e) => setData('effective_to', e.target.value)} />
+                            <DateField value={data.effective_to} onChange={(v) => setData('effective_to', v)} />
                         </div>
                     </div>
 

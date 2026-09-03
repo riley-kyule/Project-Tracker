@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateField } from '@/components/ui/date-field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -145,12 +146,12 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
                         <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="start">Start date</Label>
-                                <Input id="start" type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
+                                <DateField id="start" value={data.start_date} onChange={(v) => setData('start_date', v)} />
                                 <InputError message={errors.start_date} />
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="end">End date</Label>
-                                <Input id="end" type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                                <DateField id="end" value={data.end_date} onChange={(v) => setData('end_date', v)} />
                                 <InputError message={errors.end_date} />
                             </div>
                         </div>

@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -214,25 +215,15 @@ function CreateEmployeeDialog({ departments, managers, linkableUsers }: Pick<Pag
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="date_hired">Date hired</Label>
-                        <Input id="date_hired" type="date" value={data.date_hired} onChange={(e) => setData('date_hired', e.target.value)} />
+                        <DateField id="date_hired" value={data.date_hired} onChange={(v) => setData('date_hired', v)} />
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="contract_start_date">Contract start</Label>
-                        <Input
-                            id="contract_start_date"
-                            type="date"
-                            value={data.contract_start_date}
-                            onChange={(e) => setData('contract_start_date', e.target.value)}
-                        />
+                        <DateField id="contract_start_date" value={data.contract_start_date} onChange={(v) => setData('contract_start_date', v)} />
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="contract_end_date">Contract end</Label>
-                        <Input
-                            id="contract_end_date"
-                            type="date"
-                            value={data.contract_end_date}
-                            onChange={(e) => setData('contract_end_date', e.target.value)}
-                        />
+                        <DateField id="contract_end_date" value={data.contract_end_date} onChange={(v) => setData('contract_end_date', v)} />
                         <InputError message={errors.contract_end_date} />
                     </div>
                     <div className="grid gap-1.5">

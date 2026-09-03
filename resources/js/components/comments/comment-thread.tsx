@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn, fmtDateTime } from '@/lib/utils';
 import { Lock } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
@@ -18,19 +18,6 @@ export type ThreadComment = ThreadReply & {
     gap_minutes?: number | null;
     replies: ThreadReply[];
 };
-
-function relativeTime(iso: string): string {
-    const then = new Date(iso).getTime();
-    const diffMs = Date.now() - then;
-    const min = Math.round(diffMs / 60000);
-    if (min < 1) return 'just now';
-    if (min < 60) return `${min}m ago`;
-    const hr = Math.round(min / 60);
-    if (hr < 24) return `${hr}h ago`;
-    const day = Math.round(hr / 24);
-    if (day < 7) return `${day}d ago`;
-    return new Date(iso).toLocaleDateString();
-}
 
 function initials(name: string) {
     return name
@@ -103,11 +90,7 @@ function Bubble({
 
     return (
         <div className={cn('group flex flex-col gap-1', mine ? 'items-end' : 'items-start')}>
-            {showName && (
-                <span className="text-muted-foreground px-1 text-[11px]">
-                    {mine ? 'You' : (message.user?.name ?? 'Deleted user')}
-                </span>
-            )}
+            {showName && <span className="text-muted-foreground px-1 text-[11px]">{mine ? 'You' : (message.user?.name ?? 'Deleted user')}</span>}
             <div className={cn('flex max-w-[85%] items-end gap-2', mine ? 'flex-row-reverse' : 'flex-row')}>
                 {!mine && (
                     <span className="bg-muted text-muted-foreground mb-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
@@ -138,7 +121,7 @@ function Bubble({
                                     }
                                 }}
                                 rows={3}
-                                className="text-foreground w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                                className="text-foreground border-input bg-background focus-visible:ring-ring w-full rounded-md border px-2 py-1 text-sm focus-visible:ring-1 focus-visible:outline-none"
                             />
                             <div className="flex gap-2">
                                 <Button type="button" size="sm" className="h-7" onClick={save} disabled={saving}>
@@ -172,7 +155,7 @@ function Bubble({
             </div>
             {!editing && (
                 <div className={cn('flex items-center gap-2 px-1 text-[11px]', mine ? 'flex-row-reverse' : 'flex-row')}>
-                    <span className="text-muted-foreground">{relativeTime(message.created_at)}</span>
+                    <span className="text-muted-foreground">{fmtDateTime(message.created_at)}</span>
                     {message.edited_at && <span className="text-muted-foreground italic">edited</span>}
                     {meta}
                     <span className="flex gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
@@ -194,11 +177,7 @@ function Bubble({
                             </button>
                         )}
                         {canDelete && (
-                            <button
-                                type="button"
-                                onClick={() => onDelete?.(message.id)}
-                                className="text-muted-foreground hover:text-destructive"
-                            >
+                            <button type="button" onClick={() => onDelete?.(message.id)} className="text-muted-foreground hover:text-destructive">
                                 Delete
                             </button>
                         )}
@@ -234,10 +213,7 @@ export function CommentThread({
 }) {
     const [expanded, setExpanded] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const totalMessages = useMemo(
-        () => comments.reduce((sum, c) => sum + 1 + c.replies.length, 0),
-        [comments],
-    );
+    const totalMessages = useMemo(() => comments.reduce((sum, c) => sum + 1 + c.replies.length, 0), [comments]);
 
     const prevTotal = useRef(0);
     const hiddenCount = expanded ? 0 : Math.max(0, comments.length - initialVisible);

@@ -3,6 +3,7 @@ import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDateTime } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 
@@ -129,7 +130,7 @@ export default function ReportDeliveries({
                                     <td className="p-3">
                                         <Badge variant={statusVariant[delivery.status]}>{statusLabels[delivery.status]}</Badge>
                                     </td>
-                                    <td className="p-3">{delivery.sent_at ? new Date(delivery.sent_at).toLocaleString() : '—'}</td>
+                                    <td className="p-3">{fmtDateTime(delivery.sent_at)}</td>
                                     <td className="p-3">{delivery.retry_count}</td>
                                     <td className="text-destructive p-3 text-xs">{delivery.failure_reason ?? ''}</td>
                                 </tr>

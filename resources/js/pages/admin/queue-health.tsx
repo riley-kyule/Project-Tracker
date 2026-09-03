@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDateTime } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, usePoll } from '@inertiajs/react';
 import { useState } from 'react';
@@ -86,7 +87,7 @@ export default function QueueHealth({
                                         <tr key={row.queue} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                             <td className="p-2 font-mono text-xs">{row.queue}</td>
                                             <td className="p-2">{row.total}</td>
-                                            <td className="p-2">{new Date(row.oldest_available_at).toLocaleString()}</td>
+                                            <td className="p-2">{fmtDateTime(row.oldest_available_at)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -109,7 +110,7 @@ export default function QueueHealth({
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="font-medium">{job.queue}</span>
                                         <span className="text-muted-foreground text-xs">{job.connection}</span>
-                                        <span className="text-muted-foreground ml-auto text-xs">{new Date(job.failed_at).toLocaleString()}</span>
+                                        <span className="text-muted-foreground ml-auto text-xs">{fmtDateTime(job.failed_at)}</span>
                                     </div>
                                     <FailedJobException exception={job.exception} />
                                 </li>

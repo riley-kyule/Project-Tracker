@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -92,12 +93,12 @@ function CycleDialog() {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                             <Label htmlFor="c-start">Period start</Label>
-                            <Input id="c-start" type="date" value={data.period_start} onChange={(e) => setData('period_start', e.target.value)} />
+                            <DateField id="c-start" value={data.period_start} onChange={(v) => setData('period_start', v)} />
                             <InputError message={errors.period_start} />
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="c-end">Period end</Label>
-                            <Input id="c-end" type="date" value={data.period_end} onChange={(e) => setData('period_end', e.target.value)} />
+                            <DateField id="c-end" value={data.period_end} onChange={(v) => setData('period_end', v)} />
                             <InputError message={errors.period_end} />
                         </div>
                     </div>

@@ -1,5 +1,15 @@
+import { fmtDate } from '@/lib/utils';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { compactNumber as compact, useChartColors } from './chart-colors';
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Compact 'DD MMM' for dense axis ticks. */
+function axisDate(value: unknown): string {
+    const d = new Date(String(value));
+    if (Number.isNaN(d.getTime())) return String(value);
+    return `${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]}`;
+}
 
 export function TrendChart({
     data,
@@ -27,7 +37,7 @@ export function TrendChart({
                 <XAxis
                     dataKey={dateKey}
                     tick={{ fontSize: 12, fill: colors.muted }}
-                    tickFormatter={(value) => new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    tickFormatter={axisDate}
                     axisLine={{ stroke: colors.gridline }}
                     tickLine={false}
                 />
@@ -42,9 +52,7 @@ export function TrendChart({
                     content={({ active, payload, label }) =>
                         active && payload?.length ? (
                             <div className="bg-popover rounded-md border px-3 py-2 text-xs shadow-md">
-                                <div className="text-muted-foreground mb-1">
-                                    {new Date(String(label)).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </div>
+                                <div className="text-muted-foreground mb-1">{fmtDate(String(label))}</div>
                                 {payload.map((entry) => (
                                     <div key={entry.dataKey as string} className="flex items-center gap-2">
                                         <span className="inline-block h-0.5 w-3 shrink-0" style={{ backgroundColor: entry.color }} />

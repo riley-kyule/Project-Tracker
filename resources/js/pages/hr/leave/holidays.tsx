@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateField } from '@/components/ui/date-field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -40,7 +41,7 @@ export default function HolidaysPage({ holidays }: { holidays: Holiday[] }) {
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="h-date">Date</Label>
-                        <Input id="h-date" type="date" value={data.date} onChange={(e) => setData('date', e.target.value)} />
+                        <DateField id="h-date" value={data.date} onChange={(v) => setData('date', v)} />
                         <InputError message={errors.date} />
                     </div>
                     <label className="flex items-center gap-2 text-sm">

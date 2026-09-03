@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -171,12 +172,12 @@ function FileLeaveDialog({ employees, leaveTypes }: { employees: Ref[]; leaveTyp
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                             <Label htmlFor="fl-start">Start</Label>
-                            <Input id="fl-start" type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
+                            <DateField id="fl-start" value={data.start_date} onChange={(v) => setData('start_date', v)} />
                             <InputError message={errors.start_date} />
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="fl-end">End</Label>
-                            <Input id="fl-end" type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                            <DateField id="fl-end" value={data.end_date} onChange={(v) => setData('end_date', v)} />
                             <InputError message={errors.end_date} />
                         </div>
                     </div>

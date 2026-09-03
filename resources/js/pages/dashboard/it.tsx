@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDateTime } from '@/lib/utils';
 import { statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
@@ -158,7 +159,7 @@ export default function ItDashboard({
                                     </td>
                                     <td className={`p-3 font-medium capitalize ${priorityColors[ticket.priority] ?? ''}`}>{ticket.priority}</td>
                                     <td className="p-3">{ticket.assignee?.name ?? '—'}</td>
-                                    <td className="p-3">{ticket.due_at ? new Date(ticket.due_at).toLocaleString() : '—'}</td>
+                                    <td className="p-3">{fmtDateTime(ticket.due_at)}</td>
                                 </tr>
                             ))}
                             {queue.length === 0 && (

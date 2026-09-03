@@ -2,6 +2,7 @@ import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateField } from '@/components/ui/date-field';
 import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -140,24 +141,10 @@ export default function MyReports({
                             </div>
 
                             <div className="flex flex-wrap items-end gap-2">
-                                <div className="flex items-end gap-1">
-                                    <input
-                                        type="date"
-                                        value={dateFrom}
-                                        max={dateTo}
-                                        onChange={(e) => setDateFrom(e.target.value)}
-                                        aria-label="Report start date"
-                                        className="border-input bg-background h-10 rounded-md border px-2 text-sm"
-                                    />
-                                    <span className="text-muted-foreground pb-2 text-sm">to</span>
-                                    <input
-                                        type="date"
-                                        value={dateTo}
-                                        min={dateFrom}
-                                        onChange={(e) => setDateTo(e.target.value)}
-                                        aria-label="Report end date"
-                                        className="border-input bg-background h-10 rounded-md border px-2 text-sm"
-                                    />
+                                <div className="flex items-center gap-1">
+                                    <DateField value={dateFrom} max={dateTo} onChange={setDateFrom} aria-label="Report start date" className="w-36" />
+                                    <span className="text-muted-foreground text-sm">to</span>
+                                    <DateField value={dateTo} min={dateFrom} onChange={setDateTo} aria-label="Report end date" className="w-36" />
                                 </div>
                                 <div className="ml-auto flex gap-2">
                                     <Button onClick={generate} disabled={selectedIds.length === 0 || generating} type="button">

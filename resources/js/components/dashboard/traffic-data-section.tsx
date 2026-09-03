@@ -2,6 +2,7 @@ import { CategoryBarChart } from '@/components/marketing-statistics/category-bar
 import { CategoryPieChart } from '@/components/marketing-statistics/category-pie-chart';
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
 import { TrendChart } from '@/components/marketing-statistics/trend-chart';
+import { DateField } from '@/components/ui/date-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
@@ -67,9 +68,7 @@ function pct(value: number): string {
 }
 
 function compact(value: number | null | undefined): string {
-    return value === null || value === undefined
-        ? '—'
-        : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+    return value === null || value === undefined ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
 function toDateInput(date: Date): string {
@@ -282,21 +281,15 @@ export function TrafficDataSection() {
 
                 {datePreset === 'custom' && (
                     <>
-                        <input
-                            type="date"
-                            value={customFrom}
-                            max={customTo}
-                            onChange={(e) => setCustomFrom(e.target.value)}
-                            className="border-input bg-background h-10 rounded-md border px-3 text-sm"
-                        />
+                        <DateField value={customFrom} max={customTo} onChange={setCustomFrom} aria-label="From date" className="w-36" />
                         <span className="text-muted-foreground text-sm">to</span>
-                        <input
-                            type="date"
+                        <DateField
                             value={customTo}
                             min={customFrom}
                             max={toDateInput(new Date(Date.now() - 86400000))}
-                            onChange={(e) => setCustomTo(e.target.value)}
-                            className="border-input bg-background h-10 rounded-md border px-3 text-sm"
+                            onChange={setCustomTo}
+                            aria-label="To date"
+                            className="w-36"
                         />
                     </>
                 )}
@@ -349,7 +342,12 @@ export function TrafficDataSection() {
                     format={pct}
                     drilldownTitle="Engagement rate trend"
                     drilldown={
-                        <TrendChart data={engagementTrend} dateKey="event_date" series={[{ key: 'engagement_rate', name: 'Engagement rate' }]} valueFormat={pct} />
+                        <TrendChart
+                            data={engagementTrend}
+                            dateKey="event_date"
+                            series={[{ key: 'engagement_rate', name: 'Engagement rate' }]}
+                            valueFormat={pct}
+                        />
                     }
                 />
             </div>

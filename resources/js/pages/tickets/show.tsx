@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDateTime, fmtDuration } from '@/lib/utils';
 import { priorityColors, statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage, usePoll } from '@inertiajs/react';
@@ -61,13 +62,6 @@ type TicketComment = {
     gap_minutes: number | null;
     replies: { id: number; body: string; is_internal: boolean; user: Person | null; created_at: string; edited_at: string | null }[];
 };
-
-function formatGap(minutes: number): string {
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ${minutes % 60}m`;
-    return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-}
 
 type TicketAttachment = {
     id: number;
@@ -473,13 +467,13 @@ export default function TicketShow({
                     <div>
                         <span className="text-muted-foreground">Due:</span>{' '}
                         <span className={isOverdue ? 'font-semibold text-red-600 dark:text-red-400' : ''}>
-                            {ticket.due_at ? new Date(ticket.due_at).toLocaleString() : '—'}
+                            {ticket.due_at ? fmtDateTime(ticket.due_at) : '—'}
                             {isOverdue && ' (overdue)'}
                         </span>
                     </div>
                     <div>
                         <span className="text-muted-foreground">First response:</span>{' '}
-                        {ticket.first_responded_at ? new Date(ticket.first_responded_at).toLocaleString() : 'Pending'}
+                        {ticket.first_responded_at ? fmtDateTime(ticket.first_responded_at) : 'Pending'}
                     </div>
                     {ticket.converted_task && (
                         <div className="sm:col-span-2">
@@ -541,7 +535,7 @@ export default function TicketShow({
                         onEdit={(id, body) => editComment(id, body)}
                         renderMeta={(comment) =>
                             comment.gap_minutes != null ? (
-                                <span className="text-muted-foreground">responded {formatGap(comment.gap_minutes)} later</span>
+                                <span className="text-muted-foreground">{fmtDuration(comment.gap_minutes)} after previous reply</span>
                             ) : null
                         }
                     />
@@ -588,7 +582,7 @@ export default function TicketShow({
                                 {statusLabels[entry.to_status]}
                                 {entry.reason && ` — ${entry.reason}`}
                                 {' · '}
-                                {new Date(entry.created_at).toLocaleString()}
+                                {fmtDateTime(entry.created_at)}
                             </li>
                         ))}
                         {ticket.status_history.length === 0 && <li className="text-muted-foreground text-sm">No status changes yet.</li>}

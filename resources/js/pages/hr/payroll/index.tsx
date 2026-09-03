@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -89,7 +90,7 @@ function CreatePeriodDialog() {
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="pay_date">Pay date (optional)</Label>
-                        <Input id="pay_date" type="date" value={data.pay_date} onChange={(e) => setData('pay_date', e.target.value)} />
+                        <DateField id="pay_date" value={data.pay_date} onChange={(v) => setData('pay_date', v)} />
                     </div>
                     <Button type="submit" disabled={processing}>
                         Create

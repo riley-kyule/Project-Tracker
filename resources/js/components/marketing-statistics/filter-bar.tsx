@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { DateField } from '@/components/ui/date-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type ComparisonMode, type DateRange, type MarketingFilters, type MarketingWebsite } from '@/types/marketing-statistics';
 import { router } from '@inertiajs/react';
@@ -149,22 +150,22 @@ export function FilterBar({
             )}
 
             {showDateRange && pending.range === 'custom' && (
-                <div className="flex items-end gap-1">
-                    <input
-                        type="date"
+                <div className="flex items-center gap-1">
+                    <DateField
                         value={pending.date_from}
                         max={pending.date_to || maxDate}
-                        onChange={(e) => setPending((p) => ({ ...p, date_from: e.target.value }))}
-                        className="border-input bg-background h-10 rounded-md border px-2 text-sm"
+                        onChange={(v) => setPending((p) => ({ ...p, date_from: v }))}
+                        aria-label="From date"
+                        className="w-36"
                     />
-                    <span className="text-muted-foreground pb-2 text-sm">to</span>
-                    <input
-                        type="date"
+                    <span className="text-muted-foreground text-sm">to</span>
+                    <DateField
                         value={pending.date_to}
                         min={pending.date_from}
                         max={maxDate}
-                        onChange={(e) => setPending((p) => ({ ...p, date_to: e.target.value }))}
-                        className="border-input bg-background h-10 rounded-md border px-2 text-sm"
+                        onChange={(v) => setPending((p) => ({ ...p, date_to: v }))}
+                        aria-label="To date"
+                        className="w-36"
                     />
                 </div>
             )}
@@ -188,22 +189,22 @@ export function FilterBar({
             )}
 
             {showComparison && pending.comparison === 'custom' && (
-                <div className="flex items-end gap-1">
-                    <input
-                        type="date"
+                <div className="flex items-center gap-1">
+                    <DateField
                         value={pending.compare_from ?? ''}
                         max={pending.compare_to || maxDate}
-                        onChange={(e) => setPending((p) => ({ ...p, compare_from: e.target.value }))}
-                        className="border-input bg-background h-10 rounded-md border px-2 text-sm"
+                        onChange={(v) => setPending((p) => ({ ...p, compare_from: v }))}
+                        aria-label="Comparison from date"
+                        className="w-36"
                     />
-                    <span className="text-muted-foreground pb-2 text-sm">to</span>
-                    <input
-                        type="date"
+                    <span className="text-muted-foreground text-sm">to</span>
+                    <DateField
                         value={pending.compare_to ?? ''}
                         min={pending.compare_from ?? undefined}
                         max={maxDate}
-                        onChange={(e) => setPending((p) => ({ ...p, compare_to: e.target.value }))}
-                        className="border-input bg-background h-10 rounded-md border px-2 text-sm"
+                        onChange={(v) => setPending((p) => ({ ...p, compare_to: v }))}
+                        aria-label="Comparison to date"
+                        className="w-36"
                     />
                 </div>
             )}

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateField } from '@/components/ui/date-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -247,7 +248,11 @@ function EditProfileDialog({
     const text = (name: keyof typeof data, l: string, type = 'text') => (
         <div className="grid gap-1.5">
             <Label htmlFor={name}>{l}</Label>
-            <Input id={name} type={type} value={data[name] as string} onChange={(e) => setData(name, e.target.value)} />
+            {type === 'date' ? (
+                <DateField id={name} value={data[name] as string} onChange={(v) => setData(name, v)} />
+            ) : (
+                <Input id={name} type={type} value={data[name] as string} onChange={(e) => setData(name, e.target.value)} />
+            )}
             <InputError message={errors[name as keyof typeof errors]} />
         </div>
     );
@@ -523,12 +528,12 @@ function RenewContractDialog({ employeeId }: { employeeId: number }) {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                             <Label htmlFor="r-start">New start date *</Label>
-                            <Input id="r-start" type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
+                            <DateField id="r-start" value={data.start_date} onChange={(v) => setData('start_date', v)} />
                             <InputError message={errors.start_date} />
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="r-end">New end date</Label>
-                            <Input id="r-end" type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                            <DateField id="r-end" value={data.end_date} onChange={(v) => setData('end_date', v)} />
                             <InputError message={errors.end_date} />
                         </div>
                     </div>
@@ -633,12 +638,12 @@ function ContractDialog({ employeeId, departments }: { employeeId: number; depar
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                             <Label htmlFor="c-start">Start date</Label>
-                            <Input id="c-start" type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
+                            <DateField id="c-start" value={data.start_date} onChange={(v) => setData('start_date', v)} />
                             <InputError message={errors.start_date} />
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="c-end">End date</Label>
-                            <Input id="c-end" type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                            <DateField id="c-end" value={data.end_date} onChange={(v) => setData('end_date', v)} />
                             <InputError message={errors.end_date} />
                         </div>
                     </div>
@@ -865,12 +870,7 @@ function CompensationDialog({ employeeId }: { employeeId: number }) {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                             <Label htmlFor="comp-from">Effective from</Label>
-                            <Input
-                                id="comp-from"
-                                type="date"
-                                value={data.effective_from}
-                                onChange={(e) => setData('effective_from', e.target.value)}
-                            />
+                            <DateField id="comp-from" value={data.effective_from} onChange={(v) => setData('effective_from', v)} />
                             <InputError message={errors.effective_from} />
                         </div>
                         <div className="grid gap-1.5">
@@ -1012,7 +1012,7 @@ function GoalDialog({ employeeId }: { employeeId: number }) {
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="g-due">Due</Label>
-                            <Input id="g-due" type="date" value={data.due_on} onChange={(e) => setData('due_on', e.target.value)} />
+                            <DateField id="g-due" value={data.due_on} onChange={(v) => setData('due_on', v)} />
                         </div>
                     </div>
                     <div className="grid gap-1.5">

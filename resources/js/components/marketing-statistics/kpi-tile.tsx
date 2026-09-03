@@ -1,20 +1,11 @@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { fmtDateTime } from '@/lib/utils';
 import { type Kpi } from '@/types/marketing-statistics';
 import { Link } from '@inertiajs/react';
 
 function compact(value: number): string {
     return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
-}
-
-function relativeTime(iso: string | null): string | null {
-    if (!iso) return null;
-
-    const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (minutes < 1440) return `${Math.round(minutes / 60)}h ago`;
-    return `${Math.round(minutes / 1440)}d ago`;
 }
 
 export function KpiTile({
@@ -47,7 +38,7 @@ export function KpiTile({
                     <Badge variant="outline" className="text-[10px] uppercase">
                         {kpi.data_source}
                     </Badge>
-                    {relativeTime(kpi.last_updated) && <span className="text-muted-foreground text-[10px]">{relativeTime(kpi.last_updated)}</span>}
+                    {kpi.last_updated && <span className="text-muted-foreground text-[10px]">{fmtDateTime(kpi.last_updated)}</span>}
                 </div>
             )}
         </div>

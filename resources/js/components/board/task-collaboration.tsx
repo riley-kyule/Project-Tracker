@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { fmtDate, fmtDateTime } from '@/lib/utils';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ArrowDown, ArrowUp, BookmarkPlus, Copy, Download, ExternalLink, Lock, Paperclip, ShieldAlert, Trash2, Users, X } from 'lucide-react';
@@ -1032,9 +1033,7 @@ export function TaskCollaboration({
                             </span>
                             {!detail.recurrenceRule.is_active && <span className="text-muted-foreground text-xs">stopped</span>}
                             {detail.recurrenceRule.is_active && detail.recurrenceRule.next_run_at && (
-                                <span className="text-muted-foreground text-xs">
-                                    next: {new Date(detail.recurrenceRule.next_run_at).toLocaleDateString()}
-                                </span>
+                                <span className="text-muted-foreground text-xs">next: {fmtDate(detail.recurrenceRule.next_run_at)}</span>
                             )}
                             {detail.canManageRecurrence && detail.recurrenceRule.is_active && (
                                 <Button
@@ -1093,14 +1092,8 @@ export function TaskCollaboration({
                 const resetColumns = detail.columns.filter((column) => !column.is_completion_column && !column.is_archive_column);
                 const targetName = detail.columns.find((column) => column.id === detail.autoResetColumnId)?.name ?? 'the board’s first column';
                 const cadence =
-                    detail.autoResetFrequency === 'daily'
-                        ? 'every morning'
-                        : detail.autoResetFrequency === 'weekly'
-                          ? 'every week'
-                          : 'every month';
-                const lastReset = detail.lastAutoResetAt
-                    ? ` — last reset ${new Date(detail.lastAutoResetAt).toLocaleDateString()}`
-                    : '';
+                    detail.autoResetFrequency === 'daily' ? 'every morning' : detail.autoResetFrequency === 'weekly' ? 'every week' : 'every month';
+                const lastReset = detail.lastAutoResetAt ? ` — last reset ${fmtDate(detail.lastAutoResetAt)}` : '';
 
                 if (detail.autoResetFrequency === null && !detail.canManageRecurrence) return null;
 
@@ -1581,7 +1574,7 @@ export function TaskCollaboration({
                         <li key={entry.id} className="text-muted-foreground text-xs">
                             <span className="text-foreground font-medium">{entry.actor?.name ?? 'System'}</span> {entry.event}
                             {' · '}
-                            {new Date(entry.created_at).toLocaleString()}
+                            {fmtDateTime(entry.created_at)}
                         </li>
                     ))}
                     {detail.activity.length === 0 && <li className="text-muted-foreground text-xs">No activity recorded yet.</li>}
