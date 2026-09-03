@@ -10,7 +10,7 @@ use Illuminate\Notifications\Notification;
 
 /**
  * Sent to an employee when their payslip is published (payroll marked paid).
- * Sender name: "PAYSLIP - {employee}".
+ * Sender name: "{period} PAYSLIP - {employee}" (e.g. "March 2026 PAYSLIP - Jane Doe").
  */
 class PayslipReady extends Notification
 {
@@ -26,7 +26,7 @@ class PayslipReady extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $p = $this->payslip->loadMissing('period', 'employee');
-        [$address, $name] = CompanySetting::hrMailFrom("PAYSLIP - {$p->employee->full_name}");
+        [$address, $name] = CompanySetting::hrMailFrom("{$p->period->label} PAYSLIP - {$p->employee->full_name}");
 
         return (new MailMessage)
             ->from($address, $name)

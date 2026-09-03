@@ -60,6 +60,6 @@ class HrEmailSenderNamesTest extends TestCase
         ]);
         $payslip = Payslip::create(['payroll_period_id' => $period->id, 'employee_id' => $employee->id, 'currency' => 'KES', 'net_pay' => 100]);
         [, $name] = $this->fromOf((new PayslipReady($payslip))->toMail(new User));
-        $this->assertSame('PAYSLIP - Jane Doe', $name);
+        $this->assertSame('March 2026 PAYSLIP - Jane Doe', $name);
     }
 }
