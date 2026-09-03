@@ -158,6 +158,49 @@ class LeaveTest extends TestCase
         $this->actingAs($managerUser)->post("/hr/leave/requests/{$request->id}/decision", ['approve' => true])->assertForbidden();
     }
 
+    public function test_a_department_head_can_file_a_request_for_a_report_but_not_a_stranger(): void
+    {
+        $this->seed(HrSeeder::class);
+        $headUser = User::factory()->create();
+        $department = Department::factory()->create(['manager_id' => $headUser->id]);
+        Employee::factory()->create(['user_id' => $headUser->id, 'department_id' => $department->id]);
+
+        [, $report] = $this->employeeWithLogin(['department_id' => $department->id]);
+        [, $stranger] = $this->employeeWithLogin();
+
+        $type = LeaveType::firstWhere('code', 'ANNUAL');
+        $start = now()->addWeeks(2)->next(Carbon::MONDAY);
+
+        $this->actingAs($headUser)->post('/hr/leave/requests', [
+            'employee_id' => $report->id,
+            'leave_type_id' => $type->id,
+            'start_date' => $start->toDateString(),
+            'end_date' => $start->copy()->addDay()->toDateString(),
+        ])->assertRedirect();
+        $this->assertDatabaseHas('leave_requests', ['employee_id' => $report->id]);
+
+        $this->actingAs($headUser)->post('/hr/leave/requests', [
+            'employee_id' => $stranger->id,
+            'leave_type_id' => $type->id,
+            'start_date' => $start->toDateString(),
+            'end_date' => $start->copy()->addDay()->toDateString(),
+        ])->assertForbidden();
+    }
+
+    public function test_the_leave_management_page_is_for_leave_viewers_only(): void
+    {
+        $this->seed(HrSeeder::class);
+        [$plainUser] = $this->employeeWithLogin();
+        $plainUser->assignRole('Employee');
+        $hr = User::factory()->create()->assignRole('HR Manager');
+
+        $this->actingAs($plainUser)->get('/hr/leave')->assertForbidden();
+        $this->actingAs($hr)->get('/hr/leave')->assertOk();
+
+        // …but the plain employee still has the self-service page.
+        $this->actingAs($plainUser)->get('/hr/me/leave')->assertOk();
+    }
+
     public function test_contract_renewal_resets_leave_balances(): void
     {
         $this->seed(HrSeeder::class);

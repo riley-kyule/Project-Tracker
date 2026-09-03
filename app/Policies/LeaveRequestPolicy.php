@@ -3,15 +3,16 @@
 namespace App\Policies;
 
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 
 class LeaveRequestPolicy
 {
-    /** HR sees the whole queue; managers see their team's; everyone sees their own. */
+    /** The leave management screen — HR, department heads, CEO/Admin. Everyone else uses "My Leave". */
     public function viewAny(User $user): bool
     {
-        return $user->can('hr.leave.view') || $user->employee()->exists();
+        return $user->can('hr.leave.view');
     }
 
     public function view(User $user, LeaveRequest $request): bool
@@ -60,8 +61,12 @@ class LeaveRequestPolicy
 
     private function managesRequester(User $user, LeaveRequest $request): bool
     {
-        $employee = $request->employee;
+        return $this->manages($user, $request->employee);
+    }
 
+    /** True when $user is $employee's line manager or leads their department. */
+    private function manages(User $user, Employee $employee): bool
+    {
         if ($employee->manager?->user_id === $user->id) {
             return true;
         }

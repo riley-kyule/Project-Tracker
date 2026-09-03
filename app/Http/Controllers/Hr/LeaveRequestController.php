@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Hr\StoreLeaveRequestRequest;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -24,6 +25,23 @@ class LeaveRequestController extends Controller
 
         $user = $request->user();
         $canManage = $user->can('hr.leave.manage');
+
+        // Who this user can file a request on behalf of: HR/CEO/Admin get
+        // everyone; a department head gets the people they lead.
+        $ledDepartmentIds = Department::query()
+            ->where('manager_id', $user->id)->orWhere('assistant_manager_id', $user->id)
+            ->pluck('id');
+
+        $onBehalfOf = Employee::query()->active()
+            ->when(! $canManage, fn ($q) => $q->where(fn ($q) => $q
+                ->whereIn('department_id', $ledDepartmentIds)
+                ->orWhereHas('manager', fn ($m) => $m->where('user_id', $user->id))
+                ->orWhereHas('user', fn ($u) => $u->where('manager_id', $user->id))))
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'user_id'])
+            ->reject(fn (Employee $e) => $e->user_id === $user->id)
+            ->map(fn (Employee $e) => ['id' => $e->id, 'name' => $e->full_name])
+            ->values();
 
         $month = Carbon::parse($request->query('month', now()->toDateString()))->startOfMonth();
         $calFrom = $month->copy()->startOfWeek();
@@ -62,11 +80,10 @@ class LeaveRequestController extends Controller
             'calendarLeave' => $calendarLeave,
             'holidays' => PublicHoliday::datesBetween($calFrom, $calTo),
             'canManage' => $canManage,
+            'canFileOnBehalf' => $onBehalfOf->isNotEmpty(),
+            'hasOwnRecord' => $user->employee()->exists(),
             'leaveTypes' => LeaveType::query()->active()->orderBy('name')->get(['id', 'name', 'code', 'is_emergency', 'requires_document', 'gender_eligibility']),
-            'employees' => $canManage
-                ? Employee::query()->active()->orderBy('first_name')->get(['id', 'first_name', 'middle_name', 'last_name'])
-                    ->map(fn (Employee $e) => ['id' => $e->id, 'name' => $e->full_name])
-                : [],
+            'employees' => $onBehalfOf,
         ]);
     }
 
@@ -124,8 +141,14 @@ class LeaveRequestController extends Controller
     {
         $onBehalfId = $request->integer('employee_id');
 
-        if ($onBehalfId && $request->user()->can('hr.leave.manage')) {
-            return Employee::findOrFail($onBehalfId);
+        if ($onBehalfId) {
+            $target = Employee::findOrFail($onBehalfId);
+
+            if ($target->user_id !== $request->user()->id) {
+                Gate::authorize('fileLeaveFor', $target);
+            }
+
+            return $target;
         }
 
         return $request->user()->employee()->firstOrFail();

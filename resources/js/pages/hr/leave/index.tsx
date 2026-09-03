@@ -56,6 +56,8 @@ type PageProps = {
     calendarLeave: CalEvent[];
     holidays: string[];
     canManage: boolean;
+    canFileOnBehalf: boolean;
+    hasOwnRecord: boolean;
     leaveTypes: LeaveTypeOption[];
     employees: Ref[];
 };
@@ -125,12 +127,12 @@ function FileLeaveDialog({ employees, leaveTypes }: { employees: Ref[]; leaveTyp
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline">
-                    <Plus className="mr-1 h-4 w-4" /> File leave for someone
+                    <Plus className="mr-1 h-4 w-4" /> File for someone else
                 </Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>File a leave request</DialogTitle>
+                    <DialogTitle>File a leave request on behalf of an employee</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="grid gap-4">
                     <div className="grid gap-1.5">
@@ -268,7 +270,18 @@ function MonthCalendar({
     );
 }
 
-export default function LeaveIndex({ month, calendarRange, pending, calendarLeave, holidays, canManage, leaveTypes, employees }: PageProps) {
+export default function LeaveIndex({
+    month,
+    calendarRange,
+    pending,
+    calendarLeave,
+    holidays,
+    canManage,
+    canFileOnBehalf,
+    hasOwnRecord,
+    leaveTypes,
+    employees,
+}: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave" />
@@ -276,19 +289,31 @@ export default function LeaveIndex({ month, calendarRange, pending, calendarLeav
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h1 className="text-xl font-semibold">Leave</h1>
                     <div className="flex flex-wrap gap-2">
-                        {canManage && <FileLeaveDialog employees={employees} leaveTypes={leaveTypes} />}
-                        <Link href="/hr/leave/balances" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
-                            <ListChecks className="h-4 w-4" /> Balances
-                        </Link>
-                        <Link href="/hr/leave/types" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
-                            <CalendarDays className="h-4 w-4" /> Types
-                        </Link>
-                        <Link href="/hr/leave/holidays" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
-                            Holidays
-                        </Link>
-                        <Link href="/hr/leave/settings" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
-                            <CalendarCog className="h-4 w-4" /> Settings
-                        </Link>
+                        {hasOwnRecord && (
+                            <Link
+                                href="/hr/me/leave"
+                                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+                            >
+                                <Plus className="h-4 w-4" /> New application
+                            </Link>
+                        )}
+                        {canFileOnBehalf && <FileLeaveDialog employees={employees} leaveTypes={leaveTypes} />}
+                        {canManage && (
+                            <>
+                                <Link href="/hr/leave/balances" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
+                                    <ListChecks className="h-4 w-4" /> Balances
+                                </Link>
+                                <Link href="/hr/leave/types" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
+                                    <CalendarDays className="h-4 w-4" /> Types
+                                </Link>
+                                <Link href="/hr/leave/holidays" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
+                                    Holidays
+                                </Link>
+                                <Link href="/hr/leave/settings" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
+                                    <CalendarCog className="h-4 w-4" /> Settings
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
 

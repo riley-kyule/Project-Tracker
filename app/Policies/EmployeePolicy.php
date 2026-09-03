@@ -57,6 +57,22 @@ class EmployeePolicy
         return $user->can('hr.compensation.manage');
     }
 
+    /**
+     * Filing a leave request on this employee's behalf: HR/CEO/Admin for
+     * anyone; a line manager or department head only for their own people.
+     * Never for yourself — that's the ordinary self-service path.
+     */
+    public function fileLeaveFor(User $user, Employee $employee): bool
+    {
+        if ($employee->user_id === $user->id) {
+            return false;
+        }
+
+        return $user->can('hr.leave.manage')
+            || $employee->manager?->user_id === $user->id
+            || $this->manages($user, $employee);
+    }
+
     private function manages(User $user, Employee $employee): bool
     {
         if ($employee->user_id !== null && $employee->user?->manager_id === $user->id) {
