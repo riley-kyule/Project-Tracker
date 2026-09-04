@@ -25,48 +25,6 @@ class TrafficDashboardQuery
         return $this->runner->isConfigured();
     }
 
-    /** @return array{users: int, sessions: int, key_events: int, engagement_rate: float|null} */
-    public function summary(string|array|null $websiteDomain, Carbon $from, Carbon $to): array
-    {
-        [$clause, $params] = $this->optionalWebsiteClause($websiteDomain);
-
-        $metrics = $this->runner->rows(<<<SQL
-            SELECT
-              SUM(users) AS users,
-              SUM(sessions) AS sessions,
-              SAFE_DIVIDE(SUM(engaged_sessions), SUM(sessions)) AS engagement_rate
-            FROM `analytics_core.vw_daily_website_metrics`
-            WHERE event_date BETWEEN @date_from AND @date_to{$clause}
-            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
-
-        $keyEvents = $this->runner->rows(<<<SQL
-            SELECT SUM(key_event_count) AS key_events
-            FROM `analytics_core.vw_key_events`
-            WHERE event_date BETWEEN @date_from AND @date_to{$clause}
-            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
-
-        return [
-            'users' => $metrics[0]['users'] ?? 0,
-            'sessions' => $metrics[0]['sessions'] ?? 0,
-            'engagement_rate' => $metrics[0]['engagement_rate'] ?? null,
-            'key_events' => $keyEvents[0]['key_events'] ?? 0,
-        ];
-    }
-
-    /** @return array<int, array{event_date: string, users: int, sessions: int}> */
-    public function dailyTrend(string|array|null $websiteDomain, Carbon $from, Carbon $to): array
-    {
-        [$clause, $params] = $this->optionalWebsiteClause($websiteDomain);
-
-        return $this->runner->rows(<<<SQL
-            SELECT event_date, SUM(users) AS users, SUM(sessions) AS sessions
-            FROM `analytics_core.vw_daily_website_metrics`
-            WHERE event_date BETWEEN @date_from AND @date_to{$clause}
-            GROUP BY event_date
-            ORDER BY event_date
-            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
-    }
-
     /** @return array<int, array{source: string, medium: string, users: int}> */
     public function trafficSources(string|array|null $websiteDomain, Carbon $from, Carbon $to, int $limit = 8): array
     {
@@ -127,11 +85,10 @@ class TrafficDashboardQuery
     }
 
     /**
-     * Per-day rows including engaged_sessions, for the Marketing Statistics
-     * module's weighted engagement-rate rollups (see WeightedMetrics) —
-     * distinct from dailyTrend() above (which the CEO dashboard widget
-     * already uses and shouldn't be reshaped for it). A null
-     * $websiteDomain aggregates across every mapped website ("All Sites").
+     * Per-day rows including engaged_sessions, powering both the Marketing
+     * Statistics module and the CEO dashboard's traffic widget (weighted
+     * engagement-rate rollups — see WeightedMetrics). A null $websiteDomain
+     * aggregates across every mapped website ("All Sites").
      *
      * @return array<int, array{event_date: string, users: int, sessions: int, engaged_sessions: int}>
      */
