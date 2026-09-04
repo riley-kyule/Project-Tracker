@@ -24,11 +24,15 @@ class UserController extends Controller
     {
         Gate::authorize('viewAny', User::class);
 
+        $users = User::query()
+            ->with(['department:id,name', 'roles:id,name'])
+            ->orderBy('name')
+            ->limit(self::LIST_CAP)
+            ->get(['id', 'name', 'email', 'department_id', 'manager_id', 'job_title', 'status', 'last_login_at']);
+
         return Inertia::render('admin/users/index', [
-            'users' => User::query()
-                ->with(['department:id,name', 'roles:id,name'])
-                ->orderBy('name')
-                ->get(['id', 'name', 'email', 'department_id', 'manager_id', 'job_title', 'status', 'last_login_at'])
+            'listCapped' => $users->count() >= self::LIST_CAP,
+            'users' => $users
                 ->map(fn (User $user) => [
                     'id' => $user->id,
                     'name' => $user->name,

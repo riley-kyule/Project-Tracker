@@ -21,12 +21,19 @@ class EmployeeController extends Controller
     {
         Gate::authorize('viewAny', Employee::class);
 
+        // Whole set to the client so search/sort/filter stay instant — with a
+        // hard ceiling so a huge roster degrades to "first 500, narrow with
+        // search" instead of an unbounded query and a frozen page.
+        $employees = Employee::query()
+            ->visibleTo(request()->user())
+            ->with(['department:id,name', 'user:id,name,email'])
+            ->orderBy('first_name')
+            ->limit(self::LIST_CAP)
+            ->get();
+
         return Inertia::render('hr/employees/index', [
-            'employees' => Employee::query()
-                ->visibleTo(request()->user())
-                ->with(['department:id,name', 'user:id,name,email'])
-                ->orderBy('first_name')
-                ->get()
+            'listCapped' => $employees->count() >= self::LIST_CAP,
+            'employees' => $employees
                 ->map(fn (Employee $e) => [
                     'id' => $e->id,
                     'staff_number' => $e->staff_number,

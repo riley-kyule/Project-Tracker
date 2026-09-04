@@ -22,11 +22,15 @@ class AssetController extends Controller
     {
         Gate::authorize('viewAny', Asset::class);
 
+        $assets = Asset::query()
+            ->with(['category:id,name', 'currentAssignment.employee:id,first_name,middle_name,last_name'])
+            ->orderBy('name')
+            ->limit(self::LIST_CAP)
+            ->get();
+
         return Inertia::render('hr/assets/index', [
-            'assets' => Asset::query()
-                ->with(['category:id,name', 'currentAssignment.employee:id,first_name,middle_name,last_name'])
-                ->orderBy('name')
-                ->get()
+            'listCapped' => $assets->count() >= self::LIST_CAP,
+            'assets' => $assets
                 ->map(fn (Asset $a) => [
                     'id' => $a->id,
                     'asset_tag' => $a->asset_tag,

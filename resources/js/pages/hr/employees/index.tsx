@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { ListCappedNotice } from '@/components/list-capped-notice';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ type PageProps = {
     linkableUsers: { id: number; name: string; email: string }[];
     suggestedStaffNumber: string;
     staffNumberPrefix: string;
+    listCapped: boolean;
     canManage: boolean;
 };
 
@@ -316,6 +318,7 @@ export default function EmployeesIndex({
     linkableUsers,
     suggestedStaffNumber,
     staffNumberPrefix,
+    listCapped,
     canManage,
 }: PageProps) {
     const [search, setSearch] = useState('');
@@ -366,6 +369,7 @@ export default function EmployeesIndex({
                     <div>
                         <h1 className="text-xl font-semibold">People</h1>
                         <p className="text-muted-foreground text-sm">{filtered.length} employees</p>
+                        <ListCappedNotice capped={listCapped} />
                     </div>
                     {canManage && (
                         <div className="flex gap-2">

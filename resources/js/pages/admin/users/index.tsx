@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { ListCappedNotice } from '@/components/list-capped-notice';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -257,12 +258,14 @@ export default function UsersIndex({
     users,
     departments,
     roles,
+    listCapped,
     canManage,
     canDelete,
 }: {
     users: UserRow[];
     departments: DepartmentOption[];
     roles: string[];
+    listCapped: boolean;
     canManage: boolean;
     canDelete: boolean;
 }) {
@@ -297,7 +300,10 @@ export default function UsersIndex({
             <Head title="Users" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-xl font-semibold">Users</h1>
+                    <div>
+                        <h1 className="text-xl font-semibold">Users</h1>
+                        <ListCappedNotice capped={listCapped} />
+                    </div>
                     {canManage && <NewUserDialog departments={departments} roles={roles} />}
                 </div>
                 <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">

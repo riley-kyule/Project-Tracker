@@ -46,7 +46,7 @@ class WarmAnalyticsCache extends Command
 
         $domains = array_column($registry, 'domain');
         $warmed = $this->warmReports($ga4, $gsc, $reportBuilder, $domains);
-        $this->warmBreakdownsAndComparison($ga4, $gsc, $reportBuilder, $registry, $domains[0]);
+        $this->warmBreakdownsAndComparison($ga4, $gsc, $reportBuilder, $registry, $domains);
 
         $this->info("Warmed the analytics cache for {$warmed} site(s), including the All Sites aggregate.");
 
@@ -70,18 +70,22 @@ class WarmAnalyticsCache extends Command
     }
 
     /**
-     * Nine extra BigQuery queries per target (5 GA4 + 4 GSC breakdowns) —
-     * unlike warmReports() above, only worth paying for on the default
-     * target ("All Platforms") plus the first individual website, not
-     * every registered site. The comparison table is a fixed cost
-     * regardless of site count, so it's always warmed once.
+     * Nine extra BigQuery queries per target (5 GA4 + 4 GSC breakdowns). Warmed
+     * for "All Platforms" plus every registered website by default, so picking
+     * any specific site from the filter is a cache hit rather than a cold live
+     * scan. Cap it with ANALYTICS_WARM_BREAKDOWN_SITES if BigQuery cost matters
+     * more than that first-view latency for the less-looked-at sites. The
+     * comparison table is a fixed cost regardless of site count — always warmed.
      */
     private function warmBreakdownsAndComparison(
-        TrafficDashboardQuery $ga4, GscReportQuery $gsc, AnalyticsReportBuilder $reportBuilder, array $registry, string $firstDomain,
+        TrafficDashboardQuery $ga4, GscReportQuery $gsc, AnalyticsReportBuilder $reportBuilder, array $registry, array $domains,
     ): void {
         [$dateFrom, $dateTo] = MarketingStatisticsFilters::resolveRange('last_30_days', null, null);
 
-        foreach ([null, $firstDomain] as $domain) {
+        $limit = (int) env('ANALYTICS_WARM_BREAKDOWN_SITES', count($domains));
+        $targets = [null, ...array_slice($domains, 0, max(0, $limit))];
+
+        foreach ($targets as $domain) {
             $reportBuilder->ga4Breakdowns($ga4, $domain, $dateFrom, $dateTo);
             $reportBuilder->gscBreakdowns($gsc, $domain, $dateFrom, $dateTo);
         }

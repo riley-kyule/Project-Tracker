@@ -8,6 +8,7 @@ const STATUS_TEXT: Record<string, string> = {
     missing: 'has no data for this range',
     failed: 'failed to load',
     delayed: 'data is delayed',
+    stale: 'is showing the last saved copy — live refresh failed',
 };
 
 /**

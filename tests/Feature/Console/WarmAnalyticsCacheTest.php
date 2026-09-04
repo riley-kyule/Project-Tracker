@@ -111,8 +111,8 @@ class WarmAnalyticsCacheTest extends TestCase
 
         // ga4Report (dailyRows) + gscReport (dailyRows), per target, 3
         // targets (all sites, a.example.com, b.example.com) — 3 calls each.
-        // Plus ga4Breakdowns/gscBreakdowns for 2 targets (all sites, the
-        // first site) and websiteComparison's 2 grouped queries.
+        // Plus ga4Breakdowns/gscBreakdowns for every target (all sites + both
+        // sites) and websiteComparison's 2 grouped queries.
         $ga4TrendCalls = collect($this->recordedCalls)
             ->filter(fn ($call) => str_contains($call['sql'], 'vw_daily_website_metrics') && str_contains($call['sql'], 'GROUP BY event_date'))
             ->count();
@@ -132,8 +132,8 @@ class WarmAnalyticsCacheTest extends TestCase
         $this->assertSame(3, $gscTrendCalls);
         $this->assertSame(1, $ga4ComparisonCalls);
         $this->assertSame(1, $gscComparisonCalls);
-        $this->assertSame(2, $ga4BreakdownCalls, 'expected GA4 breakdowns warmed for 2 targets (all sites, first site)');
-        $this->assertSame(2, $gscBreakdownCalls, 'expected GSC breakdowns warmed for 2 targets (all sites, first site)');
+        $this->assertSame(3, $ga4BreakdownCalls, 'expected GA4 breakdowns warmed for all sites + every registered website');
+        $this->assertSame(3, $gscBreakdownCalls, 'expected GSC breakdowns warmed for all sites + every registered website');
     }
 
     public function test_a_marketing_statistics_page_view_after_warming_reuses_the_cache_and_makes_no_further_bigquery_calls()

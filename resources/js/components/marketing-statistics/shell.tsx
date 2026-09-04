@@ -20,8 +20,12 @@ function DegradedSourceBadges({ sources }: { sources?: Record<string, SourceStat
     return (
         <div className="flex flex-wrap items-center gap-1.5">
             {issues.map(([key, source]) => (
-                <Badge key={key} variant={source.status === 'failed' ? 'destructive' : 'outline'} title={source.error ?? undefined}>
-                    {SOURCE_LABELS[key] ?? key}: {source.status}
+                <Badge
+                    key={key}
+                    variant={source.status === 'failed' ? 'destructive' : source.status === 'stale' ? 'secondary' : 'outline'}
+                    title={source.status === 'stale' ? 'Live refresh failed — showing the last saved copy' : (source.error ?? undefined)}
+                >
+                    {SOURCE_LABELS[key] ?? key}: {source.status === 'stale' ? 'last saved copy' : source.status}
                 </Badge>
             ))}
         </div>

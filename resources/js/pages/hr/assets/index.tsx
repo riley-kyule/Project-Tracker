@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { ListCappedNotice } from '@/components/list-capped-notice';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ type AssetRow = {
 
 type PageProps = {
     assets: AssetRow[];
+    listCapped: boolean;
     categories: Category[];
     canManage: boolean;
 };
@@ -303,7 +305,7 @@ function ImportAssetsDialog() {
     );
 }
 
-export default function AssetsIndex({ assets, categories, canManage }: PageProps) {
+export default function AssetsIndex({ assets, categories, listCapped, canManage }: PageProps) {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
@@ -348,6 +350,7 @@ export default function AssetsIndex({ assets, categories, canManage }: PageProps
                     <div>
                         <h1 className="text-xl font-semibold">Assets</h1>
                         <p className="text-muted-foreground text-sm">{filtered.length} assets</p>
+                        <ListCappedNotice capped={listCapped} />
                     </div>
                     {canManage && (
                         <div className="flex gap-2">

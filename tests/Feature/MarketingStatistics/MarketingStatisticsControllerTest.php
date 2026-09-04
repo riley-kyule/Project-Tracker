@@ -262,6 +262,48 @@ class MarketingStatisticsControllerTest extends TestCase
         $this->assertNotNull($props['ahrefs']['source']['error']);
     }
 
+    public function test_a_later_query_failure_falls_back_to_the_last_saved_copy_tagged_stale()
+    {
+        $failing = false;
+
+        $runner = new class($failing) implements BigQueryRunner
+        {
+            public function __construct(public bool &$failing) {}
+
+            public function isConfigured(): bool
+            {
+                return true;
+            }
+
+            public function rows(string $sql, array $parameters = []): array
+            {
+                if (str_contains($sql, 'metadata.websites')) {
+                    return [['website_domain' => 'a.example.com', 'website_name' => 'Site A', 'country' => null]];
+                }
+                if ($this->failing && str_contains($sql, 'vw_daily_website_metrics')) {
+                    throw new RuntimeException('BigQuery timed out');
+                }
+                if (str_contains($sql, 'vw_daily_website_metrics')) {
+                    return [['event_date' => $parameters['date_from'], 'users' => 42, 'sessions' => 50, 'engaged_sessions' => 30]];
+                }
+
+                return [];
+            }
+        };
+        $this->app->instance(BigQueryRunner::class, $runner);
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        // First visit succeeds and seeds the last-known-good copy.
+        $this->actingAs($ceo)->get('/marketing-statistics?refresh=1')->assertOk();
+
+        // Now GA4 fails, and the same-day cache has been busted.
+        $failing = true;
+        $props = $this->actingAs($ceo)->get('/marketing-statistics?refresh=1')->assertOk()->viewData('page')['props'];
+
+        $this->assertSame('stale', $props['ga4_source']['status']);
+        $this->assertSame(42, $props['ga4']['aggregate_property_users']['current'], 'stale KPIs are the last saved values');
+    }
+
     public function test_selected_filters_are_mirrored_back_exactly_for_url_persistence()
     {
         $this->bindFakeRunner();

@@ -40,6 +40,23 @@ class AnalyticsCache
         return Cache::remember($cacheKey, $this->secondsUntilEndOfDay(), $callback);
     }
 
+    /**
+     * A last-known-good copy that outlives the same-day `remember()` entry, so
+     * a cold or failed live BigQuery query can fall back to yesterday's numbers
+     * (labelled "stale") instead of a spinner or a "source failed" badge.
+     * Callers refresh this on every genuine success — see AnalyticsReportBuilder.
+     * 14-day cap so a decommissioned site's data doesn't linger forever.
+     */
+    public function putStale(string $key, mixed $value): void
+    {
+        Cache::put(self::PREFIX.':stale:'.$key, $value, now()->addDays(14));
+    }
+
+    public function getStale(string $key): mixed
+    {
+        return Cache::get(self::PREFIX.':stale:'.$key);
+    }
+
     /** Stable, order-independent key for a (source, domain(s), date range, comparison range) combination. */
     public static function key(
         string $source, string|array|null $domain, Carbon $from, Carbon $to, ?Carbon $compareFrom = null, ?Carbon $compareTo = null,
