@@ -242,6 +242,9 @@ class MarketingStatisticsControllerTest extends TestCase
     public function test_a_failed_source_is_reported_without_breaking_the_page()
     {
         $this->bindFakeRunner();
+        // Ahrefs is off by default (no pipeline) — turn it on so this exercises
+        // the "an enabled source failed" path rather than "source not shown".
+        config(['analytics.bigquery.ahrefs_enabled' => true]);
         $ceo = User::factory()->create()->assignRole('CEO');
 
         // GA4 is eager; Ahrefs has no BigQuery table yet — the fake throws for it, GSC succeeds.
@@ -317,10 +320,10 @@ class MarketingStatisticsControllerTest extends TestCase
 
         $response = $this->actingAs($ceo)->get(
             '/marketing-statistics/ga4',
-            $this->partialReloadHeaders('marketing-statistics/ga4', 'breakdowns', $initial->viewData('page')['version']),
+            $this->partialReloadHeaders('marketing-statistics/ga4', 'key_events', $initial->viewData('page')['version']),
         )->assertOk();
 
-        $keyEvents = $response->json('props.breakdowns.key_events');
+        $keyEvents = $response->json('props.key_events');
         $this->assertSame('whatsapp_click', $keyEvents[0]['key_event']);
         $this->assertSame(12, $keyEvents[0]['key_event_count']);
     }
@@ -370,12 +373,18 @@ class MarketingStatisticsControllerTest extends TestCase
         $this->app->instance(BigQueryRunner::class, $runner);
         $ceo = User::factory()->create()->assignRole('CEO');
 
-        $response = $this->actingAs($ceo)->get('/marketing-statistics/comparison')->assertOk();
+        $initial = $this->actingAs($ceo)->get('/marketing-statistics/comparison')->assertOk();
+
+        // The two grouped scans are deferred — fired by the frontend's <Deferred> follow-up.
+        $response = $this->actingAs($ceo)->get(
+            '/marketing-statistics/comparison',
+            $this->partialReloadHeaders('marketing-statistics/comparison', 'comparison', $initial->viewData('page')['version']),
+        )->assertOk();
 
         $batchedCalls = collect($runner->calls)->filter(fn ($sql) => str_contains($sql, 'IN UNNEST'))->count();
         $this->assertSame(2, $batchedCalls, 'expected exactly one batched GA4 query and one batched GSC query, regardless of website count');
 
-        $rows = collect($response->viewData('page')['props']['rows']);
+        $rows = collect($response->json('props.comparison.rows'));
         $siteA = $rows->firstWhere('domain', 'a.example.com');
         $this->assertSame(100, $siteA['ga4']['users']);
         $this->assertSame(10, $siteA['gsc']['clicks']);

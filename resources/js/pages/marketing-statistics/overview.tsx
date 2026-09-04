@@ -85,6 +85,7 @@ export default function Overview({
     ga4_trend,
     gsc,
     ahrefs,
+    ahrefs_enabled,
 }: {
     selected: MarketingFilters;
     websites: MarketingWebsite[];
@@ -93,6 +94,7 @@ export default function Overview({
     ga4_trend: { event_date: string; users: number; sessions: number }[];
     gsc?: SourceKpis;
     ahrefs?: SourceKpis;
+    ahrefs_enabled: boolean;
 }) {
     const query = buildFilterQuery(selected);
     const sources: Record<string, SourceStatus> = { ga4: ga4_source };
@@ -138,12 +140,14 @@ export default function Overview({
                 </Deferred>
             </div>
 
-            <div className="flex flex-col gap-3">
-                <h2 className="text-sm font-semibold">Ahrefs</h2>
-                <Deferred data="ahrefs" fallback={<AhrefsTilesFallback />}>
-                    <AhrefsTiles ahrefs={ahrefs} query={query} />
-                </Deferred>
-            </div>
+            {ahrefs_enabled && (
+                <div className="flex flex-col gap-3">
+                    <h2 className="text-sm font-semibold">Ahrefs</h2>
+                    <Deferred data="ahrefs" fallback={<AhrefsTilesFallback />}>
+                        <AhrefsTiles ahrefs={ahrefs} query={query} />
+                    </Deferred>
+                </div>
+            )}
         </MarketingStatisticsShell>
     );
 }

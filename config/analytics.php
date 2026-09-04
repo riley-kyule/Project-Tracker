@@ -28,9 +28,17 @@ return [
         // SDK polls for job completion indefinitely — a stuck query would
         // tie up the PHP-FPM worker handling the request with no upper
         // bound. query_timeout_ms is how long each individual poll waits;
-        // the product of the two is the worst-case total wait.
-        'query_timeout_ms' => (int) env('BIGQUERY_QUERY_TIMEOUT_MS', 10000),
-        'query_max_retries' => (int) env('BIGQUERY_QUERY_MAX_RETRIES', 6),
+        // the product of the two is the worst-case total wait. Kept well
+        // under a typical 60s web-server proxy timeout so a slow query
+        // degrades to a caught "source failed" instead of a 502.
+        'query_timeout_ms' => (int) env('BIGQUERY_QUERY_TIMEOUT_MS', 12000),
+        'query_max_retries' => (int) env('BIGQUERY_QUERY_MAX_RETRIES', 3),
+
+        // Ahrefs has no BigQuery pipeline yet (analytics_core.ahrefs_daily_site
+        // does not exist) — every Ahrefs query fails. Off by default so the
+        // module doesn't run doomed queries or show a permanent "failed"
+        // badge; flip on once the pipeline lands. See AhrefsReportQuery.
+        'ahrefs_enabled' => (bool) env('ANALYTICS_AHREFS_ENABLED', false),
     ],
 
 ];

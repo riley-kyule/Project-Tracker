@@ -4,7 +4,7 @@ import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 
 const SOURCE_LABELS: Record<string, string> = { ga4: 'GA4', gsc: 'GSC', ahrefs: 'Ahrefs' };
 
@@ -82,6 +82,8 @@ export function MarketingStatisticsShell({
 }) {
     const query = buildFilterQuery(selected);
     const activeTab = TABS.find((tab) => tab.key === active)!;
+    const ahrefsEnabled = (usePage().props as { ahrefs_enabled?: boolean }).ahrefs_enabled === true;
+    const tabs = ahrefsEnabled ? TABS : TABS.filter((tab) => tab.key !== 'ahrefs');
 
     useSourceStatusToasts(sources);
 
@@ -95,7 +97,7 @@ export function MarketingStatisticsShell({
                 </div>
 
                 <nav className="flex flex-wrap gap-1 border-b pb-2">
-                    {TABS.map((tab) => (
+                    {tabs.map((tab) => (
                         <Link
                             key={tab.key}
                             href={`${tab.path}${query}`}

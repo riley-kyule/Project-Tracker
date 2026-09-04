@@ -44,13 +44,11 @@ class MarketingStatisticsController extends Controller
             $ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
         );
 
-        // GSC and Ahrefs are each their own 1-2 query round trip — deferred
-        // as one group so the page paints with GA4's KPIs and headline
-        // trend immediately, then the other two sources pop in together
-        // right after instead of blocking first paint. Status and KPIs are
-        // bundled into one deferred prop per source (rather than two) so
-        // each report is only computed once.
-        return Inertia::render('marketing-statistics/overview', [
+        // GSC (and Ahrefs, when enabled) are each their own 1-2 query round
+        // trip — deferred so the page paints with GA4's KPIs and headline
+        // trend immediately, then the rest pops in. Each source's status +
+        // KPIs are one deferred prop so the report is only computed once.
+        $props = [
             'selected' => $filters->toArray(),
             'websites' => $registry,
             'ga4_source' => $reportBuilder->sourceSummary($ga4Report),
@@ -62,15 +60,21 @@ class MarketingStatisticsController extends Controller
                 );
 
                 return ['source' => $reportBuilder->sourceSummary($report), 'kpis' => $report['kpis']];
-            }, 'secondary-sources'),
-            'ahrefs' => Inertia::defer(function () use ($ahrefs, $domain, $filters, $reportBuilder) {
+            }, 'gsc'),
+            'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
+        ];
+
+        if (config('analytics.bigquery.ahrefs_enabled')) {
+            $props['ahrefs'] = Inertia::defer(function () use ($ahrefs, $domain, $filters, $reportBuilder) {
                 $report = $reportBuilder->ahrefsReport(
                     $ahrefs, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
                 );
 
                 return ['source' => $reportBuilder->sourceSummary($report), 'kpis' => $report['kpis']];
-            }, 'secondary-sources'),
-        ]);
+            }, 'ahrefs');
+        }
+
+        return Inertia::render('marketing-statistics/overview', $props);
     }
 
     public function ga4(Request $request, TrafficDashboardQuery $ga4, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder): Response
@@ -85,19 +89,29 @@ class MarketingStatisticsController extends Controller
             $ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
         );
 
+        // Each breakdown is a separate live scan over the GA4 UNION ALL view.
+        // Deferred one-per-prop, each in its own group, so the browser fetches
+        // them as parallel single-query requests — one request running all
+        // five back to back routinely exceeded the web-server proxy timeout
+        // and 502'd. The KPIs + headline trend above paint immediately.
+        $breakdowns = [];
+        foreach (AnalyticsReportBuilder::GA4_BREAKDOWNS as $name) {
+            $breakdowns[$name] = Inertia::defer(
+                fn () => $report['status'] === 'failed'
+                    ? null
+                    : $reportBuilder->ga4Breakdown($ga4, $name, $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh),
+                "ga4-{$name}",
+            );
+        }
+
         return Inertia::render('marketing-statistics/ga4', [
             'selected' => $filters->toArray(),
+            'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
             'websites' => $registry,
             'source' => $reportBuilder->sourceSummary($report),
             'kpis' => $report['kpis'],
             'trend' => $report['trend'],
-            // Five extra BigQuery queries (each its own live scan over the
-            // GA4 UNION ALL view) — deferred so the KPIs and headline trend
-            // above paint immediately instead of waiting on all of them, and
-            // cached the same way as the main report (see AnalyticsCache).
-            'breakdowns' => Inertia::defer(fn () => $report['status'] === 'failed'
-                ? null
-                : $reportBuilder->ga4Breakdowns($ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh)),
+            ...$breakdowns,
         ]);
     }
 
@@ -113,22 +127,32 @@ class MarketingStatisticsController extends Controller
             $gsc, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
         );
 
+        // Deferred one-per-prop in parallel groups, same as GA4's breakdowns.
+        $breakdowns = [];
+        foreach (AnalyticsReportBuilder::GSC_BREAKDOWNS as $name) {
+            $breakdowns[$name] = Inertia::defer(
+                fn () => $report['status'] === 'failed'
+                    ? null
+                    : $reportBuilder->gscBreakdown($gsc, $name, $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh),
+                "gsc-{$name}",
+            );
+        }
+
         return Inertia::render('marketing-statistics/gsc', [
             'selected' => $filters->toArray(),
+            'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
             'websites' => $registry,
             'source' => $reportBuilder->sourceSummary($report),
             'kpis' => $report['kpis'],
             'trend' => $report['trend'],
-            // Four extra BigQuery queries — deferred and cached for the same reasons as GA4's.
-            'breakdowns' => Inertia::defer(fn () => $report['status'] === 'failed'
-                ? null
-                : $reportBuilder->gscBreakdowns($gsc, $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh)),
+            ...$breakdowns,
         ]);
     }
 
     public function ahrefs(Request $request, AhrefsReportQuery $ahrefs, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder): Response
     {
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
+        abort_unless(config('analytics.bigquery.ahrefs_enabled'), 404);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
@@ -160,13 +184,19 @@ class MarketingStatisticsController extends Controller
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
-        $comparison = $reportBuilder->websiteComparison($ga4, $gsc, $registry, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh);
+
+        // Two grouped live-view scans across every registered site — deferred
+        // so the tab paints its shell + a table skeleton immediately rather
+        // than blocking first byte on both (which 502'd with ~20 sites).
+        $comparison = Inertia::defer(
+            fn () => $reportBuilder->websiteComparison($ga4, $gsc, $registry, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh),
+        );
 
         return Inertia::render('marketing-statistics/comparison', [
             'selected' => $filters->toArray(),
+            'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
             'websites' => $registry,
-            'rows' => $comparison['rows'],
-            'sources' => $comparison['sources'],
+            'comparison' => $comparison,
         ]);
     }
 
@@ -181,6 +211,7 @@ class MarketingStatisticsController extends Controller
 
         return Inertia::render('marketing-statistics/freshness', [
             'selected' => $filters->toArray(),
+            'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
             'websites' => $registry,
             // Deliberately never cached, unlike every other source query in
             // this controller: the entire point of this tab is reporting

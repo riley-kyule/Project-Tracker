@@ -209,44 +209,85 @@ class AnalyticsReportBuilder
     }
 
     /**
-     * Five extra BigQuery queries beyond ga4Report() — cached and
-     * try/catch-isolated independently, so a breakdown failure never takes
-     * down the KPIs/trend a caller already has. Null on failure (as opposed
-     * to ga4Report()'s status-tagged array) since callers only ever render
-     * this conditionally, same as Marketing Statistics' `ga4()` action.
+     * The GA4 / GSC "breakdown" queries beyond ga4Report()/gscReport() —
+     * each is its own single BigQuery query, cached and try/catch-isolated
+     * on its own key, returning null on failure (callers render each
+     * conditionally). One-per-key rather than one combined result so the
+     * controller can hand each to Inertia::defer() in its own group: the
+     * browser then fetches all of them as parallel single-query requests
+     * instead of one request running 4-5 live-view scans back to back
+     * (which routinely blew past the web-server proxy timeout → 502).
+     *
+     * @param  'traffic_sources'|'devices'|'landing_pages'|'locations'|'key_events'  $name
      */
-    public function ga4Breakdowns(TrafficDashboardQuery $ga4, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false): ?array
-    {
-        $key = AnalyticsCache::key('ga4-breakdowns', $domain, $dateFrom, $dateTo);
-
+    public function ga4Breakdown(
+        TrafficDashboardQuery $ga4, string $name, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false,
+    ): ?array {
         try {
-            return $this->cache->remember($key, fn () => [
-                'traffic_sources' => $ga4->trafficSources($domain, $dateFrom, $dateTo),
-                'devices' => $ga4->devices($domain, $dateFrom, $dateTo),
-                'landing_pages' => $ga4->landingPages($domain, $dateFrom, $dateTo),
-                'locations' => $ga4->locations($domain, $dateFrom, $dateTo),
-                'key_events' => $ga4->keyEventsBreakdown($domain, $dateFrom, $dateTo),
-            ], $forceRefresh);
+            return $this->cache->remember(
+                AnalyticsCache::key("ga4-bd-{$name}", $domain, $dateFrom, $dateTo),
+                fn () => match ($name) {
+                    'traffic_sources' => $ga4->trafficSources($domain, $dateFrom, $dateTo),
+                    'devices' => $ga4->devices($domain, $dateFrom, $dateTo),
+                    'landing_pages' => $ga4->landingPages($domain, $dateFrom, $dateTo),
+                    'locations' => $ga4->locations($domain, $dateFrom, $dateTo),
+                    'key_events' => $ga4->keyEventsBreakdown($domain, $dateFrom, $dateTo),
+                },
+                $forceRefresh,
+            );
         } catch (Throwable) {
             return null;
         }
     }
 
-    /** Four extra BigQuery queries beyond gscReport() — same isolation as ga4Breakdowns(). */
-    public function gscBreakdowns(GscReportQuery $gsc, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false): ?array
-    {
-        $key = AnalyticsCache::key('gsc-breakdowns', $domain, $dateFrom, $dateTo);
-
+    /** @param  'queries'|'pages'|'countries'|'devices'  $name */
+    public function gscBreakdown(
+        GscReportQuery $gsc, string $name, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false,
+    ): ?array {
         try {
-            return $this->cache->remember($key, fn () => [
-                'queries' => $gsc->queries($domain, $dateFrom, $dateTo),
-                'pages' => $gsc->pages($domain, $dateFrom, $dateTo),
-                'countries' => $gsc->countries($domain, $dateFrom, $dateTo),
-                'devices' => $gsc->devices($domain, $dateFrom, $dateTo),
-            ], $forceRefresh);
+            return $this->cache->remember(
+                AnalyticsCache::key("gsc-bd-{$name}", $domain, $dateFrom, $dateTo),
+                fn () => match ($name) {
+                    'queries' => $gsc->queries($domain, $dateFrom, $dateTo),
+                    'pages' => $gsc->pages($domain, $dateFrom, $dateTo),
+                    'countries' => $gsc->countries($domain, $dateFrom, $dateTo),
+                    'devices' => $gsc->devices($domain, $dateFrom, $dateTo),
+                },
+                $forceRefresh,
+            );
         } catch (Throwable) {
             return null;
         }
+    }
+
+    public const GA4_BREAKDOWNS = ['traffic_sources', 'devices', 'landing_pages', 'locations', 'key_events'];
+
+    public const GSC_BREAKDOWNS = ['queries', 'pages', 'countries', 'devices'];
+
+    /**
+     * All GA4 breakdowns as one dict — for callers that render them together
+     * in a single deferred blob (the CEO dashboard traffic widget). Each part
+     * is still cached on its own key (see ga4Breakdown()), so this shares
+     * cache with the Marketing Statistics module's per-part fetches.
+     */
+    public function ga4Breakdowns(TrafficDashboardQuery $ga4, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false): ?array
+    {
+        $out = [];
+        foreach (self::GA4_BREAKDOWNS as $name) {
+            $out[$name] = $this->ga4Breakdown($ga4, $name, $domain, $dateFrom, $dateTo, $forceRefresh) ?? [];
+        }
+
+        return $out;
+    }
+
+    public function gscBreakdowns(GscReportQuery $gsc, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false): ?array
+    {
+        $out = [];
+        foreach (self::GSC_BREAKDOWNS as $name) {
+            $out[$name] = $this->gscBreakdown($gsc, $name, $domain, $dateFrom, $dateTo, $forceRefresh) ?? [];
+        }
+
+        return $out;
     }
 
     /**

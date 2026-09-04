@@ -31,6 +31,14 @@ function BreakdownCardShell({ title, children }: { title: string; children?: Rea
     );
 }
 
+function BreakdownSkeleton({ title }: { title: string }) {
+    return (
+        <BreakdownCardShell title={title}>
+            <Skeleton className="h-[260px] rounded-lg" />
+        </BreakdownCardShell>
+    );
+}
+
 function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: [string, string][] }) {
     const { sorted, sort, onSort } = useClientSort(rows, (row, column) => {
         const v = row[column];
@@ -91,15 +99,18 @@ export default function Ga4Report({
     source,
     kpis,
     trend,
-    breakdowns,
+    traffic_sources,
+    devices,
+    landing_pages,
+    locations,
+    key_events,
 }: {
     selected: MarketingFilters;
     websites: MarketingWebsite[];
     source: SourceStatus;
     kpis: Record<string, Kpi> | null;
     trend: { event_date: string; users: number; sessions: number; engaged_sessions: number }[];
-    breakdowns: Breakdowns | null;
-}) {
+} & Partial<Breakdowns>) {
     const engagementTrend = trend.map((row) => ({
         event_date: row.event_date,
         engagement_rate: row.sessions ? row.engaged_sessions / row.sessions : 0,
@@ -125,7 +136,7 @@ export default function Ga4Report({
                     kpi={kpis?.key_events ?? null}
                     drilldownTitle="Key events breakdown"
                     drilldown={
-                        <CategoryBarChart data={breakdowns?.key_events ?? []} labelKey="key_event" valueKey="key_event_count" valueLabel="events" />
+                        <CategoryBarChart data={key_events ?? []} labelKey="key_event" valueKey="key_event_count" valueLabel="events" />
                     }
                 />
                 <KpiTile
@@ -156,62 +167,44 @@ export default function Ga4Report({
                 />
             </div>
 
-            <Deferred
-                data="breakdowns"
-                fallback={
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        <BreakdownCardShell title="Traffic sources (users)">
-                            <Skeleton className="h-[260px] rounded-lg" />
-                        </BreakdownCardShell>
-                        <BreakdownCardShell title="Devices (users)">
-                            <Skeleton className="h-[260px] rounded-lg" />
-                        </BreakdownCardShell>
-                        <BreakdownCardShell title="Landing pages">
-                            <Skeleton className="h-[260px] rounded-lg" />
-                        </BreakdownCardShell>
-                        <BreakdownCardShell title="Visitor locations">
-                            <Skeleton className="h-[260px] rounded-lg" />
-                        </BreakdownCardShell>
-                    </div>
-                }
-            >
-                <>
-                    {breakdowns && (
-                        <div className="grid gap-4 lg:grid-cols-2">
-                            <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-                                <h3 className="mb-3 text-sm font-semibold">Traffic sources (users)</h3>
-                                <CategoryBarChart
-                                    data={breakdowns.traffic_sources.map((r) => ({ label: `${r.source} / ${r.medium}`, users: r.users }))}
-                                    labelKey="label"
-                                    valueKey="users"
-                                    valueLabel="users"
-                                />
-                            </div>
-                            <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-                                <h3 className="mb-3 text-sm font-semibold">Devices (users)</h3>
-                                <CategoryPieChart data={breakdowns.devices} labelKey="device_category" valueKey="users" order={DEVICE_ORDER} />
-                            </div>
-                            <BreakdownTable
-                                title="Landing pages"
-                                rows={breakdowns.landing_pages}
-                                columns={[
-                                    ['page_location', 'Page'],
-                                    ['users', 'Users'],
-                                    ['page_views', 'Page views'],
-                                ]}
-                            />
-                            <BreakdownTable
-                                title="Visitor locations"
-                                rows={breakdowns.locations}
-                                columns={[
-                                    ['user_country', 'Country'],
-                                    ['users', 'Users'],
-                                ]}
-                            />
-                        </div>
-                    )}
-                </>
-            </Deferred>
+            <div className="grid gap-4 lg:grid-cols-2">
+                <Deferred data="traffic_sources" fallback={<BreakdownSkeleton title="Traffic sources (users)" />}>
+                    <BreakdownCardShell title="Traffic sources (users)">
+                        <CategoryBarChart
+                            data={(traffic_sources ?? []).map((r) => ({ label: `${r.source} / ${r.medium}`, users: r.users }))}
+                            labelKey="label"
+                            valueKey="users"
+                            valueLabel="users"
+                        />
+                    </BreakdownCardShell>
+                </Deferred>
+                <Deferred data="devices" fallback={<BreakdownSkeleton title="Devices (users)" />}>
+                    <BreakdownCardShell title="Devices (users)">
+                        <CategoryPieChart data={devices ?? []} labelKey="device_category" valueKey="users" order={DEVICE_ORDER} />
+                    </BreakdownCardShell>
+                </Deferred>
+                <Deferred data="landing_pages" fallback={<BreakdownSkeleton title="Landing pages" />}>
+                    <BreakdownTable
+                        title="Landing pages"
+                        rows={landing_pages ?? []}
+                        columns={[
+                            ['page_location', 'Page'],
+                            ['users', 'Users'],
+                            ['page_views', 'Page views'],
+                        ]}
+                    />
+                </Deferred>
+                <Deferred data="locations" fallback={<BreakdownSkeleton title="Visitor locations" />}>
+                    <BreakdownTable
+                        title="Visitor locations"
+                        rows={locations ?? []}
+                        columns={[
+                            ['user_country', 'Country'],
+                            ['users', 'Users'],
+                        ]}
+                    />
+                </Deferred>
+            </div>
         </MarketingStatisticsShell>
     );
 }

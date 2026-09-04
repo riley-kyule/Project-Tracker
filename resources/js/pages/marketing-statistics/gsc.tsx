@@ -29,6 +29,14 @@ function BreakdownCardShell({ title, children }: { title: string; children?: Rea
     );
 }
 
+function BreakdownSkeleton({ title }: { title: string }) {
+    return (
+        <BreakdownCardShell title={title}>
+            <Skeleton className="h-[260px] rounded-lg" />
+        </BreakdownCardShell>
+    );
+}
+
 function BreakdownTable({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: [string, string][] }) {
     const { sorted, sort, onSort } = useClientSort(rows, (row, column) => {
         const v = row[column];
@@ -96,15 +104,17 @@ export default function GscReport({
     source,
     kpis,
     trend,
-    breakdowns,
+    queries,
+    pages,
+    countries,
+    devices,
 }: {
     selected: MarketingFilters;
     websites: MarketingWebsite[];
     source: SourceStatus;
     kpis: Record<string, Kpi> | null;
     trend: { data_date: string; clicks: number; impressions: number; average_position: number | null }[];
-    breakdowns: Breakdowns | null;
-}) {
+} & Partial<Breakdowns>) {
     const ctrTrend = trend.map((row) => ({
         data_date: row.data_date,
         ctr: row.impressions ? row.clicks / row.impressions : 0,
@@ -160,64 +170,47 @@ export default function GscReport({
                 />
             </div>
 
-            <Deferred
-                data="breakdowns"
-                fallback={
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        <BreakdownCardShell title="Queries">
-                            <Skeleton className="h-[260px] rounded-lg" />
-                        </BreakdownCardShell>
-                        <BreakdownCardShell title="Pages">
-                            <Skeleton className="h-[260px] rounded-lg" />
-                        </BreakdownCardShell>
-                        <BreakdownCardShell title="Countries">
-                            <Skeleton className="h-[260px] rounded-lg" />
-                        </BreakdownCardShell>
-                        <BreakdownCardShell title="Devices (clicks)">
-                            <Skeleton className="h-[260px] rounded-lg" />
-                        </BreakdownCardShell>
-                    </div>
-                }
-            >
-                <>
-                    {breakdowns && (
-                        <div className="grid gap-4 lg:grid-cols-2">
-                            <BreakdownTable
-                                title="Queries"
-                                rows={breakdowns.queries}
-                                columns={[
-                                    ['query', 'Query'],
-                                    ['clicks', 'Clicks'],
-                                    ['impressions', 'Impressions'],
-                                    ['ctr', 'CTR'],
-                                ]}
-                            />
-                            <BreakdownTable
-                                title="Pages"
-                                rows={breakdowns.pages}
-                                columns={[
-                                    ['url', 'Page'],
-                                    ['clicks', 'Clicks'],
-                                    ['impressions', 'Impressions'],
-                                ]}
-                            />
-                            <BreakdownTable
-                                title="Countries"
-                                rows={breakdowns.countries}
-                                columns={[
-                                    ['country', 'Country'],
-                                    ['clicks', 'Clicks'],
-                                    ['impressions', 'Impressions'],
-                                ]}
-                            />
-                            <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-                                <h3 className="mb-3 text-sm font-semibold">Devices (clicks)</h3>
-                                <CategoryPieChart data={breakdowns.devices} labelKey="device" valueKey="clicks" order={DEVICE_ORDER} />
-                            </div>
-                        </div>
-                    )}
-                </>
-            </Deferred>
+            <div className="grid gap-4 lg:grid-cols-2">
+                <Deferred data="queries" fallback={<BreakdownSkeleton title="Queries" />}>
+                    <BreakdownTable
+                        title="Queries"
+                        rows={queries ?? []}
+                        columns={[
+                            ['query', 'Query'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                            ['ctr', 'CTR'],
+                        ]}
+                    />
+                </Deferred>
+                <Deferred data="pages" fallback={<BreakdownSkeleton title="Pages" />}>
+                    <BreakdownTable
+                        title="Pages"
+                        rows={pages ?? []}
+                        columns={[
+                            ['url', 'Page'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                        ]}
+                    />
+                </Deferred>
+                <Deferred data="countries" fallback={<BreakdownSkeleton title="Countries" />}>
+                    <BreakdownTable
+                        title="Countries"
+                        rows={countries ?? []}
+                        columns={[
+                            ['country', 'Country'],
+                            ['clicks', 'Clicks'],
+                            ['impressions', 'Impressions'],
+                        ]}
+                    />
+                </Deferred>
+                <Deferred data="devices" fallback={<BreakdownSkeleton title="Devices (clicks)" />}>
+                    <BreakdownCardShell title="Devices (clicks)">
+                        <CategoryPieChart data={devices ?? []} labelKey="device" valueKey="clicks" order={DEVICE_ORDER} />
+                    </BreakdownCardShell>
+                </Deferred>
+            </div>
         </MarketingStatisticsShell>
     );
 }

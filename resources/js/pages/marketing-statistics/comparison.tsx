@@ -1,8 +1,9 @@
 import { CategoryBarChart } from '@/components/marketing-statistics/category-bar-chart';
 import { buildFilterQuery, MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
-import { Link } from '@inertiajs/react';
+import { Deferred, Link } from '@inertiajs/react';
 
 type Ga4Summary = { users: number; sessions: number; engagement_rate: number | null };
 type GscSummary = { clicks: number; impressions: number; average_position: number | null };
@@ -19,23 +20,19 @@ function compact(value: number | null | undefined): string {
     return value === null || value === undefined ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
-// NOTE: no Deferred/loading state here, unlike the other Marketing
-// Statistics tabs — MarketingStatisticsController::comparison() resolves
-// `rows`/`sources` synchronously before Inertia::render(), so there's no
-// deferred prop to key a fallback off. Adding one would mean faking a
-// frontend-only skeleton for data that already arrived, or deferring the
-// controller's query (a backend change, out of scope here).
 export default function WebsiteComparison({
     selected,
     websites,
-    rows,
-    sources,
+    comparison,
 }: {
     selected: MarketingFilters;
     websites: MarketingWebsite[];
-    rows: ComparisonRow[];
-    sources?: Record<string, SourceStatus>;
+    // Deferred (two grouped live-view scans across every site) — undefined
+    // until the partial reload lands.
+    comparison?: { rows: ComparisonRow[]; sources: Record<string, SourceStatus> };
 }) {
+    const rows = comparison?.rows ?? [];
+    const sources = comparison?.sources;
     // NOTE: a website with no GA4/GSC data (row.ga4/row.gsc null — source
     // down or not mapped) renders an identical zero-height bar to a website
     // that genuinely had zero users/clicks in range. CategoryBarChart has no
@@ -68,6 +65,17 @@ export default function WebsiteComparison({
 
     return (
         <MarketingStatisticsShell active="comparison" selected={selected} websites={websites} sources={sources}>
+            <Deferred
+                data="comparison"
+                fallback={
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <Skeleton className="h-[320px] rounded-xl" />
+                        <Skeleton className="h-[320px] rounded-xl" />
+                        <Skeleton className="h-[280px] rounded-xl lg:col-span-2" />
+                    </div>
+                }
+            >
+                <div className="flex flex-col gap-4">
             <div className="grid gap-4 lg:grid-cols-2">
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                     <h3 className="mb-3 text-sm font-semibold">GA4 users by website</h3>
@@ -132,6 +140,8 @@ export default function WebsiteComparison({
                     </tbody>
                 </table>
             </div>
+                </div>
+            </Deferred>
         </MarketingStatisticsShell>
     );
 }
