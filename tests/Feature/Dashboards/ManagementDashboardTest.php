@@ -45,7 +45,6 @@ class ManagementDashboardTest extends TestCase
         $props = $response->viewData('page')['props'];
 
         $this->assertSame(1, $props['counts']['overdue']);
-        $this->assertSame(1, $props['counts']['ceo_priority']);
 
         $seoRow = collect($props['departmentPerformance'])->firstWhere('name', 'SEO');
         $this->assertSame(1, $seoRow['open']);

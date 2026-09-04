@@ -246,16 +246,11 @@ export default function CeoDashboard({
     leaveOverview,
 }: {
     counts: {
-        due_today: number;
         overdue: number;
         blocked: number;
         awaiting_review: number;
-        ceo_priority: number;
-        completed_today: number;
         completed_week: number;
-        completed_total: number;
         critical_tickets: number;
-        overdue_tickets: number;
     };
     departmentPerformance: DeptRow[];
     workload: (Person & { open_tasks: number })[];

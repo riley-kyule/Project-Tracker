@@ -32,17 +32,16 @@ class DashboardController extends Controller
         $openTickets = Ticket::query()->whereIn('status', Ticket::OPEN_STATUSES);
 
         return Inertia::render('dashboard/ceo', [
+            // The six headline numbers the dashboard actually shows — see
+            // dashboard/ceo.tsx. Everything else (due today, CEO-priority
+            // count, lifetime completions, …) lives in the sections below,
+            // which compute their own data.
             'counts' => [
-                'due_today' => $open()->whereDate('due_at', today())->count(),
                 'overdue' => $open()->where('due_at', '<', now())->count(),
                 'blocked' => $open()->whereHas('column', fn ($q) => $q->where('semantic_status', 'blocked'))->count(),
                 'awaiting_review' => $open()->whereHas('column', fn ($q) => $q->where('semantic_status', 'review'))->count(),
-                'ceo_priority' => $open()->where('ceo_priority', true)->count(),
-                'completed_today' => Task::query()->whereDate('completed_at', today())->count(),
                 'completed_week' => Task::query()->where('completed_at', '>=', now()->startOfWeek())->count(),
-                'completed_total' => Task::query()->whereNotNull('completed_at')->count(),
                 'critical_tickets' => (clone $openTickets)->where('priority', 'critical')->count(),
-                'overdue_tickets' => (clone $openTickets)->whereNotNull('due_at')->where('due_at', '<', now())->count(),
             ],
             'departmentPerformance' => $this->departmentPerformance(null, $request->user()),
             'workload' => User::query()
