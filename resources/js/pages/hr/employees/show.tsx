@@ -1,4 +1,6 @@
 import InputError from '@/components/input-error';
+import { ListPagination, usePagedList } from '@/components/list-pagination';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -1056,6 +1058,261 @@ function GoalDialog({ employeeId }: { employeeId: number }) {
     );
 }
 
+function ContractHistoryTable({
+    employeeId,
+    contracts,
+    canManage,
+    remove,
+}: {
+    employeeId: number;
+    contracts: Contract[];
+    canManage: boolean;
+    remove: (url: string) => void;
+}) {
+    const { sorted, sort, onSort } = useClientSort(contracts, (c, column) =>
+        column === 'title'
+            ? c.title
+            : column === 'department'
+              ? (c.department?.name ?? '')
+              : column === 'type'
+                ? c.employment_type
+                : column === 'start'
+                  ? c.start_date
+                  : c.end_date,
+    );
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+                <thead className="text-muted-foreground text-left">
+                    <tr>
+                        <SortableHeader column="title" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Title
+                        </SortableHeader>
+                        <SortableHeader column="department" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Department
+                        </SortableHeader>
+                        <SortableHeader column="type" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Type
+                        </SortableHeader>
+                        <SortableHeader column="start" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Start
+                        </SortableHeader>
+                        <SortableHeader column="end" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            End
+                        </SortableHeader>
+                        <th className="py-1 pr-3">Reason</th>
+                        {canManage && <th />}
+                    </tr>
+                </thead>
+                <tbody>
+                    {pageRows.map((c) => (
+                        <tr key={c.id} className="border-t">
+                            <td className="py-1.5 pr-3">{c.title}</td>
+                            <td className="py-1.5 pr-3">{c.department?.name ?? '—'}</td>
+                            <td className="py-1.5 pr-3">{label(c.employment_type)}</td>
+                            <td className="py-1.5 pr-3">{fmtDate(c.start_date)}</td>
+                            <td className="py-1.5 pr-3">{c.end_date ? fmtDate(c.end_date) : '—'}</td>
+                            <td className="py-1.5 pr-3">{c.reason ? label(c.reason) : '—'}</td>
+                            {canManage && (
+                                <td className="py-1.5">
+                                    <Button variant="ghost" size="sm" onClick={() => remove(`/hr/employees/${employeeId}/contracts/${c.id}`)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </td>
+                            )}
+                        </tr>
+                    ))}
+                    {contracts.length === 0 && (
+                        <tr>
+                            <td colSpan={7} className="text-muted-foreground py-4 text-center">
+                                No contracts recorded.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+            <ListPagination
+                size={size}
+                onSizeChange={setSize}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                itemLabel="contracts"
+                className="mt-2"
+            />
+        </div>
+    );
+}
+
+function AssignedAssetsTable({ assets }: { assets: AssetRow[] }) {
+    const { sorted, sort, onSort } = useClientSort(assets, (a, column) =>
+        column === 'asset'
+            ? (a.asset?.name ?? '')
+            : column === 'tag'
+              ? (a.asset?.asset_tag ?? '')
+              : column === 'assigned'
+                ? a.assigned_at
+                : column === 'expected_return'
+                  ? a.expected_return_at
+                  : a.returned_at,
+    );
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+                <thead className="text-muted-foreground text-left">
+                    <tr>
+                        <SortableHeader column="asset" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Asset
+                        </SortableHeader>
+                        <SortableHeader column="tag" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Tag
+                        </SortableHeader>
+                        <SortableHeader column="assigned" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Assigned
+                        </SortableHeader>
+                        <SortableHeader column="expected_return" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Expected return
+                        </SortableHeader>
+                        <SortableHeader column="returned" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Returned
+                        </SortableHeader>
+                    </tr>
+                </thead>
+                <tbody>
+                    {pageRows.map((a) => (
+                        <tr key={a.id} className="border-t">
+                            <td className="py-1.5 pr-3">
+                                {a.asset ? (
+                                    <Link href={`/hr/assets/${a.asset.id}`} className="text-primary hover:underline">
+                                        {a.asset.name}
+                                    </Link>
+                                ) : (
+                                    '—'
+                                )}
+                            </td>
+                            <td className="text-muted-foreground py-1.5 pr-3">{a.asset?.asset_tag ?? '—'}</td>
+                            <td className="py-1.5 pr-3">{fmtDate(a.assigned_at)}</td>
+                            <td className="py-1.5 pr-3">{a.expected_return_at ? fmtDate(a.expected_return_at) : '—'}</td>
+                            <td className="py-1.5 pr-3">{a.returned_at ? fmtDate(a.returned_at) : <Badge>Held</Badge>}</td>
+                        </tr>
+                    ))}
+                    {assets.length === 0 && (
+                        <tr>
+                            <td colSpan={5} className="text-muted-foreground py-4 text-center">
+                                No assets assigned.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+            <ListPagination
+                size={size}
+                onSizeChange={setSize}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                itemLabel="assets"
+                className="mt-2"
+            />
+        </div>
+    );
+}
+
+function RecurringItemsTable({
+    employeeId,
+    items,
+    canManageCompensation,
+    remove,
+}: {
+    employeeId: number;
+    items: RecurringItem[];
+    canManageCompensation: boolean;
+    remove: (url: string) => void;
+}) {
+    const { sorted, sort, onSort } = useClientSort(items, (i, column) =>
+        column === 'name' ? i.name : column === 'kind' ? i.kind : column === 'amount' ? i.amount : column === 'balance' ? (i.balance ?? 0) : null,
+    );
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+                <thead className="text-muted-foreground text-left">
+                    <tr>
+                        <SortableHeader column="name" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Name
+                        </SortableHeader>
+                        <SortableHeader column="kind" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Kind
+                        </SortableHeader>
+                        <SortableHeader column="amount" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Amount
+                        </SortableHeader>
+                        <th className="py-1 pr-3">Flags</th>
+                        <SortableHeader column="balance" sort={sort} onSort={onSort} className="py-1 pr-3">
+                            Balance
+                        </SortableHeader>
+                        {canManageCompensation && <th />}
+                    </tr>
+                </thead>
+                <tbody>
+                    {pageRows.map((i) => (
+                        <tr key={i.id} className="border-t">
+                            <td className="py-1.5 pr-3">
+                                {i.name} {!i.is_active && <Badge variant="outline">inactive</Badge>}
+                            </td>
+                            <td className="py-1.5 pr-3">{label(i.kind)}</td>
+                            <td className="py-1.5 pr-3">
+                                {i.calc_type === 'percent_of_basic' ? `${i.amount}% of basic` : i.amount.toLocaleString()}
+                            </td>
+                            <td className="text-muted-foreground py-1.5 pr-3 text-xs">
+                                {[
+                                    i.kind === 'earning' && (i.is_taxable ? 'taxable' : 'non-taxable'),
+                                    i.kind === 'deduction' && (i.is_pretax ? 'pre-tax' : 'post-tax'),
+                                    i.affects_nssf && 'affects NSSF',
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                            </td>
+                            <td className="py-1.5 pr-3">{i.balance != null ? i.balance.toLocaleString() : '—'}</td>
+                            {canManageCompensation && (
+                                <td className="py-1.5">
+                                    <Button variant="ghost" size="sm" onClick={() => remove(`/hr/employees/${employeeId}/recurring-items/${i.id}`)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </td>
+                            )}
+                        </tr>
+                    ))}
+                    {items.length === 0 && (
+                        <tr>
+                            <td colSpan={6} className="text-muted-foreground py-4 text-center">
+                                No recurring pay items.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+            <ListPagination
+                size={size}
+                onSizeChange={setSize}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                itemLabel="items"
+                className="mt-2"
+            />
+        </div>
+    );
+}
+
 export default function EmployeeShow({
     employee,
     departments,
@@ -1220,51 +1477,7 @@ export default function EmployeeShow({
                                 </div>
                             )}
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="text-muted-foreground text-left">
-                                    <tr>
-                                        <th className="py-1 pr-3">Title</th>
-                                        <th className="py-1 pr-3">Department</th>
-                                        <th className="py-1 pr-3">Type</th>
-                                        <th className="py-1 pr-3">Start</th>
-                                        <th className="py-1 pr-3">End</th>
-                                        <th className="py-1 pr-3">Reason</th>
-                                        {canManage && <th />}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {employee.contracts.map((c) => (
-                                        <tr key={c.id} className="border-t">
-                                            <td className="py-1.5 pr-3">{c.title}</td>
-                                            <td className="py-1.5 pr-3">{c.department?.name ?? '—'}</td>
-                                            <td className="py-1.5 pr-3">{label(c.employment_type)}</td>
-                                            <td className="py-1.5 pr-3">{fmtDate(c.start_date)}</td>
-                                            <td className="py-1.5 pr-3">{c.end_date ? fmtDate(c.end_date) : '—'}</td>
-                                            <td className="py-1.5 pr-3">{c.reason ? label(c.reason) : '—'}</td>
-                                            {canManage && (
-                                                <td className="py-1.5">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(`/hr/employees/${employee.id}/contracts/${c.id}`)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </td>
-                                            )}
-                                        </tr>
-                                    ))}
-                                    {employee.contracts.length === 0 && (
-                                        <tr>
-                                            <td colSpan={7} className="text-muted-foreground py-4 text-center">
-                                                No contracts recorded.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                        <ContractHistoryTable employeeId={employee.id} contracts={employee.contracts} canManage={canManage} remove={remove} />
                     </Card>
                 )}
 
@@ -1312,45 +1525,7 @@ export default function EmployeeShow({
                 {tab === 'Assets' && (
                     <Card className="p-4">
                         <h2 className="mb-3 text-sm font-semibold">Assigned assets</h2>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="text-muted-foreground text-left">
-                                    <tr>
-                                        <th className="py-1 pr-3">Asset</th>
-                                        <th className="py-1 pr-3">Tag</th>
-                                        <th className="py-1 pr-3">Assigned</th>
-                                        <th className="py-1 pr-3">Expected return</th>
-                                        <th className="py-1 pr-3">Returned</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {employee.assets.map((a) => (
-                                        <tr key={a.id} className="border-t">
-                                            <td className="py-1.5 pr-3">
-                                                {a.asset ? (
-                                                    <Link href={`/hr/assets/${a.asset.id}`} className="text-primary hover:underline">
-                                                        {a.asset.name}
-                                                    </Link>
-                                                ) : (
-                                                    '—'
-                                                )}
-                                            </td>
-                                            <td className="text-muted-foreground py-1.5 pr-3">{a.asset?.asset_tag ?? '—'}</td>
-                                            <td className="py-1.5 pr-3">{fmtDate(a.assigned_at)}</td>
-                                            <td className="py-1.5 pr-3">{a.expected_return_at ? fmtDate(a.expected_return_at) : '—'}</td>
-                                            <td className="py-1.5 pr-3">{a.returned_at ? fmtDate(a.returned_at) : <Badge>Held</Badge>}</td>
-                                        </tr>
-                                    ))}
-                                    {employee.assets.length === 0 && (
-                                        <tr>
-                                            <td colSpan={5} className="text-muted-foreground py-4 text-center">
-                                                No assets assigned.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                        <AssignedAssetsTable assets={employee.assets} />
                     </Card>
                 )}
 
@@ -1360,61 +1535,12 @@ export default function EmployeeShow({
                             <h2 className="text-sm font-semibold">Recurring earnings &amp; deductions</h2>
                             {canManageCompensation && <RecurringItemDialog employeeId={employee.id} />}
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="text-muted-foreground text-left">
-                                    <tr>
-                                        <th className="py-1 pr-3">Name</th>
-                                        <th className="py-1 pr-3">Kind</th>
-                                        <th className="py-1 pr-3">Amount</th>
-                                        <th className="py-1 pr-3">Flags</th>
-                                        <th className="py-1 pr-3">Balance</th>
-                                        {canManageCompensation && <th />}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {employee.recurring_items.map((i) => (
-                                        <tr key={i.id} className="border-t">
-                                            <td className="py-1.5 pr-3">
-                                                {i.name} {!i.is_active && <Badge variant="outline">inactive</Badge>}
-                                            </td>
-                                            <td className="py-1.5 pr-3">{label(i.kind)}</td>
-                                            <td className="py-1.5 pr-3">
-                                                {i.calc_type === 'percent_of_basic' ? `${i.amount}% of basic` : i.amount.toLocaleString()}
-                                            </td>
-                                            <td className="text-muted-foreground py-1.5 pr-3 text-xs">
-                                                {[
-                                                    i.kind === 'earning' && (i.is_taxable ? 'taxable' : 'non-taxable'),
-                                                    i.kind === 'deduction' && (i.is_pretax ? 'pre-tax' : 'post-tax'),
-                                                    i.affects_nssf && 'affects NSSF',
-                                                ]
-                                                    .filter(Boolean)
-                                                    .join(' · ')}
-                                            </td>
-                                            <td className="py-1.5 pr-3">{i.balance != null ? i.balance.toLocaleString() : '—'}</td>
-                                            {canManageCompensation && (
-                                                <td className="py-1.5">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(`/hr/employees/${employee.id}/recurring-items/${i.id}`)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </td>
-                                            )}
-                                        </tr>
-                                    ))}
-                                    {employee.recurring_items.length === 0 && (
-                                        <tr>
-                                            <td colSpan={6} className="text-muted-foreground py-4 text-center">
-                                                No recurring pay items.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                        <RecurringItemsTable
+                            employeeId={employee.id}
+                            items={employee.recurring_items}
+                            canManageCompensation={canManageCompensation}
+                            remove={remove}
+                        />
                     </Card>
                 )}
 

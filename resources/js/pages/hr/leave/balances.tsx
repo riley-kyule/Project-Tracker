@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -90,6 +91,73 @@ function AdjustDialog({ balance, employeeName }: { balance: Balance; employeeNam
     );
 }
 
+function BalanceTable({ employeeName, balances }: { employeeName: string; balances: Balance[] }) {
+    const { sorted, sort, onSort } = useClientSort(balances, (b, column) =>
+        column === 'type'
+            ? b.type
+            : column === 'entitled'
+              ? b.entitled_days
+              : column === 'carried'
+                ? b.carried_over_days
+                : column === 'taken'
+                  ? b.taken_days
+                  : column === 'pending'
+                    ? b.pending_days
+                    : column === 'adjustment'
+                      ? b.adjustment_days
+                      : b.available_days,
+    );
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full min-w-[36rem] text-sm">
+                <thead className="text-muted-foreground text-left">
+                    <tr>
+                        <SortableHeader column="type" sort={sort} onSort={onSort} className="px-3 py-1.5">
+                            Type
+                        </SortableHeader>
+                        <SortableHeader column="entitled" sort={sort} onSort={onSort} className="px-3 py-1.5">
+                            Entitled
+                        </SortableHeader>
+                        <SortableHeader column="carried" sort={sort} onSort={onSort} className="px-3 py-1.5">
+                            Carried
+                        </SortableHeader>
+                        <SortableHeader column="taken" sort={sort} onSort={onSort} className="px-3 py-1.5">
+                            Taken
+                        </SortableHeader>
+                        <SortableHeader column="pending" sort={sort} onSort={onSort} className="px-3 py-1.5">
+                            Pending
+                        </SortableHeader>
+                        <SortableHeader column="adjustment" sort={sort} onSort={onSort} className="px-3 py-1.5">
+                            Adj.
+                        </SortableHeader>
+                        <SortableHeader column="available" sort={sort} onSort={onSort} className="px-3 py-1.5">
+                            Available
+                        </SortableHeader>
+                        <th />
+                    </tr>
+                </thead>
+                <tbody>
+                    {sorted.map((b) => (
+                        <tr key={b.id} className="border-t">
+                            <td className="px-3 py-1.5">{b.type}</td>
+                            <td className="px-3 py-1.5">{b.entitled_days}</td>
+                            <td className="px-3 py-1.5">{b.carried_over_days}</td>
+                            <td className="px-3 py-1.5">{b.taken_days}</td>
+                            <td className="px-3 py-1.5">{b.pending_days}</td>
+                            <td className="px-3 py-1.5">{b.adjustment_days}</td>
+                            <td className="px-3 py-1.5 font-medium">{b.available_days}</td>
+                            <td className="px-3 py-1.5 text-right">
+                                <AdjustDialog balance={b} employeeName={employeeName} />
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 export default function LeaveBalancesPage({ employees }: { employees: Row[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -115,40 +183,7 @@ export default function LeaveBalancesPage({ employees }: { employees: Row[] }) {
                                 </Button>
                             )}
                         </div>
-                        {emp.balances.length > 0 && (
-                            <div className="overflow-x-auto">
-                                <table className="w-full min-w-[36rem] text-sm">
-                                    <thead className="text-muted-foreground text-left">
-                                        <tr>
-                                            <th className="px-3 py-1.5 font-medium">Type</th>
-                                            <th className="px-3 py-1.5 font-medium">Entitled</th>
-                                            <th className="px-3 py-1.5 font-medium">Carried</th>
-                                            <th className="px-3 py-1.5 font-medium">Taken</th>
-                                            <th className="px-3 py-1.5 font-medium">Pending</th>
-                                            <th className="px-3 py-1.5 font-medium">Adj.</th>
-                                            <th className="px-3 py-1.5 font-medium">Available</th>
-                                            <th />
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {emp.balances.map((b) => (
-                                            <tr key={b.id} className="border-t">
-                                                <td className="px-3 py-1.5">{b.type}</td>
-                                                <td className="px-3 py-1.5">{b.entitled_days}</td>
-                                                <td className="px-3 py-1.5">{b.carried_over_days}</td>
-                                                <td className="px-3 py-1.5">{b.taken_days}</td>
-                                                <td className="px-3 py-1.5">{b.pending_days}</td>
-                                                <td className="px-3 py-1.5">{b.adjustment_days}</td>
-                                                <td className="px-3 py-1.5 font-medium">{b.available_days}</td>
-                                                <td className="px-3 py-1.5 text-right">
-                                                    <AdjustDialog balance={b} employeeName={emp.name} />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                        {emp.balances.length > 0 && <BalanceTable employeeName={emp.name} balances={emp.balances} />}
                     </div>
                 ))}
             </div>

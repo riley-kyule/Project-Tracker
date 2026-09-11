@@ -1,3 +1,4 @@
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -61,6 +62,22 @@ function Field({ label: l, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default function MyProfile({ employee }: { employee: Employee }) {
+    const {
+        sorted: sortedContracts,
+        sort,
+        onSort,
+    } = useClientSort(employee.contracts, (c, column) =>
+        column === 'title'
+            ? c.title
+            : column === 'department'
+              ? (c.department?.name ?? '')
+              : column === 'type'
+                ? c.employment_type
+                : column === 'start'
+                  ? c.start_date
+                  : c.end_date,
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Employee Data" />
@@ -145,15 +162,25 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                         <table className="w-full text-sm">
                             <thead className="text-muted-foreground text-left">
                                 <tr>
-                                    <th className="py-1 pr-3">Title</th>
-                                    <th className="py-1 pr-3">Department</th>
-                                    <th className="py-1 pr-3">Type</th>
-                                    <th className="py-1 pr-3">Start</th>
-                                    <th className="py-1 pr-3">End</th>
+                                    <SortableHeader column="title" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        Title
+                                    </SortableHeader>
+                                    <SortableHeader column="department" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        Department
+                                    </SortableHeader>
+                                    <SortableHeader column="type" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        Type
+                                    </SortableHeader>
+                                    <SortableHeader column="start" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        Start
+                                    </SortableHeader>
+                                    <SortableHeader column="end" sort={sort} onSort={onSort} className="py-1 pr-3">
+                                        End
+                                    </SortableHeader>
                                 </tr>
                             </thead>
                             <tbody>
-                                {employee.contracts.map((c) => (
+                                {sortedContracts.map((c) => (
                                     <tr key={c.id} className="border-t">
                                         <td className="py-1.5 pr-3">{c.title}</td>
                                         <td className="py-1.5 pr-3">{c.department?.name ?? '—'}</td>

@@ -1,3 +1,5 @@
+import { ListPagination, usePagedList } from '@/components/list-pagination';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -60,6 +62,23 @@ export default function PayrollShow({ period, payslips, totals, reports, require
         if (confirmMsg && !confirm(confirmMsg)) return;
         router.post(`/hr/payroll/${period.id}/${verb}`, {}, { preserveScroll: true });
     };
+
+    const { sorted, sort, onSort } = useClientSort(payslips, (p, column) =>
+        column === 'employee'
+            ? p.employee
+            : column === 'gross'
+              ? p.gross_pay
+              : column === 'paye'
+                ? p.paye
+                : column === 'nssf'
+                  ? p.nssf_employee
+                  : column === 'shif'
+                    ? p.shif_employee
+                    : column === 'ahl'
+                      ? p.housing_levy_employee
+                      : p.net_pay,
+    );
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -130,18 +149,32 @@ export default function PayrollShow({ period, payslips, totals, reports, require
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
-                                <th className="px-3 py-2 font-medium">Employee</th>
-                                <th className="px-3 py-2 font-medium">Gross</th>
-                                <th className="px-3 py-2 font-medium">PAYE</th>
-                                <th className="px-3 py-2 font-medium">NSSF</th>
-                                <th className="px-3 py-2 font-medium">SHIF</th>
-                                <th className="px-3 py-2 font-medium">AHL</th>
-                                <th className="px-3 py-2 font-medium">Net pay</th>
+                                <SortableHeader column="employee" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Employee
+                                </SortableHeader>
+                                <SortableHeader column="gross" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Gross
+                                </SortableHeader>
+                                <SortableHeader column="paye" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    PAYE
+                                </SortableHeader>
+                                <SortableHeader column="nssf" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    NSSF
+                                </SortableHeader>
+                                <SortableHeader column="shif" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    SHIF
+                                </SortableHeader>
+                                <SortableHeader column="ahl" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    AHL
+                                </SortableHeader>
+                                <SortableHeader column="net" sort={sort} onSort={onSort} className="px-3 py-2">
+                                    Net pay
+                                </SortableHeader>
                                 <th className="px-3 py-2" />
                             </tr>
                         </thead>
                         <tbody>
-                            {payslips.map((p) => (
+                            {pageRows.map((p) => (
                                 <tr key={p.id} className="border-t">
                                     <td className="px-3 py-2">
                                         <Link href={`/hr/payslips/${p.id}`} className="text-primary hover:underline">
@@ -173,6 +206,18 @@ export default function PayrollShow({ period, payslips, totals, reports, require
                             )}
                         </tbody>
                     </table>
+                    {payslips.length > 0 && (
+                        <ListPagination
+                            size={size}
+                            onSizeChange={setSize}
+                            page={page}
+                            totalPages={totalPages}
+                            onPageChange={setPage}
+                            total={total}
+                            itemLabel="payslips"
+                            className="p-3"
+                        />
+                    )}
                 </Card>
             </div>
         </AppLayout>
