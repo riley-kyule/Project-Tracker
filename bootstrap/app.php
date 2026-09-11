@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\SyncAnalytics;
 use App\Http\Middleware\AuthenticateMcpToken;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\InvalidateStaleSessions;
@@ -19,6 +20,17 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // withCommands()'s own default (auto-discover app/Console/Commands) only
+    // applies when it's called with NO arguments — passing any array, even
+    // to explicitly (redundantly) list one already-autoloaded command,
+    // replaces that discovery instead of adding to it, deregistering every
+    // other ewms:* command routes/console.php schedules by name. Both the
+    // directory and the one class stay listed here on purpose, so it can
+    // never regress into that silently-broken half state again.
+    ->withCommands([
+        app_path('Console/Commands'),
+        SyncAnalytics::class,
+    ])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias(['mcp.auth' => AuthenticateMcpToken::class]);
 
