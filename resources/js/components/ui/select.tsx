@@ -1,8 +1,16 @@
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
+
+/** Flattens a SelectItem's children (string, number, or nested icon+text JSX) into plain text to match against. */
+function nodeText(node: React.ReactNode): string {
+    if (typeof node === 'string' || typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(nodeText).join(' ');
+    if (React.isValidElement(node)) return nodeText((node.props as { children?: React.ReactNode }).children);
+    return '';
+}
 
 const Select = SelectPrimitive.Root;
 
@@ -50,35 +58,94 @@ const SelectScrollDownButton = React.forwardRef<
 ));
 SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName;
 
+/**
+ * Every dropdown in EWMS is searchable, including this one: a text input
+ * pinned above the item list, filtering by each SelectItem's rendered text.
+ * Radix only mounts SelectContent while open (Presence), so the local
+ * `query` state resets for free on close — no explicit reset needed, and
+ * the just-selected item is always present (unfiltered) the next time it
+ * opens, so SelectValue's label lookup never goes stale.
+ *
+ * `stopPropagation` on the input keeps keystrokes from also reaching
+ * Radix's own roving-focus typeahead (which would otherwise jump-select an
+ * item by first letter while you're typing a search term into the box);
+ * A layout effect (run parent-after-child, so after Radix's own item-focus
+ * effect deeper in the tree) redirects Radix's default "focus the selected
+ * item" behavior to the search input instead — Select.Content has no
+ * onOpenAutoFocus escape hatch to prevent that default the way
+ * Dialog/Popover do, and Radix re-runs it on open AND whenever the visible
+ * item collection changes, so this has to re-fire on every keystroke
+ * (keyed on `query`) rather than just once on mount.
+ */
 const SelectContent = React.forwardRef<
     React.ElementRef<typeof SelectPrimitive.Content>,
-    React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = 'popper', ...props }, ref) => (
-    <SelectPrimitive.Portal>
-        <SelectPrimitive.Content
-            ref={ref}
-            className={cn(
-                'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-                position === 'popper' &&
-                    'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
-                className,
-            )}
-            position={position}
-            {...props}
-        >
-            <SelectScrollUpButton />
-            <SelectPrimitive.Viewport
+    React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & { searchPlaceholder?: string }
+>(({ className, children, position = 'popper', searchPlaceholder = 'Search…', ...props }, ref) => {
+    const [query, setQuery] = React.useState('');
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    React.useLayoutEffect(() => {
+        inputRef.current?.focus();
+    }, [query]);
+
+    const filtered = React.useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return children;
+
+        let matches = 0;
+        const items = React.Children.map(children, (child) => {
+            if (!React.isValidElement(child) || !('value' in (child.props as Record<string, unknown>))) return child;
+            const isMatch = nodeText((child.props as { children?: React.ReactNode }).children).toLowerCase().includes(q);
+            if (isMatch) matches++;
+            return isMatch ? child : null;
+        });
+
+        return matches > 0 ? items : <p className="text-muted-foreground px-2 py-4 text-center text-sm">No matches</p>;
+    }, [children, query]);
+
+    return (
+        <SelectPrimitive.Portal>
+            <SelectPrimitive.Content
+                ref={ref}
                 className={cn(
-                    'p-1',
-                    position === 'popper' && 'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
+                    'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+                    position === 'popper' &&
+                        'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
+                    className,
                 )}
+                position={position}
+                {...props}
             >
-                {children}
-            </SelectPrimitive.Viewport>
-            <SelectScrollDownButton />
-        </SelectPrimitive.Content>
-    </SelectPrimitive.Portal>
-));
+                <div className="flex items-center gap-2 border-b px-2.5">
+                    <Search className="size-3.5 shrink-0 opacity-50" />
+                    <input
+                        ref={inputRef}
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key !== 'Escape') e.stopPropagation();
+                        }}
+                        placeholder={searchPlaceholder}
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-label="Filter options"
+                        className="placeholder:text-muted-foreground h-9 w-full bg-transparent text-sm outline-hidden"
+                    />
+                </div>
+                <SelectScrollUpButton />
+                <SelectPrimitive.Viewport
+                    className={cn(
+                        'p-1',
+                        position === 'popper' && 'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
+                    )}
+                >
+                    {filtered}
+                </SelectPrimitive.Viewport>
+                <SelectScrollDownButton />
+            </SelectPrimitive.Content>
+        </SelectPrimitive.Portal>
+    );
+});
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
 const SelectLabel = React.forwardRef<React.ElementRef<typeof SelectPrimitive.Label>, React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>>(
