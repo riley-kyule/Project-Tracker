@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CompanySettingController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\DeploymentController;
 use App\Http\Controllers\Admin\LabelController;
+use App\Http\Controllers\Admin\McpTokenController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\QueueHealthController;
 use App\Http\Controllers\Admin\ReportDeliveryController;
@@ -38,6 +39,10 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('admin')->name('admin
 
     Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
     Route::patch('permissions/{role}', [PermissionController::class, 'update'])->name('permissions.update');
+
+    Route::get('mcp', [McpTokenController::class, 'index'])->name('mcp.index');
+    Route::post('mcp', [McpTokenController::class, 'store'])->name('mcp.store');
+    Route::delete('mcp/{token}', [McpTokenController::class, 'destroy'])->name('mcp.destroy');
 
     Route::get('queue-health', [QueueHealthController::class, 'index'])->name('queue-health.index');
     Route::get('report-deliveries', [ReportDeliveryController::class, 'index'])->name('report-deliveries.index');

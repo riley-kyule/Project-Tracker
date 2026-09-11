@@ -176,4 +176,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Website::class, 'website_assignments')->withPivot('id', 'team')->withTimestamps();
     }
+
+    public function mcpTokens(): HasMany
+    {
+        return $this->hasMany(McpToken::class);
+    }
 }

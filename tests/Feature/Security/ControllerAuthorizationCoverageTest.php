@@ -31,6 +31,7 @@ class ControllerAuthorizationCoverageTest extends TestCase
         'notifications.read-all' => 'scoped via $request->user()->unreadNotifications()',
         'saved-filters.store' => 'always written with user_id = $request->user()->id, never client-supplied',
         'push.subscribe' => 'mutates only $request->user() itself',
+        'mcp.handle' => 'authenticated by the mcp.auth middleware (AuthenticateMcpToken) before the controller runs, then each tool call is scoped to the token owner\'s own permissions — see McpToolRegistry::call()',
     ];
 
     public function test_every_mutating_web_route_calls_an_authorization_check()

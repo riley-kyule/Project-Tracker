@@ -38,6 +38,11 @@ class RoleSeeder extends Seeder
             // $permissions array reaches, never something grantable to itself
             // through the very UI it gates.
             'permissions.manage',
+            // Gates issuing MCP tokens (/admin/mcp) — unlike permissions.manage,
+            // this one is safe to delegate later through that same matrix, so
+            // it's ordinary: reaches CEO/Administrator by default, but PermissionController
+            // will let it be granted to another role same as any other permission.
+            'mcp.manage',
         ];
 
         // HR module. Compensation and payroll are deliberately split out from

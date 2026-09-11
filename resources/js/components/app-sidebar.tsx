@@ -21,6 +21,7 @@ import {
     LineChart,
     ListTodo,
     Mail,
+    Plug,
     ShieldCheck,
     Sliders,
     Tag,
@@ -76,6 +77,7 @@ export function AppSidebar() {
         ...(has('system.deploy') ? [{ title: 'Queue Health', url: '/admin/queue-health', icon: Activity }] : []),
         ...(has('system.deploy') ? [{ title: 'System Report Log', url: '/admin/report-deliveries', icon: Mail }] : []),
         ...(has('permissions.manage') ? [{ title: 'Permissions', url: '/admin/permissions', icon: ShieldCheck }] : []),
+        ...(has('mcp.manage') ? [{ title: 'MCP Connector', url: '/admin/mcp', icon: Plug }] : []),
     ];
 
     const groups: NavGroup[] = [

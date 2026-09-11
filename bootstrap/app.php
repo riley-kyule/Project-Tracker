@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateMcpToken;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\InvalidateStaleSessions;
 use App\Http\Middleware\SecurityHeaders;
@@ -14,10 +15,13 @@ use Symfony\Component\HttpFoundation\Response;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/mcp.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->alias(['mcp.auth' => AuthenticateMcpToken::class]);
+
         // Caddy terminates TLS in front of every environment that isn't a
         // bare local dev server — trust its X-Forwarded-* headers so scheme/
         // host/port/client-IP resolve correctly (secure cookies, HSTS,

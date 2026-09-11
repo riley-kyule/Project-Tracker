@@ -68,6 +68,9 @@ class HandleInertiaRequests extends Middleware
                 // external sites is the expected common case, so it's surfaced
                 // alongside the summary flash string rather than collapsed into it.
                 'bulkResults' => fn () => $request->session()->get('bulkResults'),
+                // The plaintext of a just-issued MCP token (see McpTokenController)
+                // — flashed once, never persisted, gone on the next request.
+                'newToken' => fn () => $request->session()->get('newToken'),
             ],
         ];
     }
