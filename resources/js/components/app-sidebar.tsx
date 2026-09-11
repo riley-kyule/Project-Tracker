@@ -21,6 +21,7 @@ import {
     LineChart,
     ListTodo,
     Mail,
+    ShieldCheck,
     Sliders,
     Tag,
     Target,
@@ -74,6 +75,7 @@ export function AppSidebar() {
         ...(has('users.view') ? [{ title: 'Users', url: '/admin/users', icon: UserCog }] : []),
         ...(has('system.deploy') ? [{ title: 'Queue Health', url: '/admin/queue-health', icon: Activity }] : []),
         ...(has('system.deploy') ? [{ title: 'System Report Log', url: '/admin/report-deliveries', icon: Mail }] : []),
+        ...(has('permissions.manage') ? [{ title: 'Permissions', url: '/admin/permissions', icon: ShieldCheck }] : []),
     ];
 
     const groups: NavGroup[] = [

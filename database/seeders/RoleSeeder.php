@@ -32,6 +32,12 @@ class RoleSeeder extends Seeder
             'system.deploy',
             'view marketing statistics',
             'wordpress.manage',
+            // Gates the role↔permission matrix at /admin/permissions — deliberately
+            // left out of every curated role array below (Department Manager, HR
+            // Manager, ...) so it only reaches whoever CEO/Administrator's shared
+            // $permissions array reaches, never something grantable to itself
+            // through the very UI it gates.
+            'permissions.manage',
         ];
 
         // HR module. Compensation and payroll are deliberately split out from
