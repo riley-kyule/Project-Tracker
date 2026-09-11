@@ -1,191 +1,34 @@
 <?php
-
 namespace App\Services\Analytics;
-
-use App\Services\Analytics\Contracts\BigQueryRunner;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
-
-/**
- * Reads from the real, materialized `analytics_core.gsc_*` tables (built
- * outside this codebase — see ANALYTICS_BIGQUERY_FINDINGS.md). Unlike the
- * GA4 `vw_*` views, these are prepared daily rollups, not live queries over
- * raw export data. Filtered by `domain` — shared with GA4's registry (see
- * WebsiteRegistryQuery) — rather than these tables' own `website_id`
- * column, since GA4's `metadata.websites` registry has no such ID and
- * `domain` is the one field guaranteed to line up across both sources.
- *
- * `gsc_data_freshness` (a view in the same dataset) currently fails for
- * this project's service account because it joins a dataset
- * (`analytics_admin.gsc_property_registry`) we don't have access to —
- * freshness here is computed from `gsc_daily_site` directly instead.
- *
- * All queries default to search_type = 'WEB' — the primary "Search
- * results" surface GSC reports on by default; image/video/news are a
- * distinct dimension this module doesn't expose yet.
- */
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 class GscReportQuery
 {
-    public function __construct(private BigQueryRunner $runner) {}
-
-    public function isConfigured(): bool
+    public function isConfigured(): bool { return Schema::hasTable('analytics_gsc_daily_site'); }
+    public function dailyRows(string|array|null $d,Carbon $f,Carbon $t): array { return $this->base('analytics_gsc_daily_site',$d,$f,$t)->selectRaw('data_date, SUM(clicks)::bigint clicks, SUM(impressions)::bigint impressions, CASE WHEN SUM(impressions)=0 THEN NULL ELSE SUM(position_sum)/SUM(impressions) END average_position')->groupBy('data_date')->orderBy('data_date')->get()->map(fn($r)=>(array)$r)->all(); }
+    public function queries(string|array|null $d,Carbon $f,Carbon $t,int $l=10): array { return $this->breakdown('analytics_gsc_daily_queries','query',$d,$f,$t,$l,true); }
+    public function pages(string|array|null $d,Carbon $f,Carbon $t,int $l=10): array { return $this->breakdown('analytics_gsc_daily_pages','url',$d,$f,$t,$l,false); }
+    public function countries(string|array|null $d,Carbon $f,Carbon $t,int $l=10): array { return $this->simple('analytics_gsc_daily_countries','country',$d,$f,$t,$l); }
+    public function devices(string|array|null $d,Carbon $f,Carbon $t): array { return $this->simple('analytics_gsc_daily_devices','device',$d,$f,$t,null); }
+    public function freshness(): array { return DB::table('analytics_gsc_daily_site')->join('websites','websites.id','=','analytics_gsc_daily_site.website_id')->where('search_type','WEB')->select('websites.domain')->selectRaw('MAX(data_date) latest_date, CURRENT_DATE-MAX(data_date) days_behind')->groupBy('websites.domain')->get()->map(fn($r)=>(array)$r)->all(); }
+    public function summaryByWebsite(array $domains,Carbon $f,Carbon $t): array
     {
-        return $this->runner->isConfigured();
+        $rows=$this->base('analytics_gsc_daily_site',$domains,$f,$t)->select('websites.domain')->selectRaw('SUM(clicks)::bigint clicks, SUM(impressions)::bigint impressions, CASE WHEN SUM(impressions)=0 THEN NULL ELSE SUM(position_sum)/SUM(impressions) END average_position')->groupBy('websites.domain')->get();
+        return $rows->mapWithKeys(fn($r)=>[$r->domain=>['clicks'=>(int)$r->clicks,'impressions'=>(int)$r->impressions,'average_position'=>$r->average_position===null?null:(float)$r->average_position]])->all();
     }
-
-    /**
-     * Per-day rows for weighted CTR/average-position rollups (see
-     * WeightedMetrics). Null $domain aggregates across every website.
-     *
-     * @return array<int, array{data_date: string, clicks: int, impressions: int, average_position: float|null}>
-     */
-    public function dailyRows(string|array|null $domain, Carbon $from, Carbon $to): array
+    private function breakdown(string $table,string $column,string|array|null $d,Carbon $f,Carbon $t,int $limit,bool $position): array
     {
-        [$clause, $params] = $this->optionalDomainClause($domain);
-
-        return $this->runner->rows(<<<SQL
-            SELECT
-              data_date,
-              SUM(clicks) AS clicks,
-              SUM(impressions) AS impressions,
-              SAFE_DIVIDE(SUM(average_position * impressions), SUM(impressions)) AS average_position
-            FROM `analytics_core.gsc_daily_site`
-            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
-            GROUP BY data_date
-            ORDER BY data_date
-            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
+        $select="{$column}, SUM(clicks)::bigint clicks, SUM(impressions)::bigint impressions, CASE WHEN SUM(impressions)=0 THEN NULL ELSE SUM(clicks)::decimal/SUM(impressions) END ctr"; if($position)$select.=', CASE WHEN SUM(impressions)=0 THEN NULL ELSE SUM(position_sum)/SUM(impressions) END average_position';
+        return $this->base($table,$d,$f,$t)->selectRaw($select)->groupBy($column)->orderByDesc('clicks')->limit($limit)->get()->map(fn($r)=>(array)$r)->all();
     }
-
-    /** @return array<int, array{query: string, clicks: int, impressions: int, ctr: float|null, average_position: float|null}> */
-    public function queries(string|array|null $domain, Carbon $from, Carbon $to, int $limit = 10): array
+    private function simple(string $table,string $column,string|array|null $d,Carbon $f,Carbon $t,?int $limit): array
     {
-        [$clause, $params] = $this->optionalDomainClause($domain);
-
-        return $this->runner->rows(<<<SQL
-            SELECT
-              query,
-              SUM(clicks) AS clicks,
-              SUM(impressions) AS impressions,
-              SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr,
-              SAFE_DIVIDE(SUM(average_position * impressions), SUM(impressions)) AS average_position
-            FROM `analytics_core.gsc_daily_queries`
-            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
-            GROUP BY query
-            ORDER BY clicks DESC
-            LIMIT @row_limit
-            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString(), 'row_limit' => $limit]);
+        $q=$this->base($table,$d,$f,$t)->select($column)->selectRaw('SUM(clicks)::bigint clicks, SUM(impressions)::bigint impressions')->groupBy($column)->orderByDesc('clicks'); if($limit!==null)$q->limit($limit); return $q->get()->map(fn($r)=>(array)$r)->all();
     }
-
-    /** @return array<int, array{url: string, clicks: int, impressions: int, ctr: float|null}> */
-    public function pages(string|array|null $domain, Carbon $from, Carbon $to, int $limit = 10): array
+    private function base(string $table,string|array|null $domain,Carbon $from,Carbon $to): Builder
     {
-        [$clause, $params] = $this->optionalDomainClause($domain);
-
-        return $this->runner->rows(<<<SQL
-            SELECT
-              url,
-              SUM(clicks) AS clicks,
-              SUM(impressions) AS impressions,
-              SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr
-            FROM `analytics_core.gsc_daily_pages`
-            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
-            GROUP BY url
-            ORDER BY clicks DESC
-            LIMIT @row_limit
-            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString(), 'row_limit' => $limit]);
-    }
-
-    /** @return array<int, array{country: string, clicks: int, impressions: int}> */
-    public function countries(string|array|null $domain, Carbon $from, Carbon $to, int $limit = 10): array
-    {
-        [$clause, $params] = $this->optionalDomainClause($domain);
-
-        return $this->runner->rows(<<<SQL
-            SELECT country, SUM(clicks) AS clicks, SUM(impressions) AS impressions
-            FROM `analytics_core.gsc_daily_countries`
-            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
-            GROUP BY country
-            ORDER BY clicks DESC
-            LIMIT @row_limit
-            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString(), 'row_limit' => $limit]);
-    }
-
-    /** @return array<int, array{device: string, clicks: int, impressions: int}> */
-    public function devices(string|array|null $domain, Carbon $from, Carbon $to): array
-    {
-        [$clause, $params] = $this->optionalDomainClause($domain);
-
-        return $this->runner->rows(<<<SQL
-            SELECT device, SUM(clicks) AS clicks, SUM(impressions) AS impressions
-            FROM `analytics_core.gsc_daily_devices`
-            WHERE search_type = 'WEB' AND data_date BETWEEN @date_from AND @date_to{$clause}
-            GROUP BY device
-            ORDER BY clicks DESC
-            SQL, [...$params, 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
-    }
-
-    /**
-     * Computed directly from gsc_daily_site rather than the blocked
-     * gsc_data_freshness view (see class docblock).
-     *
-     * @return array<int, array{domain: string, latest_date: string|null, days_behind: int|null}>
-     */
-    public function freshness(): array
-    {
-        return $this->runner->rows(<<<'SQL'
-            SELECT
-              domain,
-              MAX(data_date) AS latest_date,
-              DATE_DIFF(CURRENT_DATE(), MAX(data_date), DAY) AS days_behind
-            FROM `analytics_core.gsc_daily_site`
-            WHERE search_type = 'WEB'
-            GROUP BY domain
-            SQL);
-    }
-
-    /**
-     * One grouped query across every requested domain, instead of calling
-     * dailyRows()/summing once per website — used by the Website Comparison
-     * tab so comparing N sites costs a fixed 1 query, not N.
-     *
-     * @param  array<int, string>  $domains
-     * @return array<string, array{clicks: int, impressions: int, average_position: float|null}>
-     */
-    public function summaryByWebsite(array $domains, Carbon $from, Carbon $to): array
-    {
-        $rows = $this->runner->rows(<<<'SQL'
-            SELECT
-              domain,
-              SUM(clicks) AS clicks,
-              SUM(impressions) AS impressions,
-              SAFE_DIVIDE(SUM(average_position * impressions), SUM(impressions)) AS average_position
-            FROM `analytics_core.gsc_daily_site`
-            WHERE search_type = 'WEB' AND domain IN UNNEST(@domains) AND data_date BETWEEN @date_from AND @date_to
-            GROUP BY domain
-            SQL, ['domains' => array_values($domains), 'date_from' => $from->toDateString(), 'date_to' => $to->toDateString()]);
-
-        $byDomain = [];
-        foreach ($rows as $row) {
-            $byDomain[$row['domain']] = [
-                'clicks' => (int) $row['clicks'],
-                'impressions' => (int) $row['impressions'],
-                'average_position' => $row['average_position'] !== null ? (float) $row['average_position'] : null,
-            ];
-        }
-
-        return $byDomain;
-    }
-
-    /** @return array{0: string, 1: array<string, mixed>} */
-    private function optionalDomainClause(string|array|null $domain): array
-    {
-        if ($domain === null) {
-            return ['', []];
-        }
-
-        if (is_array($domain)) {
-            return [' AND domain IN UNNEST(@domains)', ['domains' => array_values($domain)]];
-        }
-
-        return [' AND domain = @domain', ['domain' => $domain]];
+        $q=DB::table($table)->join('websites','websites.id','=',"{$table}.website_id")->where('search_type','WEB')->whereBetween('data_date',[$from->toDateString(),$to->toDateString()]); if(is_array($domain))$q->whereIn('websites.domain',$domain); elseif($domain!==null)$q->where('websites.domain',$domain); return $q;
     }
 }

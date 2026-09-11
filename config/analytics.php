@@ -2,6 +2,17 @@
 
 return [
 
+    'api' => [
+        'enabled' => (bool) env('ANALYTICS_API_ENABLED', false),
+        'credentials_path' => env('ANALYTICS_GOOGLE_CREDENTIALS_PATH'),
+        'request_timeout' => (int) env('ANALYTICS_API_TIMEOUT', 30),
+        'request_delay_ms' => (int) env('ANALYTICS_API_REQUEST_DELAY_MS', 150),
+        'key_events' => array_values(array_filter(array_map('trim', explode(',', env(
+            'ANALYTICS_GA4_KEY_EVENTS',
+            'WhatsApp,Telegram,CallNow,ViewProfile,Favorite,ShareProfile,SMS,TelNow,PWAInstall,Viber'
+        ))))),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | BigQuery connectivity
