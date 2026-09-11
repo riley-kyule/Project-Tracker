@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { ListCappedNotice } from '@/components/list-capped-notice';
+import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -288,6 +289,7 @@ export default function UsersIndex({
                 return null;
         }
     });
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
 
     const destroy = (user: UserRow) => {
         if (!confirm(`Delete ${user.name}? This cannot be undone from the UI.`)) return;
@@ -329,7 +331,7 @@ export default function UsersIndex({
                             </tr>
                         </thead>
                         <tbody>
-                            {sorted.map((user) => (
+                            {pageRows.map((user) => (
                                 <tr key={user.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
                                     <td className="p-3">
                                         <div className="font-medium">{user.name}</div>
@@ -371,6 +373,16 @@ export default function UsersIndex({
                             )}
                         </tbody>
                     </table>
+                    <ListPagination
+                        size={size}
+                        onSizeChange={setSize}
+                        page={page}
+                        totalPages={totalPages}
+                        onPageChange={setPage}
+                        total={total}
+                        itemLabel="users"
+                        className="p-3"
+                    />
                 </div>
             </div>
         </AppLayout>

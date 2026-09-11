@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -129,6 +130,7 @@ export default function PerformanceIndex({ cycles, selectedCycleId, reviews, can
                 return null;
         }
     });
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -191,7 +193,7 @@ export default function PerformanceIndex({ cycles, selectedCycleId, reviews, can
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {sorted.map((r) => (
+                                    {pageRows.map((r) => (
                                         <tr key={r.id} className="border-t">
                                             <td className="py-1.5 pr-3">
                                                 <Link href={`/hr/performance/reviews/${r.id}`} className="text-primary hover:underline">
@@ -214,6 +216,16 @@ export default function PerformanceIndex({ cycles, selectedCycleId, reviews, can
                                     )}
                                 </tbody>
                             </table>
+                            <ListPagination
+                                size={size}
+                                onSizeChange={setSize}
+                                page={page}
+                                totalPages={totalPages}
+                                onPageChange={setPage}
+                                total={total}
+                                itemLabel="reviews"
+                                className="mt-2"
+                            />
                         </div>
                     </Card>
                 )}

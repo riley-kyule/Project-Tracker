@@ -1,3 +1,4 @@
+import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
@@ -48,6 +49,7 @@ export default function WorkloadReport({
                 return null;
         }
     });
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
 
     const apply = (params: Record<string, string | undefined>) => {
         router.get(
@@ -116,7 +118,7 @@ export default function WorkloadReport({
                             </tr>
                         </thead>
                         <tbody>
-                            {sorted.map((person) => (
+                            {pageRows.map((person) => (
                                 <tr key={person.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-b last:border-0">
                                     <td className="p-3 font-medium">
                                         {person.name}
@@ -168,6 +170,16 @@ export default function WorkloadReport({
                             )}
                         </tbody>
                     </table>
+                    <ListPagination
+                        size={size}
+                        onSizeChange={setSize}
+                        page={page}
+                        totalPages={totalPages}
+                        onPageChange={setPage}
+                        total={total}
+                        itemLabel="people"
+                        className="p-3"
+                    />
                 </div>
             </div>
         </AppLayout>

@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { ListCappedNotice } from '@/components/list-capped-notice';
+import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -360,6 +361,7 @@ export default function EmployeesIndex({
                 return null;
         }
     });
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -438,7 +440,7 @@ export default function EmployeesIndex({
                             </tr>
                         </thead>
                         <tbody>
-                            {sorted.map((e) => (
+                            {pageRows.map((e) => (
                                 <tr key={e.id} className="hover:bg-muted/30 border-t">
                                     <td className="px-3 py-2">
                                         <Link href={`/hr/employees/${e.id}`} className="text-primary font-medium hover:underline">
@@ -465,6 +467,16 @@ export default function EmployeesIndex({
                             )}
                         </tbody>
                     </table>
+                    <ListPagination
+                        size={size}
+                        onSizeChange={setSize}
+                        page={page}
+                        totalPages={totalPages}
+                        onPageChange={setPage}
+                        total={total}
+                        itemLabel="employees"
+                        className="p-3"
+                    />
                 </div>
             </div>
         </AppLayout>
