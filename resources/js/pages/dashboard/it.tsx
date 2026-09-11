@@ -1,3 +1,5 @@
+import { ListPagination, usePagedList } from '@/components/list-pagination';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
 import { fmtDateTime } from '@/lib/utils';
@@ -68,6 +70,25 @@ export default function ItDashboard({
     const totalResolved = Object.values(resolutionMethods).reduce((sum, count) => sum + count, 0);
     const remoteShare = totalResolved > 0 ? Math.round((remote / totalResolved) * 100) : null;
 
+    const {
+        sorted: sortedQueue,
+        sort,
+        onSort,
+    } = useClientSort(queue, (ticket, column) =>
+        column === 'number'
+            ? ticket.ticket_number
+            : column === 'title'
+              ? ticket.title
+              : column === 'status'
+                ? ticket.status
+                : column === 'priority'
+                  ? ticket.priority
+                  : column === 'assignee'
+                    ? (ticket.assignee?.name ?? '')
+                    : ticket.due_at,
+    );
+    const { size, setSize, page, setPage, pageRows: queuePage, totalPages, total } = usePagedList(sortedQueue);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="IT Dashboard" />
@@ -137,16 +158,28 @@ export default function ItDashboard({
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-muted-foreground text-left">
-                                <th className="p-3 font-medium">#</th>
-                                <th className="p-3 font-medium">Title</th>
-                                <th className="p-3 font-medium">Status</th>
-                                <th className="p-3 font-medium">Priority</th>
-                                <th className="p-3 font-medium">Assignee</th>
-                                <th className="p-3 font-medium">Due</th>
+                                <SortableHeader column="number" sort={sort} onSort={onSort} className="p-3">
+                                    #
+                                </SortableHeader>
+                                <SortableHeader column="title" sort={sort} onSort={onSort} className="p-3">
+                                    Title
+                                </SortableHeader>
+                                <SortableHeader column="status" sort={sort} onSort={onSort} className="p-3">
+                                    Status
+                                </SortableHeader>
+                                <SortableHeader column="priority" sort={sort} onSort={onSort} className="p-3">
+                                    Priority
+                                </SortableHeader>
+                                <SortableHeader column="assignee" sort={sort} onSort={onSort} className="p-3">
+                                    Assignee
+                                </SortableHeader>
+                                <SortableHeader column="due" sort={sort} onSort={onSort} className="p-3">
+                                    Due
+                                </SortableHeader>
                             </tr>
                         </thead>
                         <tbody>
-                            {queue.map((ticket) => (
+                            {queuePage.map((ticket) => (
                                 <tr key={ticket.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                                     <td className="p-3 font-mono text-xs">TK-{ticket.ticket_number}</td>
                                     <td className="p-3">
@@ -171,6 +204,18 @@ export default function ItDashboard({
                             )}
                         </tbody>
                     </table>
+                    {queue.length > 0 && (
+                        <ListPagination
+                            size={size}
+                            onSizeChange={setSize}
+                            page={page}
+                            totalPages={totalPages}
+                            onPageChange={setPage}
+                            total={total}
+                            itemLabel="tickets"
+                            className="p-3"
+                        />
+                    )}
                 </div>
             </div>
         </AppLayout>

@@ -1,3 +1,5 @@
+import { ListPagination, usePagedList } from '@/components/list-pagination';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { fmtDate } from '@/lib/utils';
@@ -49,20 +51,33 @@ function TaskList({ title, tasks }: { title: string; tasks: DeptTask[] }) {
 type SubDepartmentRow = { id: number; name: string; open: number; overdue: number; completed_week: number };
 
 function SubDepartmentBreakdown({ rows }: { rows: SubDepartmentRow[] }) {
+    const { sorted, sort, onSort } = useClientSort(rows, (row, column) =>
+        column === 'name' ? row.name : column === 'open' ? row.open : column === 'overdue' ? row.overdue : row.completed_week,
+    );
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
+
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4 lg:col-span-2">
             <h2 className="mb-2 text-sm font-semibold">Breakdown by team</h2>
             <table className="w-full text-sm">
                 <thead>
                     <tr className="text-muted-foreground text-left">
-                        <th className="py-1.5 font-medium">Team</th>
-                        <th className="py-1.5 text-right font-medium">Open</th>
-                        <th className="py-1.5 text-right font-medium">Overdue</th>
-                        <th className="py-1.5 text-right font-medium">Done this week</th>
+                        <SortableHeader column="name" sort={sort} onSort={onSort} className="py-1.5">
+                            Team
+                        </SortableHeader>
+                        <SortableHeader column="open" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Open
+                        </SortableHeader>
+                        <SortableHeader column="overdue" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Overdue
+                        </SortableHeader>
+                        <SortableHeader column="completed_week" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Done this week
+                        </SortableHeader>
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row) => (
+                    {pageRows.map((row) => (
                         <tr key={row.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
                             <td className="py-1.5">
                                 <Link href={`/dashboards/department?department_id=${row.id}`} className="font-medium hover:underline">
@@ -76,6 +91,75 @@ function SubDepartmentBreakdown({ rows }: { rows: SubDepartmentRow[] }) {
                     ))}
                 </tbody>
             </table>
+            <ListPagination
+                size={size}
+                onSizeChange={setSize}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                itemLabel="teams"
+                className="mt-2"
+            />
+        </div>
+    );
+}
+
+function WorkloadTable({ workload }: { workload: (Person & { open_tasks: number; overdue_tasks: number })[] }) {
+    const { sorted, sort, onSort } = useClientSort(workload, (person, column) =>
+        column === 'name' ? person.name : column === 'open' ? person.open_tasks : person.overdue_tasks,
+    );
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
+
+    return (
+        <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
+            <h2 className="mb-2 text-sm font-semibold">Workload by employee</h2>
+            <table className="w-full text-sm">
+                <thead>
+                    <tr className="text-muted-foreground text-left">
+                        <SortableHeader column="name" sort={sort} onSort={onSort} className="py-1.5">
+                            Employee
+                        </SortableHeader>
+                        <SortableHeader column="open" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Open
+                        </SortableHeader>
+                        <SortableHeader column="overdue" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Overdue
+                        </SortableHeader>
+                    </tr>
+                </thead>
+                <tbody>
+                    {pageRows.map((person) => (
+                        <tr key={person.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                            <td className="py-1.5">
+                                {person.name}
+                                {person.job_title && <span className="text-muted-foreground ml-1 text-xs">{person.job_title}</span>}
+                            </td>
+                            <td className="py-1.5 text-right">{person.open_tasks}</td>
+                            <td className={`py-1.5 text-right ${person.overdue_tasks > 0 ? 'text-destructive font-semibold' : ''}`}>
+                                {person.overdue_tasks}
+                            </td>
+                        </tr>
+                    ))}
+                    {workload.length === 0 && (
+                        <tr>
+                            <td colSpan={3} className="text-muted-foreground py-3 text-center">
+                                No active members in this department yet.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+            <ListPagination
+                size={size}
+                onSizeChange={setSize}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                itemLabel="employees"
+                className="mt-2"
+            />
         </div>
     );
 }
@@ -143,39 +227,7 @@ export default function DepartmentDashboard({
 
                 <div className="grid gap-4 lg:grid-cols-2">
                     {subDepartments && <SubDepartmentBreakdown rows={subDepartments} />}
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
-                        <h2 className="mb-2 text-sm font-semibold">Workload by employee</h2>
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-muted-foreground text-left">
-                                    <th className="py-1.5 font-medium">Employee</th>
-                                    <th className="py-1.5 text-right font-medium">Open</th>
-                                    <th className="py-1.5 text-right font-medium">Overdue</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {workload.map((person) => (
-                                    <tr key={person.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
-                                        <td className="py-1.5">
-                                            {person.name}
-                                            {person.job_title && <span className="text-muted-foreground ml-1 text-xs">{person.job_title}</span>}
-                                        </td>
-                                        <td className="py-1.5 text-right">{person.open_tasks}</td>
-                                        <td className={`py-1.5 text-right ${person.overdue_tasks > 0 ? 'text-destructive font-semibold' : ''}`}>
-                                            {person.overdue_tasks}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {workload.length === 0 && (
-                                    <tr>
-                                        <td colSpan={3} className="text-muted-foreground py-3 text-center">
-                                            No active members in this department yet.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <WorkloadTable workload={workload} />
                     <TaskList title="Unassigned tasks" tasks={unassigned} />
                     <TaskList title="Upcoming deadlines (7 days)" tasks={upcoming} />
                     <TaskList title="Recently completed" tasks={recentlyCompleted} />

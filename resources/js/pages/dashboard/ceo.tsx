@@ -1,6 +1,7 @@
 import { TrafficDataSection } from '@/components/dashboard/traffic-data-section';
+import { ListPagination, usePagedList } from '@/components/list-pagination';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
@@ -77,12 +78,10 @@ function StatCard({ label, value, href, alert = false }: { label: string; value:
 }
 
 const ALL_WEBSITES = 'all';
-const PAGE_SIZE = 25;
 
 function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
     const [siteFilter, setSiteFilter] = useState(ALL_WEBSITES);
     const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
 
     const sites = useMemo(() => {
         const seen = new Map<number, string>();
@@ -103,27 +102,18 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
                       (row.email ?? '').toLowerCase().includes(term),
               );
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    const currentPage = Math.min(page, totalPages);
-    const pageRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-    const changeSite = (value: string) => {
-        setSiteFilter(value);
-        setPage(1);
-    };
-
-    const changeSearch = (value: string) => {
-        setSearch(value);
-        setPage(1);
-    };
+    const { sorted, sort, onSort } = useClientSort(filtered, (row, column) =>
+        column === 'staff' ? (row.display_name ?? row.username) : column === 'website' ? row.site.name : (row.roles[0] ?? ''),
+    );
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
 
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold">WordPress staff access</h2>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Input placeholder="Search staff…" value={search} onChange={(e) => changeSearch(e.target.value)} className="h-8 w-40 text-xs" />
-                    <Select value={siteFilter} onValueChange={changeSite}>
+                    <Input placeholder="Search staff…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-40 text-xs" />
+                    <Select value={siteFilter} onValueChange={setSiteFilter}>
                         <SelectTrigger className="h-8 w-48 text-xs" aria-label="Filter by website">
                             <SelectValue placeholder="All websites" />
                         </SelectTrigger>
@@ -145,9 +135,15 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-muted-foreground text-left">
-                            <th className="py-1.5 font-medium">Staff</th>
-                            <th className="py-1.5 font-medium">Website</th>
-                            <th className="py-1.5 font-medium">Role</th>
+                            <SortableHeader column="staff" sort={sort} onSort={onSort} className="py-1.5">
+                                Staff
+                            </SortableHeader>
+                            <SortableHeader column="website" sort={sort} onSort={onSort} className="py-1.5">
+                                Website
+                            </SortableHeader>
+                            <SortableHeader column="role" sort={sort} onSort={onSort} className="py-1.5">
+                                Role
+                            </SortableHeader>
                         </tr>
                     </thead>
                     <tbody>
@@ -179,33 +175,16 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
                     </tbody>
                 </table>
             </div>
-            {totalPages > 1 && (
-                <div className="mt-2 flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">
-                        Page {currentPage} of {totalPages} ({filtered.length} staff)
-                    </span>
-                    <div className="flex gap-1">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs"
-                            disabled={currentPage === 1}
-                            onClick={() => setPage(currentPage - 1)}
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs"
-                            disabled={currentPage === totalPages}
-                            onClick={() => setPage(currentPage + 1)}
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
-            )}
+            <ListPagination
+                size={size}
+                onSizeChange={setSize}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                itemLabel="staff"
+                className="mt-2"
+            />
         </div>
     );
 }
@@ -234,6 +213,87 @@ function TaskList({ id, title, tasks, icon }: { id?: string; title: string; task
 }
 
 type LeaveRow = { id: number; employee: string; type: string; days: number; start_date: string; end_date: string };
+
+function DepartmentPerformanceTable({ departmentPerformance }: { departmentPerformance: DeptRow[] }) {
+    const { sorted, sort, onSort } = useClientSort(departmentPerformance, (d, column) =>
+        column === 'name'
+            ? d.name
+            : column === 'open'
+              ? d.open
+              : column === 'overdue'
+                ? d.overdue
+                : column === 'completed_week'
+                  ? d.completed_week
+                  : d.completed_total,
+    );
+    const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
+
+    return (
+        <>
+            <table className="w-full text-sm">
+                <thead>
+                    <tr className="text-muted-foreground text-left">
+                        <SortableHeader column="name" sort={sort} onSort={onSort} className="py-1.5">
+                            Department
+                        </SortableHeader>
+                        <SortableHeader column="open" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Open
+                        </SortableHeader>
+                        <SortableHeader column="overdue" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Overdue
+                        </SortableHeader>
+                        <SortableHeader column="completed_week" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Done this week
+                        </SortableHeader>
+                        <SortableHeader column="completed_total" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                            Total completed
+                        </SortableHeader>
+                    </tr>
+                </thead>
+                <tbody>
+                    {pageRows.map((department) => (
+                        <tr key={department.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                            <td className="py-1.5">
+                                <div className="flex items-center gap-1.5">
+                                    <Link
+                                        href={`/reports/tasks?department_id=${department.id}`}
+                                        className="text-brand-600 dark:text-brand-400 hover:underline"
+                                    >
+                                        {department.name}
+                                    </Link>
+                                    <Link
+                                        href={`/dashboards/department?department_id=${department.id}`}
+                                        className="text-muted-foreground hover:text-brand-600 dark:hover:text-brand-400"
+                                        aria-label={`Open ${department.name} dashboard`}
+                                        title={`Open ${department.name} dashboard`}
+                                    >
+                                        <LayoutDashboard className="size-3.5" />
+                                    </Link>
+                                </div>
+                            </td>
+                            <td className="py-1.5 text-right">{department.open}</td>
+                            <td className={`py-1.5 text-right ${department.overdue > 0 ? 'text-destructive font-semibold' : ''}`}>
+                                {department.overdue}
+                            </td>
+                            <td className="py-1.5 text-right">{department.completed_week}</td>
+                            <td className="py-1.5 text-right">{department.completed_total}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            <ListPagination
+                size={size}
+                onSizeChange={setSize}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                itemLabel="departments"
+                className="mt-2"
+            />
+        </>
+    );
+}
 
 export default function CeoDashboard({
     counts,
@@ -290,47 +350,7 @@ export default function CeoDashboard({
                         className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 overflow-x-auto rounded-xl border p-4"
                     >
                         <h2 className="mb-2 text-sm font-semibold">Department performance</h2>
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-muted-foreground text-left">
-                                    <th className="py-1.5 font-medium">Department</th>
-                                    <th className="py-1.5 text-right font-medium">Open</th>
-                                    <th className="py-1.5 text-right font-medium">Overdue</th>
-                                    <th className="py-1.5 text-right font-medium">Done this week</th>
-                                    <th className="py-1.5 text-right font-medium">Total completed</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {departmentPerformance.map((department) => (
-                                    <tr key={department.id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
-                                        <td className="py-1.5">
-                                            <div className="flex items-center gap-1.5">
-                                                <Link
-                                                    href={`/reports/tasks?department_id=${department.id}`}
-                                                    className="text-brand-600 dark:text-brand-400 hover:underline"
-                                                >
-                                                    {department.name}
-                                                </Link>
-                                                <Link
-                                                    href={`/dashboards/department?department_id=${department.id}`}
-                                                    className="text-muted-foreground hover:text-brand-600 dark:hover:text-brand-400"
-                                                    aria-label={`Open ${department.name} dashboard`}
-                                                    title={`Open ${department.name} dashboard`}
-                                                >
-                                                    <LayoutDashboard className="size-3.5" />
-                                                </Link>
-                                            </div>
-                                        </td>
-                                        <td className="py-1.5 text-right">{department.open}</td>
-                                        <td className={`py-1.5 text-right ${department.overdue > 0 ? 'text-destructive font-semibold' : ''}`}>
-                                            {department.overdue}
-                                        </td>
-                                        <td className="py-1.5 text-right">{department.completed_week}</td>
-                                        <td className="py-1.5 text-right">{department.completed_total}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <DepartmentPerformanceTable departmentPerformance={departmentPerformance} />
                     </div>
 
                     <div id="employee-workload" className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4">
