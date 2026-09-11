@@ -9,7 +9,6 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\QueueHealthController;
 use App\Http\Controllers\Admin\ReportDeliveryController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\WordPressPasswordResetController;
 use App\Http\Controllers\Admin\WordPressSiteController;
 use App\Http\Controllers\Admin\WordPressUserBulkActionController;
 use App\Http\Controllers\Admin\WordPressUserController;
@@ -54,12 +53,6 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('admin')->name('admin
     Route::post('wordpress-users/bulk-update-email', [WordPressUserBulkActionController::class, 'updateEmail'])->name('wordpress-users.bulk-update-email');
     Route::delete('wordpress-users/bulk-delete', [WordPressUserBulkActionController::class, 'destroy'])->name('wordpress-users.bulk-delete');
     Route::post('wordpress-users/bulk-reset-password', [WordPressUserBulkActionController::class, 'resetPassword'])->name('wordpress-users.bulk-reset-password');
-
-    Route::get('wordpress-users/reset-all-passwords/latest', [WordPressPasswordResetController::class, 'latest'])->name('wordpress-users.reset-all-passwords.latest');
-    Route::post('wordpress-users/reset-all-passwords', [WordPressPasswordResetController::class, 'store'])->name('wordpress-users.reset-all-passwords.store');
-    Route::get('wordpress-users/reset-all-passwords/{reset}', [WordPressPasswordResetController::class, 'show'])->name('wordpress-users.reset-all-passwords.show');
-    Route::get('wordpress-users/reset-all-passwords/{reset}/results', [WordPressPasswordResetController::class, 'results'])->name('wordpress-users.reset-all-passwords.results');
-    Route::delete('wordpress-users/reset-all-passwords/{reset}/results', [WordPressPasswordResetController::class, 'acknowledge'])->name('wordpress-users.reset-all-passwords.acknowledge');
 
     Route::post('wordpress-users/sites', [WordPressSiteController::class, 'store'])->name('wordpress-users.sites.store');
     Route::patch('wordpress-users/sites/{site}', [WordPressSiteController::class, 'update'])->name('wordpress-users.sites.update');
