@@ -1,4 +1,6 @@
 import InputError from '@/components/input-error';
+import { ListPagination, usePagedList } from '@/components/list-pagination';
+import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -354,6 +356,33 @@ export default function AssetShow({ asset, categories, employees, canManage }: P
 
     const open = asset.assignments.find((a) => a.returned_at === null);
 
+    const {
+        sorted: sortedAssignments,
+        sort: assignmentSort,
+        onSort: onSortAssignments,
+    } = useClientSort(asset.assignments, (a, column) =>
+        column === 'custodian'
+            ? (a.employee?.name ?? '')
+            : column === 'assigned'
+              ? a.assigned_at
+              : column === 'expected_return'
+                ? a.expected_return_at
+                : column === 'returned'
+                  ? a.returned_at
+                  : column === 'by'
+                    ? (a.assigned_by ?? '')
+                    : null,
+    );
+    const {
+        size: assignmentSize,
+        setSize: setAssignmentSize,
+        page: assignmentPage,
+        setPage: setAssignmentPage,
+        pageRows: assignmentRows,
+        totalPages: assignmentTotalPages,
+        total: assignmentTotal,
+    } = usePagedList(sortedAssignments);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={asset.name} />
@@ -415,16 +444,26 @@ export default function AssetShow({ asset, categories, employees, canManage }: P
                         <table className="w-full text-sm">
                             <thead className="text-muted-foreground text-left">
                                 <tr>
-                                    <th className="py-1 pr-3">Custodian</th>
-                                    <th className="py-1 pr-3">Assigned</th>
-                                    <th className="py-1 pr-3">Expected return</th>
-                                    <th className="py-1 pr-3">Returned</th>
+                                    <SortableHeader column="custodian" sort={assignmentSort} onSort={onSortAssignments} className="py-1 pr-3">
+                                        Custodian
+                                    </SortableHeader>
+                                    <SortableHeader column="assigned" sort={assignmentSort} onSort={onSortAssignments} className="py-1 pr-3">
+                                        Assigned
+                                    </SortableHeader>
+                                    <SortableHeader column="expected_return" sort={assignmentSort} onSort={onSortAssignments} className="py-1 pr-3">
+                                        Expected return
+                                    </SortableHeader>
+                                    <SortableHeader column="returned" sort={assignmentSort} onSort={onSortAssignments} className="py-1 pr-3">
+                                        Returned
+                                    </SortableHeader>
                                     <th className="py-1 pr-3">Condition out/in</th>
-                                    <th className="py-1 pr-3">By</th>
+                                    <SortableHeader column="by" sort={assignmentSort} onSort={onSortAssignments} className="py-1 pr-3">
+                                        By
+                                    </SortableHeader>
                                 </tr>
                             </thead>
                             <tbody>
-                                {asset.assignments.map((a) => (
+                                {assignmentRows.map((a) => (
                                     <tr key={a.id} className="border-t">
                                         <td className="py-1.5 pr-3">{a.employee?.name ?? '—'}</td>
                                         <td className="py-1.5 pr-3">{fmtDate(a.assigned_at)}</td>
@@ -447,6 +486,16 @@ export default function AssetShow({ asset, categories, employees, canManage }: P
                                 )}
                             </tbody>
                         </table>
+                        <ListPagination
+                            size={assignmentSize}
+                            onSizeChange={setAssignmentSize}
+                            page={assignmentPage}
+                            totalPages={assignmentTotalPages}
+                            onPageChange={setAssignmentPage}
+                            total={assignmentTotal}
+                            itemLabel="assignments"
+                            className="mt-2"
+                        />
                     </div>
                 </Card>
             </div>
