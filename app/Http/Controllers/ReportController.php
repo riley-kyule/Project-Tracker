@@ -63,7 +63,7 @@ class ReportController extends Controller
         );
 
         return Inertia::render('reports/tasks', [
-            'tasks' => $query->paginate(50)->withQueryString(),
+            'tasks' => $query->paginate($this->perPage($request))->withQueryString(),
             'filter' => $filter,
             'filters' => self::TASK_FILTERS,
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
@@ -71,6 +71,7 @@ class ReportController extends Controller
             'selected' => $request->only(['department_id', 'assignee_id']),
             'sort' => $sortIsValid ? $sort : null,
             'direction' => $direction,
+            'perPage' => $this->perPage($request),
             'savedFilters' => SavedFilter::query()
                 ->where('user_id', $request->user()->id)
                 ->where('scope', SavedFilter::SCOPE_REPORTS_TASKS)

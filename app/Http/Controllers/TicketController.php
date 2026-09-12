@@ -52,7 +52,7 @@ class TicketController extends Controller
                 fn ($query) => $query->orderBy($sort, $direction),
                 fn ($query) => $query->latest(),
             )
-            ->paginate(25)
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('tickets/index', [
@@ -66,6 +66,7 @@ class TicketController extends Controller
             'filters' => $request->only(['status', 'priority', 'assigned']),
             'sort' => in_array($sort, self::SORTABLE_COLUMNS, true) ? $sort : null,
             'direction' => $direction,
+            'perPage' => $this->perPage($request),
         ]);
     }
 

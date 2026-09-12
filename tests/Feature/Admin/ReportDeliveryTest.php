@@ -91,10 +91,15 @@ class ReportDeliveryTest extends TestCase
 
         $props = $this->actingAs($admin)->get('/admin/report-deliveries')->assertOk()->viewData('page')['props'];
 
-        $this->assertSame(50, count($props['deliveries']['data']));
+        $this->assertSame(20, count($props['deliveries']['data']));
         $this->assertSame(60, $props['deliveries']['total']);
-        $this->assertSame(2, $props['deliveries']['last_page']);
+        $this->assertSame(3, $props['deliveries']['last_page']);
         $this->assertNotEmpty($props['deliveries']['links']);
+        $this->assertSame(20, $props['perPage']);
+
+        $wide = $this->actingAs($admin)->get('/admin/report-deliveries?per_page=100')->assertOk()->viewData('page')['props'];
+        $this->assertSame(60, count($wide['deliveries']['data']));
+        $this->assertSame(100, $wide['perPage']);
     }
 
     public function test_report_deliveries_can_be_sorted_by_an_allowed_column()

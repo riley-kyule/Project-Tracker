@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
-import { Pagination, type Paginated } from '@/components/pagination';
+import { type ListSize } from '@/components/list-pagination';
+import { Pagination, sizeFromPerPage, type Paginated } from '@/components/pagination';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -203,6 +204,7 @@ export default function TicketsIndex({
     filters,
     sort: sortColumn,
     direction,
+    perPage,
 }: {
     tickets: Paginated<TicketRow>;
     categories: Category[];
@@ -212,12 +214,19 @@ export default function TicketsIndex({
     filters: { status?: string; priority?: string; assigned?: string };
     sort: string | null;
     direction: 'asc' | 'desc';
+    perPage: number;
 }) {
     const sort: SortState = { column: sortColumn, direction };
     const [filtering, setFiltering] = useState(false);
 
     const applyFilter = (key: string, value: string) => {
-        const next = { ...filters, sort: sortColumn ?? undefined, direction, [key]: value === ALL ? undefined : value };
+        const next = {
+            ...filters,
+            sort: sortColumn ?? undefined,
+            direction,
+            per_page: String(perPage),
+            [key]: value === ALL ? undefined : value,
+        };
         router.get('/tickets', next as Record<string, string>, {
             preserveState: true,
             preserveScroll: true,
@@ -228,7 +237,19 @@ export default function TicketsIndex({
 
     const onSort = (column: string) => {
         const nextDirection = sort.column === column && sort.direction === 'asc' ? 'desc' : 'asc';
-        router.get('/tickets', { ...filters, sort: column, direction: nextDirection }, { preserveState: true, preserveScroll: true });
+        router.get(
+            '/tickets',
+            { ...filters, sort: column, direction: nextDirection, per_page: String(perPage) },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const onSizeChange = (value: ListSize) => {
+        router.get(
+            '/tickets',
+            { ...filters, sort: sortColumn ?? undefined, direction, per_page: String(value) },
+            { preserveState: true, preserveScroll: true },
+        );
     };
 
     return (
@@ -340,7 +361,7 @@ export default function TicketsIndex({
                         </tbody>
                     </table>
                 </div>
-                <Pagination meta={tickets} />
+                <Pagination meta={tickets} sizePicker={{ value: sizeFromPerPage(perPage), onChange: onSizeChange }} />
             </div>
         </AppLayout>
     );

@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
-import { Pagination, type Paginated } from '@/components/pagination';
+import { type ListSize } from '@/components/list-pagination';
+import { Pagination, sizeFromPerPage, type Paginated } from '@/components/pagination';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -139,6 +140,7 @@ export default function TasksReport({
     savedFilters,
     sort: sortColumn,
     direction,
+    perPage,
 }: {
     tasks: Paginated<ReportTask>;
     filter: string;
@@ -149,6 +151,7 @@ export default function TasksReport({
     savedFilters: SavedFilter[];
     sort: string | null;
     direction: 'asc' | 'desc';
+    perPage: number;
 }) {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const sort: SortState = { column: sortColumn, direction };
@@ -161,10 +164,9 @@ export default function TasksReport({
         setSelectedIds([]);
         router.get(
             '/reports/tasks',
-            Object.fromEntries(Object.entries({ ...currentFilters, ...params }).filter(([, value]) => value && value !== ALL)) as Record<
-                string,
-                string
-            >,
+            Object.fromEntries(
+                Object.entries({ ...currentFilters, per_page: String(perPage), ...params }).filter(([, value]) => value && value !== ALL),
+            ) as Record<string, string>,
             { preserveState: true, preserveScroll: true },
         );
     };
@@ -172,6 +174,8 @@ export default function TasksReport({
     const onSort = (column: string) => {
         apply({ sort: column, direction: sort.column === column && sort.direction === 'asc' ? 'desc' : 'asc' });
     };
+
+    const onSizeChange = (value: ListSize) => apply({ per_page: String(value) });
 
     const applySavedFilter = (savedFilter: SavedFilter) => {
         setSelectedIds([]);
@@ -338,7 +342,7 @@ export default function TasksReport({
                         </tbody>
                     </table>
                 </div>
-                <Pagination meta={tasks} />
+                <Pagination meta={tasks} sizePicker={{ value: sizeFromPerPage(perPage), onChange: onSizeChange }} />
             </div>
         </AppLayout>
     );

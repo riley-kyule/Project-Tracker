@@ -186,7 +186,8 @@ class ManagementDashboardTest extends TestCase
     }
 
     /**
-     * Paginates 50/page; the frontend Pagination component needs the full
+     * Paginates 20/page by default (the same picker default every other
+     * list page uses); the frontend Pagination component needs the full
      * paginator shape or page 2+ becomes unreachable with no error.
      */
     public function test_task_report_exposes_full_pagination_metadata()
@@ -199,10 +200,14 @@ class ManagementDashboardTest extends TestCase
 
         $props = $this->actingAs($admin)->get('/reports/tasks')->assertOk()->viewData('page')['props'];
 
-        $this->assertSame(50, count($props['tasks']['data']));
+        $this->assertSame(20, count($props['tasks']['data']));
         $this->assertSame(55, $props['tasks']['total']);
-        $this->assertSame(2, $props['tasks']['last_page']);
+        $this->assertSame(3, $props['tasks']['last_page']);
         $this->assertNotEmpty($props['tasks']['links']);
+        $this->assertSame(20, $props['perPage']);
+
+        $wide = $this->actingAs($admin)->get('/reports/tasks?per_page=100')->assertOk()->viewData('page')['props'];
+        $this->assertSame(55, count($wide['tasks']['data']));
     }
 
     public function test_task_report_can_be_sorted_by_an_allowed_column()

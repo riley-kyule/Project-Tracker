@@ -1,4 +1,5 @@
-import { Pagination, type Paginated } from '@/components/pagination';
+import { type ListSize } from '@/components/list-pagination';
+import { Pagination, sizeFromPerPage, type Paginated } from '@/components/pagination';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,19 +55,21 @@ export default function ReportDeliveries({
     selected,
     sort: sortColumn,
     direction,
+    perPage,
 }: {
     deliveries: Paginated<Delivery>;
     statuses: string[];
     selected: { status?: string };
     sort: string | null;
     direction: 'asc' | 'desc';
+    perPage: number;
 }) {
     const sort: SortState = { column: sortColumn, direction };
 
     const applyStatus = (status: string) => {
         router.get(
             '/admin/report-deliveries',
-            { status: status === ALL ? undefined : status, sort: sortColumn ?? undefined, direction },
+            { status: status === ALL ? undefined : status, sort: sortColumn ?? undefined, direction, per_page: String(perPage) },
             { preserveState: true, preserveScroll: true },
         );
     };
@@ -75,7 +78,15 @@ export default function ReportDeliveries({
         const nextDirection = sort.column === column && sort.direction === 'asc' ? 'desc' : 'asc';
         router.get(
             '/admin/report-deliveries',
-            { status: selected.status, sort: column, direction: nextDirection },
+            { status: selected.status, sort: column, direction: nextDirection, per_page: String(perPage) },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const onSizeChange = (value: ListSize) => {
+        router.get(
+            '/admin/report-deliveries',
+            { status: selected.status, sort: sortColumn ?? undefined, direction, per_page: String(value) },
             { preserveState: true, preserveScroll: true },
         );
     };
@@ -145,7 +156,7 @@ export default function ReportDeliveries({
                         </tbody>
                     </table>
                 </div>
-                <Pagination meta={deliveries} />
+                <Pagination meta={deliveries} sizePicker={{ value: sizeFromPerPage(perPage), onChange: onSizeChange }} />
             </div>
         </AppLayout>
     );

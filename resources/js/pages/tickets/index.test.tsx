@@ -36,6 +36,7 @@ const defaultProps = {
     filters: {},
     sort: null,
     direction: 'asc' as const,
+    perPage: 20,
 };
 
 describe('TicketsIndex', () => {

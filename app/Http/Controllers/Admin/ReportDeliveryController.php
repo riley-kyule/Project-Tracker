@@ -36,7 +36,7 @@ class ReportDeliveryController extends Controller
                 fn ($query) => $query->orderBy($sort, $direction),
                 fn ($query) => $query->latest('created_at'),
             )
-            ->paginate(50)
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/report-deliveries', [
@@ -45,6 +45,7 @@ class ReportDeliveryController extends Controller
             'selected' => ['status' => $status],
             'sort' => in_array($sort, self::SORTABLE_COLUMNS, true) ? $sort : null,
             'direction' => $direction,
+            'perPage' => $this->perPage($request),
         ]);
     }
 }
