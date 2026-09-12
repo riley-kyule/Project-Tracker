@@ -27,12 +27,15 @@ export type TicketStatus =
     | 'closed'
     | 'reopened';
 
+export type TicketTeam = 'it' | 'rnd' | 'both';
+
 type TicketRow = {
     id: number;
     ticket_number: number;
     title: string;
     status: TicketStatus;
     priority: 'critical' | 'high' | 'medium' | 'low';
+    team: TicketTeam;
     requester: { id: number; name: string } | null;
     assignee: { id: number; name: string } | null;
     category: { id: number; name: string } | null;
@@ -42,6 +45,12 @@ type TicketRow = {
 
 type Category = { id: number; name: string };
 type Person = { id: number; name: string };
+
+export const teamLabels: Record<TicketTeam, string> = {
+    it: 'IT',
+    rnd: 'R&D',
+    both: 'IT & R&D',
+};
 
 export const statusLabels: Record<TicketStatus, string> = {
     new: 'New',
@@ -86,6 +95,7 @@ function NewTicketDialog({ categories, canCreateForOthers, users }: { categories
         description: '',
         category_id: '',
         impact: 'medium',
+        team: 'it' as TicketTeam,
         requester_id: '',
     });
 
@@ -156,6 +166,20 @@ function NewTicketDialog({ categories, canCreateForOthers, users }: { categories
                         <InputError message={errors.category_id} />
                     </div>
                     <div className="grid gap-2">
+                        <Label htmlFor="ticket-team">Which team should handle this?</Label>
+                        <Select value={data.team} onValueChange={(value) => setData('team', value as TicketTeam)}>
+                            <SelectTrigger id="ticket-team">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="it">IT</SelectItem>
+                                <SelectItem value="rnd">Research &amp; Development</SelectItem>
+                                <SelectItem value="both">Both — it's a joint issue</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.team} />
+                    </div>
+                    <div className="grid gap-2">
                         <Label htmlFor="ticket-title">Title</Label>
                         <Input id="ticket-title" value={data.title} onChange={(e) => setData('title', e.target.value)} required />
                         <InputError message={errors.title} />
@@ -211,7 +235,7 @@ export default function TicketsIndex({
     isManager: boolean;
     canCreateForOthers: boolean;
     users: Person[];
-    filters: { status?: string; priority?: string; assigned?: string };
+    filters: { status?: string; priority?: string; team?: string; assigned?: string };
     sort: string | null;
     direction: 'asc' | 'desc';
     perPage: number;
@@ -291,6 +315,19 @@ export default function TicketsIndex({
                                         <SelectItem value="low">Low</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <Select value={filters.team ?? ALL} onValueChange={(value) => applyFilter('team', value)} disabled={filtering}>
+                                    <SelectTrigger className="w-32" aria-label="Filter by team">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ALL}>All teams</SelectItem>
+                                        {Object.entries(teamLabels).map(([value, label]) => (
+                                            <SelectItem key={value} value={value}>
+                                                {label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <Select
                                     value={filters.assigned ?? ALL}
                                     onValueChange={(value) => applyFilter('assigned', value)}
@@ -328,6 +365,7 @@ export default function TicketsIndex({
                                 {isManager && <th className="p-3 font-medium">Requester</th>}
                                 <th className="p-3 font-medium">Assignee</th>
                                 <th className="p-3 font-medium">Category</th>
+                                {isManager && <th className="p-3 font-medium">Team</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -349,11 +387,16 @@ export default function TicketsIndex({
                                     {isManager && <td className="p-3">{ticket.requester?.name ?? '—'}</td>}
                                     <td className="p-3">{ticket.assignee?.name ?? '—'}</td>
                                     <td className="p-3">{ticket.category?.name ?? '—'}</td>
+                                    {isManager && (
+                                        <td className="p-3">
+                                            <Badge variant="outline">{teamLabels[ticket.team]}</Badge>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                             {tickets.data.length === 0 && (
                                 <tr>
-                                    <td colSpan={isManager ? 7 : 6} className="text-muted-foreground p-6 text-center text-sm">
+                                    <td colSpan={isManager ? 8 : 6} className="text-muted-foreground p-6 text-center text-sm">
                                         No tickets yet. Submit one with “New ticket”.
                                     </td>
                                 </tr>

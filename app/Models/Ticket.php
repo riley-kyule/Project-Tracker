@@ -43,6 +43,30 @@ class Ticket extends Model
 
     public const RESOLUTION_METHODS = ['remote', 'office', 'onsite', 'third_party'];
 
+    public const TEAM_IT = 'it';
+
+    public const TEAM_RND = 'rnd';
+
+    public const TEAM_BOTH = 'both';
+
+    public const TEAMS = [self::TEAM_IT, self::TEAM_RND, self::TEAM_BOTH];
+
+    /**
+     * Which department(s) service a given team value — 'both' spans both
+     * queues. The department itself (not a Spatie permission) is what scopes
+     * routing, the same way IT-only concerns like createForOthers() already
+     * key off Department::where('slug', 'it') rather than a role name — a
+     * technician's queue is which department they're in, not which role they
+     * hold.
+     */
+    public const TEAM_DEPARTMENT_SLUGS = [
+        self::TEAM_IT => ['it'],
+        // Str::slug('Research & Development') drops the ampersand rather than
+        // spelling out "and" — verified directly, not guessed.
+        self::TEAM_RND => ['research-development'],
+        self::TEAM_BOTH => ['it', 'research-development'],
+    ];
+
     /** Legal lifecycle transitions (WORKFLOWS.md); resolve/reopen have dedicated endpoints. */
     public const TRANSITIONS = [
         self::STATUS_NEW => [self::STATUS_ASSIGNED, self::STATUS_IN_PROGRESS],
@@ -61,6 +85,7 @@ class Ticket extends Model
         'requester_id',
         'created_by',
         'department_id',
+        'team',
         'assigned_to',
         'category_id',
         'subcategory_id',
@@ -142,5 +167,13 @@ class Ticket extends Model
     public function isOpen(): bool
     {
         return in_array($this->status, self::OPEN_STATUSES, true);
+    }
+
+    /** Is $user in a department that services this ticket's team (IT, R&D, or both for a 'both' ticket)? */
+    public function servicedBy(User $user): bool
+    {
+        $slug = $user->department?->slug;
+
+        return $slug !== null && in_array($slug, self::TEAM_DEPARTMENT_SLUGS[$this->team] ?? [self::TEAM_IT], true);
     }
 }

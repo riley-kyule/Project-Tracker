@@ -28,7 +28,7 @@ class TicketNotifier
 {
     public static function created(Ticket $ticket): void
     {
-        foreach (self::dedupe([$ticket->requester, ...self::itLeadership()]) as $recipient) {
+        foreach (self::dedupe([$ticket->requester, ...self::leadershipFor($ticket)]) as $recipient) {
             if (! $recipient->wantsNotification('ticket_submitted')) {
                 continue;
             }
@@ -45,7 +45,7 @@ class TicketNotifier
 
     public static function assigned(Ticket $ticket, User $assigner): void
     {
-        foreach (self::dedupe([$ticket->assignee, ...self::itLeadership()], except: $assigner) as $recipient) {
+        foreach (self::dedupe([$ticket->assignee, ...self::leadershipFor($ticket)], except: $assigner) as $recipient) {
             if (! $recipient->wantsNotification('ticket_assigned')) {
                 continue;
             }
@@ -62,7 +62,7 @@ class TicketNotifier
 
     public static function statusChanged(Ticket $ticket, User $actor): void
     {
-        foreach (self::dedupe([$ticket->requester, $ticket->assignee, ...self::itLeadership()], except: $actor) as $recipient) {
+        foreach (self::dedupe([$ticket->requester, $ticket->assignee, ...self::leadershipFor($ticket)], except: $actor) as $recipient) {
             if (! $recipient->wantsNotification('ticket_updated')) {
                 continue;
             }
@@ -96,7 +96,7 @@ class TicketNotifier
 
     public static function closedForInactivity(Ticket $ticket): void
     {
-        foreach (self::dedupe([$ticket->requester, $ticket->assignee, ...self::itLeadership()]) as $recipient) {
+        foreach (self::dedupe([$ticket->requester, $ticket->assignee, ...self::leadershipFor($ticket)]) as $recipient) {
             if (! $recipient->wantsNotification('ticket_closed_inactivity')) {
                 continue;
             }
@@ -111,16 +111,21 @@ class TicketNotifier
         }
     }
 
-    /** @return Collection<int, User> */
-    private static function itLeadership(): Collection
+    /**
+     * IT leadership for an 'it' ticket, R&D leadership for 'rnd', both for
+     * 'both' — the manager + assistant manager of whichever department(s)
+     * service the ticket's team (Ticket::TEAM_DEPARTMENT_SLUGS), same
+     * leadership-not-every-technician distinction the class docblock notes.
+     *
+     * @return Collection<int, User>
+     */
+    private static function leadershipFor(Ticket $ticket): Collection
     {
-        $department = Department::query()->where('slug', 'it')->first();
+        $slugs = Ticket::TEAM_DEPARTMENT_SLUGS[$ticket->team] ?? [Ticket::TEAM_IT];
 
-        if (! $department) {
-            return collect();
-        }
-
-        return collect([$department->manager, $department->assistantManager])->filter();
+        return Department::query()->whereIn('slug', $slugs)->get()
+            ->flatMap(fn (Department $department) => [$department->manager, $department->assistantManager])
+            ->filter();
     }
 
     /**

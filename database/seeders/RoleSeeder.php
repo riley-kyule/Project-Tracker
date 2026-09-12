@@ -109,6 +109,11 @@ class RoleSeeder extends Seeder
             // records for their reports; scoping lives in the policies.
             'Department Manager' => $departmentManager,
             'IT Technician' => ['departments.view', 'tasks.create', 'tickets.manage'],
+            // Services the R&D ticket queue the same way IT Technician services
+            // IT's — see Ticket::TEAM_DEPARTMENT_SLUGS. Routing is by department
+            // membership, not this role, but anyone actually doing the work
+            // needs tickets.manage to act on what lands in that queue.
+            'Research & Development' => ['departments.view', 'tasks.create', 'tickets.manage'],
             'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics'],
             'Customer Service' => ['departments.view', 'tasks.create'],
             'Employee' => ['departments.view', 'tasks.create'],

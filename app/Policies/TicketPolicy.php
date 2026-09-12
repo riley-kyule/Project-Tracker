@@ -15,7 +15,7 @@ class TicketPolicy
 
     public function view(User $user, Ticket $ticket): bool
     {
-        return $ticket->requester_id === $user->id || $user->can('tickets.manage');
+        return $ticket->requester_id === $user->id || $this->canManageTicket($user, $ticket);
     }
 
     public function create(User $user): bool
@@ -42,12 +42,12 @@ class TicketPolicy
 
     public function manage(User $user, Ticket $ticket): bool
     {
-        return $user->can('tickets.manage');
+        return $this->canManageTicket($user, $ticket);
     }
 
     public function viewInternalNotes(User $user, Ticket $ticket): bool
     {
-        return $user->can('tickets.manage');
+        return $this->canManageTicket($user, $ticket);
     }
 
     /**
@@ -58,6 +58,34 @@ class TicketPolicy
      */
     public function delete(User $user, Ticket $ticket): bool
     {
-        return $user->can('tickets.manage');
+        return $this->canManageTicket($user, $ticket);
+    }
+
+    /**
+     * tickets.manage alone isn't enough once IT and R&D have separate
+     * queues — an IT technician has no business in an R&D-only ticket, and
+     * vice versa, a 'both' ticket is fair game for either. CEO/Administrator
+     * and anyone holding tickets.manage outside both departments (a general
+     * grant made through /admin/permissions) bypass the team check entirely,
+     * matching Ticket::servicedBy()'s "no department, no restriction" default
+     * — the same shape as TicketController::ticketTeamScopeFor().
+     */
+    private function canManageTicket(User $user, Ticket $ticket): bool
+    {
+        if (! $user->can('tickets.manage')) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['CEO', 'Administrator'])) {
+            return true;
+        }
+
+        $slug = $user->department?->slug;
+
+        if (! in_array($slug, ['it', 'research-development'], true)) {
+            return true;
+        }
+
+        return $ticket->servicedBy($user);
     }
 }

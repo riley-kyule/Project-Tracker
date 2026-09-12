@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { fmtDateTime, fmtDuration } from '@/lib/utils';
-import { priorityColors, statusLabels, statusVariants, type TicketStatus } from '@/pages/tickets/index';
+import { priorityColors, statusLabels, statusVariants, teamLabels, type TicketStatus, type TicketTeam } from '@/pages/tickets/index';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage, usePoll } from '@inertiajs/react';
 import { Lock, Paperclip } from 'lucide-react';
@@ -26,6 +26,7 @@ type TicketDetail = {
     description: string;
     status: TicketStatus;
     priority: 'critical' | 'high' | 'medium' | 'low';
+    team: TicketTeam;
     impact: string;
     requester: (Person & { email: string }) | null;
     requester_id: number;
@@ -455,6 +456,9 @@ export default function TicketShow({
                     </div>
                     <div>
                         <span className="text-muted-foreground">Department:</span> {ticket.department?.name ?? '—'}
+                    </div>
+                    <div>
+                        <span className="text-muted-foreground">Team:</span> <Badge variant="outline">{teamLabels[ticket.team]}</Badge>
                     </div>
                     <div>
                         <span className="text-muted-foreground">Category:</span> {ticket.category?.name ?? '—'}

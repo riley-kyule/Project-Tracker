@@ -27,6 +27,7 @@ class TicketController extends Controller
     {
         $manager = $request->user()->can('tickets.manage');
         $canCreateForOthers = Gate::allows('createForOthers', Ticket::class);
+        $teamScope = $this->ticketTeamScopeFor($request->user());
 
         $sort = $request->string('sort')->toString();
         $direction = $request->string('direction')->toString() === 'desc' ? 'desc' : 'asc';
@@ -42,8 +43,14 @@ class TicketController extends Controller
                 'category:id,name',
             ])
             ->when(! $manager, fn ($query) => $query->where('requester_id', $request->user()->id))
+            // A technician's own queue (IT or R&D) is scoped by their department,
+            // same as createForOthers() — CEO/Administrator and anyone holding
+            // tickets.manage outside either department (a general grant made
+            // through /admin/permissions) see every team, unrestricted.
+            ->when($manager && $teamScope !== null, fn ($query) => $query->whereIn('team', $teamScope))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('priority'), fn ($query) => $query->where('priority', $request->string('priority')))
+            ->when($request->filled('team'), fn ($query) => $query->where('team', $request->string('team')))
             ->when($request->filled('assigned'), fn ($query) => $request->string('assigned')->toString() === 'unassigned'
                 ? $query->whereNull('assigned_to')
                 : $query->where('assigned_to', $request->integer('assigned')))
@@ -63,7 +70,7 @@ class TicketController extends Controller
             'users' => $canCreateForOthers
                 ? User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])
                 : [],
-            'filters' => $request->only(['status', 'priority', 'assigned']),
+            'filters' => $request->only(['status', 'priority', 'team', 'assigned']),
             'sort' => in_array($sort, self::SORTABLE_COLUMNS, true) ? $sort : null,
             'direction' => $direction,
             'perPage' => $this->perPage($request),
@@ -123,8 +130,21 @@ class TicketController extends Controller
             'ticket' => $ticket,
             'comments' => $comments,
             'attachments' => $ticket->attachments()->with('uploader:id,name')->latest()->get(),
+            // Scoped to whichever department(s) service this ticket's team, plus
+            // CEO/Administrator as overseers who can pick up anything — the same
+            // "leadership can always act" allowance TicketNotifier gives them.
             'technicians' => $manager
-                ? User::query()->permission('tickets.manage')->where('status', User::STATUS_ACTIVE)->orderBy('name')->get(['id', 'name'])
+                ? User::query()
+                    ->permission('tickets.manage')
+                    ->where('status', User::STATUS_ACTIVE)
+                    ->where(function ($query) use ($ticket) {
+                        $query->whereHas(
+                            'department',
+                            fn ($department) => $department->whereIn('slug', Ticket::TEAM_DEPARTMENT_SLUGS[$ticket->team] ?? [Ticket::TEAM_IT]),
+                        )->orWhereHas('roles', fn ($role) => $role->whereIn('name', ['CEO', 'Administrator']));
+                    })
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
                 : [],
             'boards' => $manager
                 ? Board::query()
@@ -151,11 +171,13 @@ class TicketController extends Controller
             'description' => ['required', 'string', 'max:20000'],
             'category_id' => ['required', Rule::exists('ticket_categories', 'id')->where('is_active', true)],
             'impact' => ['required', Rule::in(['low', 'medium', 'high'])],
+            'team' => ['nullable', Rule::in(Ticket::TEAMS)],
             'requester_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         $category = TicketCategory::query()->findOrFail($validated['category_id']);
         $validated['priority'] = $category->default_priority ?? 'medium';
+        $validated['team'] = $validated['team'] ?? Ticket::TEAM_IT;
 
         $requester = null;
         if (($validated['requester_id'] ?? null) !== null && Gate::allows('createForOthers', Ticket::class)) {
@@ -339,5 +361,26 @@ class TicketController extends Controller
         TicketService::confirmResolvedAfterInactivity($ticket, $request->user());
 
         return back();
+    }
+
+    /**
+     * Which ticket teams a manager's own queue is scoped to — null means
+     * unrestricted (CEO/Administrator, or a general tickets.manage grant to
+     * someone outside both IT and R&D). See Ticket::servicedBy() for the
+     * single-ticket equivalent used by TicketPolicy.
+     *
+     * @return array<int, string>|null
+     */
+    private function ticketTeamScopeFor(User $user): ?array
+    {
+        if ($user->hasAnyRole(['CEO', 'Administrator'])) {
+            return null;
+        }
+
+        return match ($user->department?->slug) {
+            'it' => [Ticket::TEAM_IT, Ticket::TEAM_BOTH],
+            'research-development' => [Ticket::TEAM_RND, Ticket::TEAM_BOTH],
+            default => null,
+        };
     }
 }

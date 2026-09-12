@@ -17,6 +17,7 @@ class DepartmentSeeder extends Seeder
             'Human Resources',
             'Marketing',
             'IT',
+            'Research & Development',
             'Legal',
             'Management',
         ];

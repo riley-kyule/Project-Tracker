@@ -19,6 +19,7 @@ function baseTicket(overrides: Partial<Parameters<typeof TicketsIndex>[0]['ticke
         title: 'Printer is on fire',
         status: 'new' as TicketStatus,
         priority: 'high' as const,
+        team: 'it' as const,
         requester: { id: 1, name: 'Ada Lovelace' },
         assignee: null,
         category: { id: 1, name: 'Hardware' },
