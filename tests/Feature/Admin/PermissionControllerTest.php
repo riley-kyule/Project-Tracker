@@ -27,7 +27,10 @@ class PermissionControllerTest extends TestCase
 
         $response = $this->actingAs($ceo)->get('/admin/permissions');
 
-        $response->assertInertia(fn ($page) => $page->where('permissions', fn ($permissions) => ! collect($permissions)->contains('permissions.manage')));
+        $response->assertInertia(fn ($page) => $page->where(
+            'permissions',
+            fn ($permissions) => ! collect($permissions)->pluck('name')->contains('permissions.manage'),
+        ));
     }
 
     public function test_ceo_can_edit_an_unlocked_roles_permissions_and_it_is_audited()
@@ -80,5 +83,42 @@ class PermissionControllerTest extends TestCase
         $marketing = Role::findByName('Marketing');
 
         $this->actingAs($itTech)->patch("/admin/permissions/{$marketing->id}", ['permissions' => []])->assertForbidden();
+    }
+
+    /** Guards against a permission being added to RoleSeeder but forgotten in the plain-language catalog — it would otherwise silently show its raw slug to a non-technical viewer instead of erroring loudly here. */
+    public function test_every_grantable_permission_has_a_plain_language_catalog_entry()
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $props = $this->actingAs($ceo)->get('/admin/permissions')->assertOk()->viewData('page')['props'];
+
+        foreach ($props['permissions'] as $permission) {
+            $this->assertNotSame($permission['name'], $permission['label'], "{$permission['name']} is missing a catalog entry (falls back to its raw slug).");
+            $this->assertNotEmpty($permission['description'], "{$permission['name']} has no description.");
+            $this->assertNotSame('Other', $permission['group'], "{$permission['name']} is missing a catalog entry (falls back to the 'Other' group).");
+        }
+    }
+
+    /** Same guard, for role descriptions — a role with no entry falls back to a generic line rather than breaking the page, but every seeded role should have a real one. */
+    public function test_every_role_has_a_plain_language_description()
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $props = $this->actingAs($ceo)->get('/admin/permissions')->assertOk()->viewData('page')['props'];
+
+        foreach ($props['roles'] as $role) {
+            $this->assertNotSame('A custom role — see its permissions below.', $role['description'], "{$role['name']} is missing a description.");
+        }
+    }
+
+    public function test_role_cards_list_their_active_members()
+    {
+        $ceo = User::factory()->create(['name' => 'Ada Lovelace'])->assignRole('CEO');
+        User::factory()->create()->assignRole('Employee');
+
+        $props = $this->actingAs($ceo)->get('/admin/permissions')->assertOk()->viewData('page')['props'];
+
+        $ceoRole = collect($props['roles'])->firstWhere('name', 'CEO');
+        $this->assertTrue(collect($ceoRole['users'])->pluck('name')->contains('Ada Lovelace'));
     }
 }
