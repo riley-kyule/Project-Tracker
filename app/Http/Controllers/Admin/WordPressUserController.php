@@ -43,13 +43,14 @@ class WordPressUserController extends Controller
                 fn ($query) => $query->orderBy($sort, $direction),
                 fn ($query) => $query->orderBy('wordpress_site_id')->orderBy('username'),
             )
-            ->paginate(50)
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/wordpress-users/index', [
             'users' => $users,
             'sort' => $sortIsValid ? $sort : null,
             'direction' => $direction,
+            'perPage' => $this->perPage($request),
             'sites' => WordPressSite::query()
                 ->with('credential')
                 ->orderBy('name')

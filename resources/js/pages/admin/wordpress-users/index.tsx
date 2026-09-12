@@ -1,4 +1,6 @@
 import InputError from '@/components/input-error';
+import { type ListSize } from '@/components/list-pagination';
+import { Pagination, sizeFromPerPage, type Paginated } from '@/components/pagination';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { type RequestPayload } from '@inertiajs/core';
@@ -35,15 +38,6 @@ type WordPressUserRow = {
     email: string | null;
     display_name: string | null;
     roles: string[];
-};
-
-type Paginated<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    total: number;
-    prev_page_url: string | null;
-    next_page_url: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'WordPress Users', href: '/admin/wordpress-users' }];
@@ -540,6 +534,7 @@ export default function WordPressUsersIndex({
     filters,
     sort: sortColumn,
     direction,
+    perPage,
 }: {
     users: Paginated<WordPressUserRow>;
     sites: Site[];
@@ -547,9 +542,11 @@ export default function WordPressUsersIndex({
     filters: { site_id?: string; role?: string; search?: string };
     sort: string | null;
     direction: 'asc' | 'desc';
+    perPage: number;
 }) {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [syncing, setSyncing] = useState(false);
+    const [search, setSearch] = useState(filters.search ?? '');
     const { flash } = usePage<SharedData>().props;
     const sort: SortState = { column: sortColumn, direction };
 
@@ -560,7 +557,9 @@ export default function WordPressUsersIndex({
         router.get(
             '/admin/wordpress-users',
             Object.fromEntries(
-                Object.entries({ ...filters, sort: sortColumn ?? undefined, direction, ...params }).filter(([, value]) => value && value !== ALL),
+                Object.entries({ ...filters, sort: sortColumn ?? undefined, direction, per_page: String(perPage), ...params }).filter(
+                    ([, value]) => value && value !== ALL,
+                ),
             ) as Record<string, string>,
             { preserveState: true, preserveScroll: true },
         );
@@ -568,6 +567,18 @@ export default function WordPressUsersIndex({
 
     const onSort = (column: string) => {
         apply({ sort: column, direction: sort.column === column && sort.direction === 'asc' ? 'desc' : 'asc' });
+    };
+
+    const onSizeChange = (value: ListSize) => apply({ per_page: String(value) });
+
+    // Every other filter here applies the moment it's chosen; search is the
+    // one field where that would mean a request per keystroke, so it debounces
+    // instead — still no click required, just a short pause while typing.
+    const { debounced: applySearchDebounced, flush: applySearchNow } = useDebouncedCallback((value: string) => apply({ search: value }), 350);
+
+    const onSearchChange = (value: string) => {
+        setSearch(value);
+        applySearchDebounced(value);
     };
 
     const syncAll = () => {
@@ -641,12 +652,12 @@ export default function WordPressUsersIndex({
                     </Select>
                     <Input
                         placeholder="Search username or email…"
-                        defaultValue={filters.search ?? ''}
+                        value={search}
                         className="w-64"
+                        onChange={(e) => onSearchChange(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter') apply({ search: e.currentTarget.value });
+                            if (e.key === 'Enter') applySearchNow(search);
                         }}
-                        onBlur={(e) => apply({ search: e.currentTarget.value })}
                     />
                 </div>
 
@@ -731,35 +742,7 @@ export default function WordPressUsersIndex({
                     </table>
                 </div>
 
-                {users.last_page > 1 && (
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                            Page {users.current_page} of {users.last_page}
-                        </span>
-                        <div className="flex gap-2">
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={!users.prev_page_url}
-                                onClick={() =>
-                                    users.prev_page_url && router.get(users.prev_page_url, {}, { preserveState: true, preserveScroll: true })
-                                }
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={!users.next_page_url}
-                                onClick={() =>
-                                    users.next_page_url && router.get(users.next_page_url, {}, { preserveState: true, preserveScroll: true })
-                                }
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
-                )}
+                <Pagination meta={users} sizePicker={{ value: sizeFromPerPage(perPage), onChange: onSizeChange }} />
             </div>
         </AppLayout>
     );
