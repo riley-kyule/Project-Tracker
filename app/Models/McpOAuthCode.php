@@ -14,7 +14,7 @@ class McpOAuthCode extends Model
     // pin it explicitly to match the migration.
     protected $table = 'mcp_oauth_codes';
 
-    protected $fillable = ['user_id', 'code_hash', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'expires_at', 'used_at'];
+    protected $fillable = ['user_id', 'mcp_oauth_client_id', 'code_hash', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'expires_at', 'used_at'];
 
     protected function casts(): array
     {
@@ -30,13 +30,19 @@ class McpOAuthCode extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(McpOAuthClient::class, 'mcp_oauth_client_id');
+    }
+
     /** A fresh opaque code plus the row that owns it — 5 minutes, single-use, exactly like a normal OAuth authorization code. */
-    public static function issue(User $user, string $redirectUri, ?string $codeChallenge, ?string $codeChallengeMethod): array
+    public static function issue(User $user, McpOAuthClient $client, string $redirectUri, ?string $codeChallenge, ?string $codeChallengeMethod): array
     {
         $plaintext = bin2hex(random_bytes(32));
 
         $record = static::create([
             'user_id' => $user->id,
+            'mcp_oauth_client_id' => $client->id,
             'code_hash' => hash('sha256', $plaintext),
             'redirect_uri' => $redirectUri,
             'code_challenge' => $codeChallenge,

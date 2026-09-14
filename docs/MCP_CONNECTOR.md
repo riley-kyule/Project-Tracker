@@ -46,29 +46,35 @@ EWMS login) just issues a regular `McpToken` behind the scenes, so it shows
 up and can be revoked at **MCP Connector** exactly like a manually-generated
 one.
 
-**One-time setup** (server-side, not committed to git):
+Each person registers their **own** client — there's no single shared one.
+This matters because the AI itself mints a fresh, unique redirect URL per
+connector instance, so two people each connecting "ChatGPT" need two
+different registrations.
 
-1. `php artisan mcp:oauth-client` → prints a fresh client ID/secret pair.
-2. Add to the server's `.env`: `MCP_OAUTH_CLIENT_ID`, `MCP_OAUTH_CLIENT_SECRET`,
-   and `MCP_OAUTH_REDIRECT_URI` (must exactly match the callback URL the
-   client shows on its own setup screen — e.g. ChatGPT shows something like
-   `https://chatgpt.com/connector/oauth/<id>`). Restart the app.
+**Setup, self-service, at MCP Connector → Connect via OAuth:**
 
-**What to paste into the client's connector form:**
+1. In ChatGPT (or Claude, or any OAuth-only MCP client), start adding EWMS as
+   a connector. It'll show you a redirect/callback URL — something like
+   `https://chatgpt.com/connector/oauth/<id>`.
+2. Back in EWMS, give the connector a name (e.g. "ChatGPT") and paste that
+   exact URL into **Redirect URL**, then **Register**. You're shown a Client
+   ID and Client Secret once — copy both now.
+3. Paste into the client's connector form:
 
-| Field | Value |
-|---|---|
-| Auth URL | `https://<your-domain>/oauth/authorize` |
-| Token URL | `https://<your-domain>/api/oauth/token` |
-| Client ID | from step 1 |
-| Client Secret | from step 1 |
-| Scope | `mcp` (optional — not enforced) |
+   | Field | Value |
+   |---|---|
+   | Auth URL | shown on the page (`https://<your-domain>/oauth/authorize`) |
+   | Token URL | shown on the page (`https://<your-domain>/api/oauth/token`) |
+   | Client ID | from step 2 |
+   | Client Secret | from step 2 |
+   | Scope | `mcp` (optional — not enforced) |
 
-Only one client is supported at a time — this is a single fixed-client layer
-for whichever AI needs OAuth, not a general-purpose authorization server. The
-interactive `/oauth/authorize` step requires the approving user to already be
-logged into EWMS and hold `mcp.manage`; PKCE is supported and used
-automatically if the client sends a `code_challenge`.
+Revoking a registered connector (trash icon next to it) also revokes any
+access token it issued — the same "disconnect this app" behavior a real
+OAuth provider gives you. The interactive `/oauth/authorize` step requires
+the approving user to already be logged into EWMS and hold `mcp.manage`;
+PKCE is supported and used automatically if the client sends a
+`code_challenge`.
 
 ## Adding a tool
 

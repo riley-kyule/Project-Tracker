@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CompanySettingController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\DeploymentController;
 use App\Http\Controllers\Admin\LabelController;
+use App\Http\Controllers\Admin\McpOAuthClientController;
 use App\Http\Controllers\Admin\McpTokenController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\QueueHealthController;
@@ -42,6 +43,8 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('admin')->name('admin
     Route::get('mcp', [McpTokenController::class, 'index'])->name('mcp.index');
     Route::post('mcp', [McpTokenController::class, 'store'])->name('mcp.store');
     Route::delete('mcp/{token}', [McpTokenController::class, 'destroy'])->name('mcp.destroy');
+    Route::post('mcp/oauth-clients', [McpOAuthClientController::class, 'store'])->name('mcp.oauth-clients.store');
+    Route::delete('mcp/oauth-clients/{oauthClient}', [McpOAuthClientController::class, 'destroy'])->name('mcp.oauth-clients.destroy');
 
     Route::get('queue-health', [QueueHealthController::class, 'index'])->name('queue-health.index');
     Route::get('report-deliveries', [ReportDeliveryController::class, 'index'])->name('report-deliveries.index');

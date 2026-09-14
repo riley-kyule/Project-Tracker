@@ -38,6 +38,7 @@ export interface SharedData {
             | { id?: number; site_id?: number; site?: string; status: string; error?: string | null; username?: string; password?: string }[]
             | null;
         newToken: string | null;
+        newOAuthClient: { clientId: string; clientSecret: string } | null;
     };
     // Shared on every response by Inertia's base middleware (validation
     // errors, or a manual withErrors() redirect like Google SSO failures) —

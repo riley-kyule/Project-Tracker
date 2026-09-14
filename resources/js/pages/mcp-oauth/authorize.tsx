@@ -12,9 +12,9 @@ type Params = {
     code_challenge_method?: string;
 };
 
-export default function McpOAuthAuthorize({ params }: { params: Params }) {
+export default function McpOAuthAuthorize({ params, clientName }: { params: Params; clientName: string }) {
     const approveForm = useForm(params);
-    const denyForm = useForm({ redirect_uri: params.redirect_uri, state: params.state ?? '' });
+    const denyForm = useForm({ client_id: params.client_id, redirect_uri: params.redirect_uri, state: params.state ?? '' });
 
     const approve = (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,7 +27,7 @@ export default function McpOAuthAuthorize({ params }: { params: Params }) {
     };
 
     return (
-        <AuthLayout title="Connect an AI assistant" description="It's asking to connect to your EWMS account.">
+        <AuthLayout title="Connect an AI assistant" description={`"${clientName}" is asking to connect to your EWMS account.`}>
             <Head title="Connect an AI assistant" />
             <div className="flex flex-col gap-4">
                 <div className="border-sidebar-border/70 dark:border-sidebar-border flex items-start gap-3 rounded-xl border p-4">

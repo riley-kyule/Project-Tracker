@@ -71,6 +71,9 @@ class HandleInertiaRequests extends Middleware
                 // The plaintext of a just-issued MCP token (see McpTokenController)
                 // — flashed once, never persisted, gone on the next request.
                 'newToken' => fn () => $request->session()->get('newToken'),
+                // The client_id/secret of a just-registered MCP OAuth connector
+                // (see McpOAuthClientController) — same one-time-only reasoning.
+                'newOAuthClient' => fn () => $request->session()->get('newOAuthClient'),
             ],
         ];
     }

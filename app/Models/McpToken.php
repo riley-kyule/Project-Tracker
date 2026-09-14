@@ -9,7 +9,7 @@ class McpToken extends Model
 {
     public const UPDATED_AT = null;
 
-    protected $fillable = ['user_id', 'name', 'token_hash', 'last_used_at'];
+    protected $fillable = ['user_id', 'mcp_oauth_client_id', 'name', 'token_hash', 'last_used_at'];
 
     protected function casts(): array
     {
@@ -24,13 +24,20 @@ class McpToken extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** Set only when this token was minted by an OAuth code exchange rather than created directly at /admin/mcp — see McpOAuthClient. */
+    public function oauthClient(): BelongsTo
+    {
+        return $this->belongsTo(McpOAuthClient::class, 'mcp_oauth_client_id');
+    }
+
     /** A fresh 40-char random token plus the row that owns it — the token itself is returned nowhere else. */
-    public static function issue(User $user, string $name): array
+    public static function issue(User $user, string $name, ?int $oauthClientId = null): array
     {
         $plaintext = bin2hex(random_bytes(20));
 
         $token = static::create([
             'user_id' => $user->id,
+            'mcp_oauth_client_id' => $oauthClientId,
             'name' => $name,
             'token_hash' => hash('sha256', $plaintext),
             'created_at' => now(),

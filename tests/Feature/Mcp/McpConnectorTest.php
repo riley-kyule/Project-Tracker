@@ -3,39 +3,79 @@
 namespace Tests\Feature\Mcp;
 
 use App\Models\Employee;
+use App\Models\McpOAuthClient;
 use App\Models\McpToken;
 use App\Models\PayrollPeriod;
 use App\Models\Payslip;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class McpConnectorTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_oauth_section_is_hidden_until_a_client_is_configured(): void
+    public function test_the_oauth_urls_are_always_shown_and_the_client_list_starts_empty(): void
     {
-        Config::set('mcp_oauth.client_id', null);
-        $ceo = User::factory()->create()->assignRole('CEO');
-
-        $this->actingAs($ceo)->get('/admin/mcp')->assertInertia(fn ($page) => $page->where('oauth', null));
-    }
-
-    public function test_the_oauth_section_shows_copyable_setup_values_once_configured(): void
-    {
-        Config::set('mcp_oauth.client_id', 'ewms-abc123');
-        Config::set('mcp_oauth.client_secret', 'topsecret');
-        Config::set('mcp_oauth.redirect_uri', 'https://chatgpt.com/connector/oauth/xyz');
         $ceo = User::factory()->create()->assignRole('CEO');
 
         $this->actingAs($ceo)->get('/admin/mcp')->assertInertia(fn ($page) => $page
-            ->where('oauth.clientId', 'ewms-abc123')
-            ->where('oauth.clientSecret', 'topsecret')
-            ->where('oauth.redirectUri', 'https://chatgpt.com/connector/oauth/xyz')
-            ->where('oauth.authorizeUrl', url('/oauth/authorize'))
-            ->where('oauth.tokenUrl', url('/api/oauth/token')));
+            ->where('oauthUrls.authorize', url('/oauth/authorize'))
+            ->where('oauthUrls.token', url('/api/oauth/token'))
+            ->where('oauthClients', []));
+    }
+
+    public function test_only_the_current_users_own_oauth_clients_are_listed(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        $otherAdmin = User::factory()->create()->assignRole('Administrator');
+        McpOAuthClient::issue($ceo, 'My ChatGPT', 'https://chatgpt.com/connector/oauth/mine');
+        McpOAuthClient::issue($otherAdmin, 'Their ChatGPT', 'https://chatgpt.com/connector/oauth/theirs');
+
+        $this->actingAs($ceo)->get('/admin/mcp')->assertInertia(fn ($page) => $page
+            ->has('oauthClients', 1)
+            ->where('oauthClients.0.name', 'My ChatGPT'));
+    }
+
+    public function test_registering_an_oauth_client_flashes_the_secret_once_and_validates_the_redirect_uri(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->post('/admin/mcp/oauth-clients', ['name' => '', 'redirect_uri' => 'not-a-url'])
+            ->assertSessionHasErrors(['name', 'redirect_uri']);
+
+        $response = $this->actingAs($ceo)->post('/admin/mcp/oauth-clients', [
+            'name' => 'ChatGPT',
+            'redirect_uri' => 'https://chatgpt.com/connector/oauth/abc',
+        ]);
+
+        $response->assertSessionHas('newOAuthClient');
+        $this->assertSame(1, $ceo->mcpOAuthClients()->count());
+    }
+
+    public function test_two_registrations_cannot_share_the_same_redirect_uri(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        McpOAuthClient::issue($ceo, 'ChatGPT', 'https://chatgpt.com/connector/oauth/abc');
+
+        $this->actingAs($ceo)->post('/admin/mcp/oauth-clients', [
+            'name' => 'ChatGPT again',
+            'redirect_uri' => 'https://chatgpt.com/connector/oauth/abc',
+        ])->assertSessionHasErrors(['redirect_uri']);
+    }
+
+    public function test_only_the_owner_can_revoke_their_oauth_client_and_doing_so_revokes_its_tokens(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        [$client] = McpOAuthClient::issue($ceo, 'ChatGPT', 'https://chatgpt.com/connector/oauth/abc');
+        [$token] = McpToken::issue($ceo, 'ChatGPT (OAuth)', $client->id);
+
+        $otherCeo = User::factory()->create()->assignRole('CEO');
+        $this->actingAs($otherCeo)->delete("/admin/mcp/oauth-clients/{$client->id}")->assertForbidden();
+
+        $this->actingAs($ceo)->delete("/admin/mcp/oauth-clients/{$client->id}")->assertRedirect();
+        $this->assertNull($client->fresh());
+        $this->assertNull($token->fresh());
     }
 
     public function test_only_mcp_manage_holders_can_issue_tokens(): void

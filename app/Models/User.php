@@ -181,4 +181,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(McpToken::class);
     }
+
+    public function mcpOAuthClients(): HasMany
+    {
+        return $this->hasMany(McpOAuthClient::class);
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\McpOAuthClient;
 use App\Models\McpToken;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
@@ -24,19 +25,21 @@ class McpTokenController extends Controller
                 'created_at' => $token->created_at,
             ]),
             'endpoint' => url('/api/mcp'),
-            // Only present once a server operator has run `php artisan
-            // mcp:oauth-client` and set the three MCP_OAUTH_* env vars — the
-            // page hides the OAuth section entirely until then. Showing the
-            // client secret here is no larger a trust boundary than the
-            // bearer tokens above: both are gated by the same mcp.manage check.
-            'oauth' => config('mcp_oauth.client_id') ? [
-                'authorizeUrl' => url('/oauth/authorize'),
-                'tokenUrl' => url('/api/oauth/token'),
-                'clientId' => config('mcp_oauth.client_id'),
-                'clientSecret' => config('mcp_oauth.client_secret'),
-                'redirectUri' => config('mcp_oauth.redirect_uri'),
+            // These two URLs never change per person — only client_id/secret/
+            // redirect_uri (below) are unique to each registered connector.
+            'oauthUrls' => [
+                'authorize' => url('/oauth/authorize'),
+                'token' => url('/api/oauth/token'),
                 'scope' => 'mcp',
-            ] : null,
+            ],
+            'oauthClients' => $request->user()->mcpOAuthClients()->orderByDesc('id')->get()->map(fn (McpOAuthClient $client) => [
+                'id' => $client->id,
+                'name' => $client->name,
+                'client_id' => $client->client_id,
+                'redirect_uri' => $client->redirect_uri,
+                'last_used_at' => $client->last_used_at,
+                'created_at' => $client->created_at,
+            ]),
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Mcp;
 
 use App\Http\Controllers\Controller;
+use App\Models\McpOAuthClient;
 use App\Models\McpOAuthCode;
 use App\Models\McpToken;
 use Illuminate\Http\JsonResponse;
@@ -13,19 +14,21 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * A minimal OAuth 2.0 authorization-code flow in front of the existing
- * McpToken bearer-token system — see config/mcp_oauth.php for why this
- * exists. One fixed client (config-defined), not a general-purpose
- * multi-tenant authorization server: authorize()/approve() are the
- * interactive, session-authenticated half (a normal EWMS-logged-in user
- * clicking Allow); token() is the stateless half the connecting client's
- * own backend calls directly, authenticated by client_id/secret (and PKCE,
- * if the request included it) rather than a session.
+ * McpToken bearer-token system — see McpOAuthClient for why this exists.
+ * Each caller registers their own client (name + the redirect_uri their AI
+ * gives them) at /admin/mcp, so any number of people can each connect their
+ * own ChatGPT or Claude independently — there's no single fixed client.
+ * authorize()/approve() are the interactive, session-authenticated half (a
+ * normal EWMS-logged-in user clicking Allow); token() is the stateless half
+ * the connecting client's own backend calls directly, authenticated by
+ * client_id/secret (and PKCE, if the request included it) rather than a
+ * session.
  */
 class McpOAuthController extends Controller
 {
     public function authorize(Request $request): Response|SymfonyResponse
     {
-        $error = $this->validateAuthorizeRequest($request);
+        [$error, $client] = $this->validateAuthorizeRequest($request);
         if ($error) {
             return Inertia::render('mcp-oauth/error', ['message' => $error]);
         }
@@ -38,17 +41,19 @@ class McpOAuthController extends Controller
 
         return Inertia::render('mcp-oauth/authorize', [
             'params' => $request->only(['client_id', 'redirect_uri', 'state', 'scope', 'code_challenge', 'code_challenge_method']),
+            'clientName' => $client->name,
         ]);
     }
 
     public function approve(Request $request): Response|SymfonyResponse
     {
-        $error = $this->validateAuthorizeRequest($request);
+        [$error, $client] = $this->validateAuthorizeRequest($request);
         abort_if($error, 400, $error);
         abort_unless($request->user()->can('mcp.manage'), 403);
 
         [, $plaintext] = McpOAuthCode::issue(
             $request->user(),
+            $client,
             $request->string('redirect_uri')->toString(),
             $request->input('code_challenge'),
             $request->input('code_challenge_method'),
@@ -70,7 +75,8 @@ class McpOAuthController extends Controller
         // Same exact-match rule as authorize()/approve() — a forged POST here
         // with an arbitrary redirect_uri is exactly the open redirect that
         // check exists to close, denial or not.
-        abort_unless($request->string('redirect_uri')->toString() === config('mcp_oauth.redirect_uri'), 400);
+        $client = McpOAuthClient::resolveById($request->string('client_id')->toString());
+        abort_unless($client && $client->redirect_uri === $request->string('redirect_uri')->toString(), 400);
 
         $redirect = $request->string('redirect_uri')->toString()
             .(str_contains($request->string('redirect_uri'), '?') ? '&' : '?')
@@ -82,33 +88,32 @@ class McpOAuthController extends Controller
     /** The client's backend calls this directly — no session, authenticated by client_id/secret and (if the authorize request used PKCE) code_verifier. */
     public function token(Request $request): JsonResponse
     {
-        $clientId = config('mcp_oauth.client_id');
-        $clientSecret = config('mcp_oauth.client_secret');
+        $client = McpOAuthClient::resolveById($request->string('client_id')->toString());
 
-        if (! $clientId || ! $clientSecret) {
-            return response()->json(['error' => 'server_error', 'error_description' => 'MCP OAuth is not configured on this server.'], 500);
-        }
-
-        if ($request->input('client_id') !== $clientId || $request->input('client_secret') !== $clientSecret) {
+        if (! $client || ! $client->verifySecret($request->string('client_secret')->toString())) {
             return response()->json(['error' => 'invalid_client'], 401);
         }
 
         $grantType = $request->string('grant_type')->toString();
 
         return match ($grantType) {
-            'authorization_code' => $this->exchangeCode($request),
-            'refresh_token' => $this->exchangeRefreshToken($request),
+            'authorization_code' => $this->exchangeCode($request, $client),
+            'refresh_token' => $this->exchangeRefreshToken($request, $client),
             default => response()->json(['error' => 'unsupported_grant_type'], 400),
         };
     }
 
-    private function exchangeCode(Request $request): JsonResponse
+    private function exchangeCode(Request $request, McpOAuthClient $client): JsonResponse
     {
         $plaintext = $request->string('code')->toString();
         $code = $plaintext !== '' ? McpOAuthCode::resolveValid($plaintext) : null;
 
         if ($code === null) {
             return response()->json(['error' => 'invalid_grant', 'error_description' => 'That code is invalid, expired, or already used.'], 400);
+        }
+
+        if ($code->mcp_oauth_client_id !== $client->id) {
+            return response()->json(['error' => 'invalid_grant', 'error_description' => 'That code was not issued to this client.'], 400);
         }
 
         if ($code->redirect_uri !== $request->string('redirect_uri')->toString()) {
@@ -130,19 +135,22 @@ class McpOAuthController extends Controller
             return response()->json(['error' => 'invalid_grant', 'error_description' => 'That code was already used.'], 400);
         }
 
-        [, $accessToken] = McpToken::issue($code->user, 'ChatGPT (OAuth) '.now()->toDateString());
+        $client->update(['last_used_at' => now()]);
+        [, $accessToken] = McpToken::issue($code->user, $client->name.' (OAuth)', $client->id);
 
         return $this->tokenResponse($accessToken);
     }
 
-    /** McpToken never expires, so "refreshing" is a no-op that just re-confirms the same token still exists and is still valid — no new token is minted. */
-    private function exchangeRefreshToken(Request $request): JsonResponse
+    /** McpToken never expires, so "refreshing" is a no-op that just re-confirms the same token still exists, still valid, and still belongs to this client — no new token is minted. */
+    private function exchangeRefreshToken(Request $request, McpOAuthClient $client): JsonResponse
     {
         $token = McpToken::resolve($request->string('refresh_token')->toString());
 
-        if ($token === null) {
+        if ($token === null || $token->mcp_oauth_client_id !== $client->id) {
             return response()->json(['error' => 'invalid_grant', 'error_description' => 'That refresh token has been revoked.'], 400);
         }
+
+        $client->update(['last_used_at' => now()]);
 
         return $this->tokenResponse($request->string('refresh_token')->toString());
     }
@@ -158,23 +166,25 @@ class McpOAuthController extends Controller
         ]);
     }
 
-    private function validateAuthorizeRequest(Request $request): ?string
+    /** @return array{0: ?string, 1: ?McpOAuthClient} [error message, resolved client] — exactly one of the two is set. */
+    private function validateAuthorizeRequest(Request $request): array
     {
         if ($request->string('response_type')->toString() !== 'code') {
-            return 'Only the "code" response type is supported.';
+            return ['Only the "code" response type is supported.', null];
         }
 
-        if ($request->input('client_id') !== config('mcp_oauth.client_id')) {
-            return 'Unrecognized client_id.';
+        $client = McpOAuthClient::resolveById($request->string('client_id')->toString());
+        if (! $client) {
+            return ['Unrecognized client_id — register this connector at /admin/mcp first.', null];
         }
 
         $redirectUri = $request->string('redirect_uri')->toString();
-        if ($redirectUri === '' || $redirectUri !== config('mcp_oauth.redirect_uri')) {
+        if ($redirectUri === '' || $redirectUri !== $client->redirect_uri) {
             // Deliberately never redirects back to an unrecognized redirect_uri — that's
             // exactly the open-redirect hole OAuth's exact-match requirement exists to close.
-            return "redirect_uri doesn't match the one configured on this server.";
+            return ["redirect_uri doesn't match the one this connector was registered with.", null];
         }
 
-        return null;
+        return [null, $client];
     }
 }
