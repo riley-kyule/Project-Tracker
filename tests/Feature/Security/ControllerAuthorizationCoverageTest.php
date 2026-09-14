@@ -32,6 +32,7 @@ class ControllerAuthorizationCoverageTest extends TestCase
         'saved-filters.store' => 'always written with user_id = $request->user()->id, never client-supplied',
         'push.subscribe' => 'mutates only $request->user() itself',
         'mcp.handle' => 'authenticated by the mcp.auth middleware (AuthenticateMcpToken) before the controller runs, then each tool call is scoped to the token owner\'s own permissions — see McpToolRegistry::call()',
+        'mcp.oauth.token' => 'called by the connecting client\'s own backend, not a browser session — authenticated by client_id/client_secret (and PKCE code_verifier, if used) checked directly against config, plus the single-use authorization code being tied to the user who approved it in McpOAuthController::approve()',
     ];
 
     public function test_every_mutating_web_route_calls_an_authorization_check()

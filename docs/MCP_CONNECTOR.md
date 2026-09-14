@@ -36,6 +36,40 @@ once, in an on-screen banner, and never stored — only its SHA-256 hash is
   `Mcp-Session-Id` bookkeeping, which the spec makes optional for a server
   with no per-session state to track).
 
+### Clients that require OAuth (e.g. ChatGPT)
+
+Some connector UIs — ChatGPT's, notably — only offer "No Auth" or full OAuth
+for a remote MCP server, with no plain API-key field. For those, EWMS runs a
+minimal OAuth 2.0 authorization-code layer (`App\Http\Controllers\Mcp\McpOAuthController`)
+in front of the same token system above: approving the flow (via a normal
+EWMS login) just issues a regular `McpToken` behind the scenes, so it shows
+up and can be revoked at **MCP Connector** exactly like a manually-generated
+one.
+
+**One-time setup** (server-side, not committed to git):
+
+1. `php artisan mcp:oauth-client` → prints a fresh client ID/secret pair.
+2. Add to the server's `.env`: `MCP_OAUTH_CLIENT_ID`, `MCP_OAUTH_CLIENT_SECRET`,
+   and `MCP_OAUTH_REDIRECT_URI` (must exactly match the callback URL the
+   client shows on its own setup screen — e.g. ChatGPT shows something like
+   `https://chatgpt.com/connector/oauth/<id>`). Restart the app.
+
+**What to paste into the client's connector form:**
+
+| Field | Value |
+|---|---|
+| Auth URL | `https://<your-domain>/oauth/authorize` |
+| Token URL | `https://<your-domain>/api/oauth/token` |
+| Client ID | from step 1 |
+| Client Secret | from step 1 |
+| Scope | `mcp` (optional — not enforced) |
+
+Only one client is supported at a time — this is a single fixed-client layer
+for whichever AI needs OAuth, not a general-purpose authorization server. The
+interactive `/oauth/authorize` step requires the approving user to already be
+logged into EWMS and hold `mcp.manage`; PKCE is supported and used
+automatically if the client sends a `code_challenge`.
+
 ## Adding a tool
 
 Add an entry to the array in `McpToolRegistry::tools()`: a name, description,

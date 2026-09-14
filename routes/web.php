@@ -22,3 +22,4 @@ require __DIR__.'/marketing.php';
 require __DIR__.'/reports.php';
 require __DIR__.'/push.php';
 require __DIR__.'/e2e.php';
+require __DIR__.'/mcp_oauth_web.php';
