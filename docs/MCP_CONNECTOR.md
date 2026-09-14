@@ -76,6 +76,13 @@ the approving user to already be logged into EWMS and hold `mcp.manage`;
 PKCE is supported and used automatically if the client sends a
 `code_challenge`.
 
+Discovery documents are published at `/.well-known/oauth-authorization-server`
+(RFC 8414) and `/.well-known/oauth-protected-resource` (RFC 9728) — some
+clients (ChatGPT's connector setup, notably) fetch these *before* letting you
+finish adding a connector, to confirm the server supports what they need
+(PKCE with S256, specifically) without a person having to configure that
+manually. See `WellKnownController`.
+
 ## Adding a tool
 
 Add an entry to the array in `McpToolRegistry::tools()`: a name, description,

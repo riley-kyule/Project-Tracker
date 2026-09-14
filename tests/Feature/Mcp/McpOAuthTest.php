@@ -24,6 +24,26 @@ class McpOAuthTest extends TestCase
         return [$owner, $client, $secret];
     }
 
+    public function test_the_authorization_server_metadata_document_advertises_pkce_support(): void
+    {
+        $response = $this->getJson('/.well-known/oauth-authorization-server');
+
+        $response->assertOk();
+        $response->assertJsonPath('authorization_endpoint', url('/oauth/authorize'));
+        $response->assertJsonPath('token_endpoint', url('/api/oauth/token'));
+        $response->assertJsonPath('code_challenge_methods_supported', ['S256']);
+        $response->assertJsonPath('grant_types_supported', ['authorization_code', 'refresh_token']);
+    }
+
+    public function test_the_protected_resource_metadata_document_points_at_this_authorization_server(): void
+    {
+        $response = $this->getJson('/.well-known/oauth-protected-resource');
+
+        $response->assertOk();
+        $response->assertJsonPath('resource', url('/api/mcp'));
+        $response->assertJsonPath('authorization_servers', [url('/')]);
+    }
+
     public function test_authorize_requires_login(): void
     {
         [, $client] = $this->registerClient();
