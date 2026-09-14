@@ -14,6 +14,58 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'MCP Connector', href: '/admin/m
 
 type TokenRow = { id: number; name: string; last_used_at: string | null; created_at: string };
 
+type OAuthConfig = {
+    authorizeUrl: string;
+    tokenUrl: string;
+    clientId: string;
+    clientSecret: string;
+    redirectUri: string;
+    scope: string;
+};
+
+function CopyField({ label, value }: { label: string; value: string }) {
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(value);
+            toast.success(`${label} copied.`);
+        } catch {
+            toast.error('Could not copy automatically — select and copy it manually instead.');
+        }
+    };
+
+    return (
+        <div className="grid gap-1">
+            <Label className="text-muted-foreground text-xs font-normal">{label}</Label>
+            <div className="flex items-center gap-2">
+                <code className="bg-muted flex-1 rounded px-2 py-1.5 text-xs break-all select-all">{value}</code>
+                <Button type="button" size="sm" variant="outline" onClick={copy}>
+                    <Copy className="mr-1 size-3.5" /> Copy
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+function OAuthSetup({ oauth }: { oauth: OAuthConfig }) {
+    return (
+        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+            <h2 className="mb-1 text-sm font-semibold">Connect via OAuth (e.g. ChatGPT)</h2>
+            <p className="text-muted-foreground mb-3 text-sm">
+                For a connector UI that only offers "No Auth" or full OAuth — no plain API key field — paste these into its setup screen. Approving
+                the connection there logs you into EWMS as normal and issues a token that shows up below, revocable the same way.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+                <CopyField label="Auth URL" value={oauth.authorizeUrl} />
+                <CopyField label="Token URL" value={oauth.tokenUrl} />
+                <CopyField label="Client ID" value={oauth.clientId} />
+                <CopyField label="Client Secret" value={oauth.clientSecret} />
+                <CopyField label="Scope" value={oauth.scope} />
+                <CopyField label="Redirect URL (configured on this server)" value={oauth.redirectUri} />
+            </div>
+        </div>
+    );
+}
+
 function NewTokenAlert({ token }: { token: string }) {
     const copy = async () => {
         try {
@@ -69,7 +121,7 @@ function NewTokenForm() {
     );
 }
 
-export default function McpIndex({ tokens, endpoint }: { tokens: TokenRow[]; endpoint: string }) {
+export default function McpIndex({ tokens, endpoint, oauth }: { tokens: TokenRow[]; endpoint: string; oauth: OAuthConfig | null }) {
     const { flash } = usePage<SharedData>().props;
 
     const revoke = (token: TokenRow) => {
@@ -102,6 +154,8 @@ export default function McpIndex({ tokens, endpoint }: { tokens: TokenRow[]; end
                         <li>Ask it something like "summarize this week's tickets and overdue tasks."</li>
                     </ol>
                 </div>
+
+                {oauth && <OAuthSetup oauth={oauth} />}
 
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                     <h2 className="mb-3 text-sm font-semibold">Tokens</h2>

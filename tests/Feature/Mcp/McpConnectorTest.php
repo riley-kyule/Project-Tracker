@@ -8,11 +8,35 @@ use App\Models\PayrollPeriod;
 use App\Models\Payslip;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class McpConnectorTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_the_oauth_section_is_hidden_until_a_client_is_configured(): void
+    {
+        Config::set('mcp_oauth.client_id', null);
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->get('/admin/mcp')->assertInertia(fn ($page) => $page->where('oauth', null));
+    }
+
+    public function test_the_oauth_section_shows_copyable_setup_values_once_configured(): void
+    {
+        Config::set('mcp_oauth.client_id', 'ewms-abc123');
+        Config::set('mcp_oauth.client_secret', 'topsecret');
+        Config::set('mcp_oauth.redirect_uri', 'https://chatgpt.com/connector/oauth/xyz');
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $this->actingAs($ceo)->get('/admin/mcp')->assertInertia(fn ($page) => $page
+            ->where('oauth.clientId', 'ewms-abc123')
+            ->where('oauth.clientSecret', 'topsecret')
+            ->where('oauth.redirectUri', 'https://chatgpt.com/connector/oauth/xyz')
+            ->where('oauth.authorizeUrl', url('/oauth/authorize'))
+            ->where('oauth.tokenUrl', url('/api/oauth/token')));
+    }
 
     public function test_only_mcp_manage_holders_can_issue_tokens(): void
     {

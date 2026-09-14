@@ -24,6 +24,19 @@ class McpTokenController extends Controller
                 'created_at' => $token->created_at,
             ]),
             'endpoint' => url('/api/mcp'),
+            // Only present once a server operator has run `php artisan
+            // mcp:oauth-client` and set the three MCP_OAUTH_* env vars — the
+            // page hides the OAuth section entirely until then. Showing the
+            // client secret here is no larger a trust boundary than the
+            // bearer tokens above: both are gated by the same mcp.manage check.
+            'oauth' => config('mcp_oauth.client_id') ? [
+                'authorizeUrl' => url('/oauth/authorize'),
+                'tokenUrl' => url('/api/oauth/token'),
+                'clientId' => config('mcp_oauth.client_id'),
+                'clientSecret' => config('mcp_oauth.client_secret'),
+                'redirectUri' => config('mcp_oauth.redirect_uri'),
+                'scope' => 'mcp',
+            ] : null,
         ]);
     }
 
