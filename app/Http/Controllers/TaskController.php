@@ -4,26 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Tasks\StoreTaskRequest;
 use App\Http\Requests\Tasks\UpdateTaskRequest;
-use App\Mail\TaskAssignedMail;
 use App\Models\Board;
 use App\Models\BoardColumn;
 use App\Models\ChecklistTemplate;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Notifications\TaskAssigned;
 use App\Services\AuditLogger;
-use App\Services\PushNotifier;
 use App\Services\TaskAssigneeSync;
 use App\Services\TaskChecklistProgress;
 use App\Services\TaskMover;
+use App\Services\TaskService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
@@ -44,26 +41,7 @@ class TaskController extends Controller
             ->where('board_id', $board->id)
             ->findOrFail($request->validated('board_column_id'));
 
-        $this->guardAssigneeIsActive($request->validated('primary_assignee_id'));
-
-        $task = DB::transaction(function () use ($request, $board, $column) {
-            $task = Task::create([
-                ...$request->validated(),
-                'board_id' => $board->id,
-                'department_id' => $board->department_id,
-                'created_by' => $request->user()->id,
-                'position' => (int) $column->tasks()->max('position') + 1,
-            ]);
-
-            $task->forceFill(['task_number' => $task->id])->save();
-
-            AuditLogger::log($task, 'created', [], ['title' => $task->title]);
-
-            return $task;
-        });
-
-        TaskAssigneeSync::syncPrimary($task, null);
-        $this->notifyAssignee($task, null, $request->user());
+        TaskService::create($request->user(), $board, $column, $request->validated());
 
         return back();
     }
@@ -140,7 +118,7 @@ class TaskController extends Controller
         Gate::authorize('update', $task);
 
         if ($request->has('primary_assignee_id')) {
-            $this->guardAssigneeIsActive($request->validated('primary_assignee_id'));
+            TaskService::guardAssigneeIsActive($request->validated('primary_assignee_id'));
         }
 
         $validated = $request->safe()->except(['label_ids', 'ceo_priority', 'confidentiality', 'auto_reset_frequency', 'auto_reset_column_id']);
@@ -193,7 +171,7 @@ class TaskController extends Controller
         }
 
         TaskAssigneeSync::syncPrimary($task, $previousAssignee);
-        $this->notifyAssignee($task, $previousAssignee, $request->user());
+        TaskService::notifyAssignee($task, $previousAssignee, $request->user());
 
         return back();
     }
@@ -349,43 +327,5 @@ class TaskController extends Controller
             'canManageConfidentiality' => $request->user()->can('manageConfidentiality', $task),
             'activity' => $task->auditLogs()->with('actor:id,name')->limit(50)->get(),
         ]);
-    }
-
-    private function notifyAssignee(Task $task, ?int $previousAssigneeId, User $actor): void
-    {
-        if ($task->primary_assignee_id === null
-            || $task->primary_assignee_id === $previousAssigneeId
-            || $task->primary_assignee_id === $actor->id) {
-            return;
-        }
-
-        if ($task->assignee?->wantsNotification('task_assigned')) {
-            $task->assignee->notify(new TaskAssigned($task, $actor));
-            Mail::to($task->assignee)->queue(new TaskAssignedMail($task, $actor));
-            app(PushNotifier::class)->notify($task->assignee, 'task_assigned', [
-                'title' => "New task: {$task->title}",
-                'url' => url("/boards/{$task->board_id}?task={$task->id}"),
-            ]);
-        }
-    }
-
-    /**
-     * Deliberately not gated on board access, same as TaskAssigneeController
-     * — becoming the primary assignee is itself how someone outside the
-     * board's department gets access to this task (TaskPolicy::view()).
-     */
-    private function guardAssigneeIsActive(?int $assigneeId): void
-    {
-        if ($assigneeId === null) {
-            return;
-        }
-
-        $assignee = User::query()->findOrFail($assigneeId);
-
-        if (! $assignee->isActive()) {
-            throw ValidationException::withMessages([
-                'primary_assignee_id' => 'The assignee must be active.',
-            ]);
-        }
     }
 }

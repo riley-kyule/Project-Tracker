@@ -12,10 +12,11 @@ use stdClass;
 /**
  * A single JSON-RPC 2.0 endpoint implementing the Model Context Protocol's
  * "tools" surface (initialize / tools/list / tools/call) — what Claude or
- * ChatGPT talks to once the CEO adds this as a connector. Stateless by
+ * ChatGPT talks to once someone adds this as a connector. Stateless by
  * design: no Mcp-Session-Id bookkeeping, which the spec makes optional for
- * a server with no per-session state to track — every call here is a
- * self-contained, read-only query.
+ * a server with no per-request state to track — every call here is
+ * self-contained (most are read-only queries; a couple, per
+ * McpToolRegistry, create a task or ticket).
  */
 class McpServerController extends Controller
 {

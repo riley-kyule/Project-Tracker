@@ -240,7 +240,8 @@ export default function McpIndex({
                     <h1 className="text-xl font-semibold">MCP Connector</h1>
                     <p className="text-muted-foreground text-sm">
                         Connect Claude or ChatGPT to EWMS so it can pull company numbers and summarize them for you — headcount, task and ticket
-                        status, leave, payroll totals, and traffic. Read-only, and never a per-employee salary figure.
+                        status, leave, payroll totals, and traffic — and create tasks or service desk tickets on your behalf. Never a per-employee
+                        salary figure.
                     </p>
                 </div>
 

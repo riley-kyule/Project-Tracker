@@ -38,6 +38,7 @@ export default function McpOAuthAuthorize({ params, clientName }: { params: Para
                         <ul className="text-muted-foreground mt-1 list-inside list-disc space-y-0.5">
                             <li>Read aggregate company numbers — headcount, task and ticket status, leave, payroll totals, traffic</li>
                             <li>Summarize and answer questions about that data</li>
+                            <li>Create tasks on boards (optionally assigned to someone) and create service desk tickets, on your behalf</li>
                         </ul>
                         <p className="text-muted-foreground mt-2">It will never see an individual employee's salary or payslip.</p>
                     </div>

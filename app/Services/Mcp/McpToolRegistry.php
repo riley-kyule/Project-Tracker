@@ -2,6 +2,8 @@
 
 namespace App\Services\Mcp;
 
+use App\Models\Board;
+use App\Models\BoardColumn;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -9,25 +11,33 @@ use App\Models\PayrollPeriod;
 use App\Models\Payslip;
 use App\Models\Task;
 use App\Models\Ticket;
+use App\Models\TicketCategory;
 use App\Models\User;
 use App\Services\Analytics\GscReportQuery;
 use App\Services\Analytics\TrafficDashboardQuery;
+use App\Services\TaskService;
+use App\Services\TicketService;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * The read-only, aggregates-only surface an MCP client (an AI the CEO has
- * connected) can query — see docs/MCP_CONNECTOR.md. Deliberately company-wide
- * sums and counts, never a per-employee row: no individual payslip, no salary
- * figure tied to a name, no raw personal leave/HR record. Everything here is
- * something the dashboards already show in aggregate; this just makes it
- * askable in plain language instead of read off a screen.
+ * The surface an MCP client (an AI someone with mcp.manage has connected)
+ * can query and act on — see docs/MCP_CONNECTOR.md. Most tools are
+ * aggregates-only and read-only: company-wide sums and counts, never a
+ * per-employee row — no individual payslip, no salary figure tied to a
+ * name, no raw personal leave/HR record. A handful of tools (create_task,
+ * create_ticket) do mutate state; each mirrors the exact validation,
+ * authorization, and side effects (notifications, audit log) of its web UI
+ * equivalent, via the same service class the controller itself calls
+ * (TaskService, TicketService) — never a separate, looser code path.
  *
- * Each tool is gated by the same permission its dashboard equivalent
- * requires — a token only ever sees what its owner could already see in
- * EWMS itself, including after a permission change made through
- * /admin/permissions.
+ * Each tool is gated by the same permission its dashboard/form equivalent
+ * requires — a token only ever sees or does what its owner could already
+ * see or do in EWMS itself, including after a permission change made
+ * through /admin/permissions.
  */
 class McpToolRegistry
 {
@@ -51,12 +61,15 @@ class McpToolRegistry
             throw new McpToolException("Unknown tool: {$name}");
         }
 
-        if (! $user->can($tool['permission'])) {
+        // A null permission means the web equivalent is itself role-blind
+        // (e.g. TicketPolicy::create() — any logged-in user may submit a
+        // ticket) rather than gated by a specific Spatie permission.
+        if ($tool['permission'] !== null && ! $user->can($tool['permission'])) {
             throw new McpToolException("Not authorized — this token's owner lacks the '{$tool['permission']}' permission in EWMS.");
         }
 
         try {
-            return ($tool['handler'])($arguments);
+            return ($tool['handler'])($user, $arguments);
         } catch (McpToolException $e) {
             throw $e;
         } catch (Throwable $e) {
@@ -65,7 +78,7 @@ class McpToolRegistry
         }
     }
 
-    /** @return array<int, array{name: string, description: string, permission: string, inputSchema: array, handler: callable}> */
+    /** @return array<int, array{name: string, description: string, permission: ?string, inputSchema: array, handler: callable}> */
     private function tools(): array
     {
         return [
@@ -74,28 +87,28 @@ class McpToolRegistry
                 'description' => 'Company-wide snapshot: open/overdue/blocked tasks, open tickets, open leave requests, active headcount.',
                 'permission' => 'reports.view',
                 'inputSchema' => ['type' => 'object', 'properties' => new \stdClass],
-                'handler' => fn () => $this->companyOverview(),
+                'handler' => fn (User $user, array $args) => $this->companyOverview(),
             ],
             [
                 'name' => 'department_performance',
                 'description' => 'Open/overdue/completed-this-week task counts per department.',
                 'permission' => 'reports.view',
                 'inputSchema' => ['type' => 'object', 'properties' => new \stdClass],
-                'handler' => fn () => $this->departmentPerformance(),
+                'handler' => fn (User $user, array $args) => $this->departmentPerformance(),
             ],
             [
                 'name' => 'hr_headcount',
                 'description' => 'Active employee headcount, broken down by department and by employment type.',
                 'permission' => 'hr.employees.view',
                 'inputSchema' => ['type' => 'object', 'properties' => new \stdClass],
-                'handler' => fn () => $this->hrHeadcount(),
+                'handler' => fn (User $user, array $args) => $this->hrHeadcount(),
             ],
             [
                 'name' => 'leave_summary',
                 'description' => 'Open (pending) and upcoming (next 30 days) leave request counts, and days taken this year by leave type.',
                 'permission' => 'hr.leave.view',
                 'inputSchema' => ['type' => 'object', 'properties' => new \stdClass],
-                'handler' => fn () => $this->leaveSummary(),
+                'handler' => fn (User $user, array $args) => $this->leaveSummary(),
             ],
             [
                 'name' => 'payroll_summary',
@@ -105,7 +118,7 @@ class McpToolRegistry
                     'type' => 'object',
                     'properties' => ['period_label' => ['type' => 'string', 'description' => "A payroll period's label, e.g. \"2026-08\". Omit for the latest paid period."]],
                 ],
-                'handler' => fn (array $args) => $this->payrollSummary($args['period_label'] ?? null),
+                'handler' => fn (User $user, array $args) => $this->payrollSummary($args['period_label'] ?? null),
             ],
             [
                 'name' => 'payroll_trend',
@@ -115,14 +128,14 @@ class McpToolRegistry
                     'type' => 'object',
                     'properties' => ['periods' => ['type' => 'integer', 'description' => 'How many of the most recent processed periods to include. Defaults to 6.']],
                 ],
-                'handler' => fn (array $args) => $this->payrollTrend((int) ($args['periods'] ?? 6)),
+                'handler' => fn (User $user, array $args) => $this->payrollTrend((int) ($args['periods'] ?? 6)),
             ],
             [
                 'name' => 'ticket_summary',
                 'description' => 'Service desk snapshot: new, unassigned, critical, overdue, waiting, and resolved-today ticket counts.',
                 'permission' => 'tickets.manage',
                 'inputSchema' => ['type' => 'object', 'properties' => new \stdClass],
-                'handler' => fn () => $this->ticketSummary(),
+                'handler' => fn (User $user, array $args) => $this->ticketSummary(),
             ],
             [
                 'name' => 'traffic_summary',
@@ -135,7 +148,44 @@ class McpToolRegistry
                         'to' => ['type' => 'string', 'description' => 'End date, YYYY-MM-DD. Defaults to today.'],
                     ],
                 ],
-                'handler' => fn (array $args) => $this->trafficSummary($args['from'] ?? null, $args['to'] ?? null),
+                'handler' => fn (User $user, array $args) => $this->trafficSummary($args['from'] ?? null, $args['to'] ?? null),
+            ],
+            [
+                'name' => 'create_task',
+                'description' => "Create a task on a board and optionally assign it to someone. board and column must match an existing board's name and one of its columns' names (case-insensitive) — a wrong or ambiguous name errors with the valid options for that board, or a list of board names if the board itself didn't match.",
+                'permission' => 'tasks.create',
+                'inputSchema' => [
+                    'type' => 'object',
+                    'required' => ['board', 'column', 'title'],
+                    'properties' => [
+                        'board' => ['type' => 'string', 'description' => "The board's name."],
+                        'column' => ['type' => 'string', 'description' => "The column's name on that board, e.g. \"To Do\"."],
+                        'title' => ['type' => 'string', 'description' => 'Task title.'],
+                        'description' => ['type' => 'string', 'description' => 'Optional task description.'],
+                        'priority' => ['type' => 'string', 'description' => 'critical, high, medium, or low. Defaults to medium.'],
+                        'assignee' => ['type' => 'string', 'description' => "Optional — the assignee's name or email. Must be an active EWMS user; they're notified the same way an in-app assignment notifies them."],
+                        'due_at' => ['type' => 'string', 'description' => 'Optional due date, YYYY-MM-DD.'],
+                    ],
+                ],
+                'handler' => fn (User $user, array $args) => $this->createTask($user, $args),
+            ],
+            [
+                'name' => 'create_ticket',
+                'description' => "Create a service desk ticket for IT, R&D, or both. Anyone with a connected token can create one — same as EWMS's own ticket form, which is deliberately open to every role.",
+                'permission' => null,
+                'inputSchema' => [
+                    'type' => 'object',
+                    'required' => ['title', 'description', 'category'],
+                    'properties' => [
+                        'title' => ['type' => 'string', 'description' => 'Ticket title.'],
+                        'description' => ['type' => 'string', 'description' => 'What the issue or request is.'],
+                        'category' => ['type' => 'string', 'description' => "The ticket category's name, e.g. \"Hardware\" or \"Access Request\". Must match an existing active category — a wrong name errors with the valid ones."],
+                        'impact' => ['type' => 'string', 'description' => 'low, medium, or high. Defaults to medium.'],
+                        'team' => ['type' => 'string', 'description' => 'it, rnd, or both — which service desk queue handles it. Defaults to it.'],
+                        'requester' => ['type' => 'string', 'description' => "Optional — file this ticket on someone else's behalf, by their name or email. Only honored if the token owner is IT, CEO, or Administrator; ignored otherwise (the ticket is filed under the token owner's own name instead)."],
+                    ],
+                ],
+                'handler' => fn (User $user, array $args) => $this->createTicket($user, $args),
             ],
         ];
     }
@@ -359,5 +409,219 @@ class McpToolRegistry
             'gsc_clicks' => (int) array_sum(array_column($gscRows, 'clicks')),
             'gsc_impressions' => (int) array_sum(array_column($gscRows, 'impressions')),
         ];
+    }
+
+    private function createTask(User $user, array $args): array
+    {
+        $title = trim((string) ($args['title'] ?? ''));
+        if ($title === '') {
+            throw new McpToolException('A title is required.');
+        }
+        if (strlen($title) > 255) {
+            throw new McpToolException('Title must be 255 characters or fewer.');
+        }
+
+        $board = $this->resolveBoardForUser($user, (string) ($args['board'] ?? ''));
+
+        if (! Gate::forUser($user)->allows('create', [Task::class, $board])) {
+            throw new McpToolException("Not authorized to create tasks on \"{$board->name}\".");
+        }
+
+        $column = $this->resolveColumn($board, (string) ($args['column'] ?? ''));
+
+        $priority = strtolower(trim((string) ($args['priority'] ?? 'medium')));
+        if (! in_array($priority, Task::PRIORITIES, true)) {
+            throw new McpToolException('priority must be one of: '.implode(', ', Task::PRIORITIES).'.');
+        }
+
+        $dueAt = null;
+        if (! empty($args['due_at'])) {
+            try {
+                $dueAt = Carbon::parse($args['due_at']);
+            } catch (Throwable) {
+                throw new McpToolException("Couldn't understand due_at \"{$args['due_at']}\" as a date.");
+            }
+        }
+
+        $assignee = null;
+        if (! empty($args['assignee'])) {
+            $assignee = $this->resolveActiveUser((string) $args['assignee']);
+        }
+
+        $data = [
+            'title' => $title,
+            'description' => ! empty($args['description']) ? (string) $args['description'] : null,
+            'priority' => $priority,
+            'due_at' => $dueAt,
+            'primary_assignee_id' => $assignee?->id,
+        ];
+
+        $task = TaskService::create($user, $board, $column, $data);
+
+        return [
+            'task_id' => $task->id,
+            'task_number' => $task->task_number,
+            'title' => $task->title,
+            'board' => $board->name,
+            'column' => $column->name,
+            'priority' => $task->priority,
+            'assignee' => $assignee?->name,
+            'due_at' => $dueAt?->toDateString(),
+            'url' => url("/boards/{$board->id}?task={$task->id}"),
+        ];
+    }
+
+    private function createTicket(User $user, array $args): array
+    {
+        $title = trim((string) ($args['title'] ?? ''));
+        $description = trim((string) ($args['description'] ?? ''));
+        if ($title === '' || $description === '') {
+            throw new McpToolException('Both title and description are required.');
+        }
+        if (strlen($title) > 255) {
+            throw new McpToolException('Title must be 255 characters or fewer.');
+        }
+        if (strlen($description) > 20000) {
+            throw new McpToolException('Description must be 20000 characters or fewer.');
+        }
+
+        $category = $this->resolveTicketCategory((string) ($args['category'] ?? ''));
+
+        $impact = strtolower(trim((string) ($args['impact'] ?? 'medium')));
+        if (! in_array($impact, ['low', 'medium', 'high'], true)) {
+            throw new McpToolException('impact must be one of: low, medium, high.');
+        }
+
+        $team = strtolower(trim((string) ($args['team'] ?? Ticket::TEAM_IT)));
+        if (! in_array($team, Ticket::TEAMS, true)) {
+            throw new McpToolException('team must be one of: '.implode(', ', Ticket::TEAMS).'.');
+        }
+
+        $requester = null;
+        if (! empty($args['requester']) && Gate::forUser($user)->allows('createForOthers', Ticket::class)) {
+            $requester = $this->resolveActiveUser((string) $args['requester']);
+        }
+
+        $ticket = TicketService::submit($user, [
+            'title' => $title,
+            'description' => $description,
+            'category_id' => $category->id,
+            'impact' => $impact,
+            'team' => $team,
+            'priority' => $category->default_priority ?? 'medium',
+        ], $requester);
+
+        return [
+            'ticket_id' => $ticket->id,
+            'ticket_number' => $ticket->ticket_number,
+            'title' => $ticket->title,
+            'category' => $category->name,
+            'team' => $ticket->team,
+            'priority' => $ticket->priority,
+            'requester' => $ticket->requester_id === $user->id ? $user->name : $requester?->name,
+            'url' => url("/tickets/{$ticket->id}"),
+        ];
+    }
+
+    /** Only boards the caller can actually view — a name match against a board they can't see fails the same way a nonexistent board would, so nothing about a restricted board's existence leaks. */
+    private function resolveBoardForUser(User $user, string $needle): Board
+    {
+        $needle = trim($needle);
+        if ($needle === '') {
+            throw new McpToolException('A board name is required.');
+        }
+
+        $visible = Board::query()->where('is_active', true)->get()
+            ->filter(fn (Board $board) => Gate::forUser($user)->allows('view', $board));
+
+        $exact = $visible->first(fn (Board $board) => Str::lower($board->name) === Str::lower($needle));
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        $fuzzy = $visible->filter(fn (Board $board) => Str::contains(Str::lower($board->name), Str::lower($needle)));
+        if ($fuzzy->count() === 1) {
+            return $fuzzy->first();
+        }
+
+        $names = ($fuzzy->isNotEmpty() ? $fuzzy : $visible)->pluck('name')->sort()->values();
+        if ($names->isEmpty()) {
+            throw new McpToolException("No board named \"{$needle}\" — you don't appear to have access to any boards.");
+        }
+        throw new McpToolException("No board named \"{$needle}\". Boards you can see: ".$names->implode(', ').'.');
+    }
+
+    private function resolveColumn(Board $board, string $needle): BoardColumn
+    {
+        $needle = trim($needle);
+        $columns = $board->columns()->orderBy('position')->get();
+
+        if ($needle === '') {
+            throw new McpToolException("A column name is required. Columns on \"{$board->name}\": ".$columns->pluck('name')->implode(', ').'.');
+        }
+
+        $exact = $columns->first(fn (BoardColumn $column) => Str::lower($column->name) === Str::lower($needle));
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        $fuzzy = $columns->filter(fn (BoardColumn $column) => Str::contains(Str::lower($column->name), Str::lower($needle)));
+        if ($fuzzy->count() === 1) {
+            return $fuzzy->first();
+        }
+
+        throw new McpToolException("No column named \"{$needle}\" on \"{$board->name}\". Columns there: ".$columns->pluck('name')->implode(', ').'.');
+    }
+
+    private function resolveTicketCategory(string $needle): TicketCategory
+    {
+        $needle = trim($needle);
+        $active = TicketCategory::query()->where('is_active', true)->get();
+
+        if ($needle === '') {
+            throw new McpToolException('A category is required. Active categories: '.$active->pluck('name')->implode(', ').'.');
+        }
+
+        $exact = $active->first(fn (TicketCategory $category) => Str::lower($category->name) === Str::lower($needle));
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        $fuzzy = $active->filter(fn (TicketCategory $category) => Str::contains(Str::lower($category->name), Str::lower($needle)));
+        if ($fuzzy->count() === 1) {
+            return $fuzzy->first();
+        }
+
+        throw new McpToolException("No active category named \"{$needle}\". Active categories: ".$active->pluck('name')->implode(', ').'.');
+    }
+
+    /** Exact email/name match first, then a fuzzy name fallback — errors list the ambiguous candidates rather than silently guessing. */
+    private function resolveActiveUser(string $needle): User
+    {
+        $needle = trim($needle);
+        if ($needle === '') {
+            throw new McpToolException('A user name or email is required.');
+        }
+
+        $exact = User::query()->where('status', User::STATUS_ACTIVE)
+            ->where(fn ($q) => $q->whereRaw('LOWER(email) = ?', [Str::lower($needle)])->orWhereRaw('LOWER(name) = ?', [Str::lower($needle)]))
+            ->get();
+
+        if ($exact->count() === 1) {
+            return $exact->first();
+        }
+        if ($exact->count() > 1) {
+            throw new McpToolException("Multiple active users match \"{$needle}\": ".$exact->pluck('name')->implode(', ').'. Use their email instead.');
+        }
+
+        $fuzzy = User::query()->where('status', User::STATUS_ACTIVE)->where('name', 'like', '%'.$needle.'%')->limit(6)->get();
+
+        if ($fuzzy->count() === 1) {
+            return $fuzzy->first();
+        }
+        if ($fuzzy->isEmpty()) {
+            throw new McpToolException("No active user found matching \"{$needle}\".");
+        }
+        throw new McpToolException("Multiple active users match \"{$needle}\": ".$fuzzy->pluck('name')->implode(', ').'. Be more specific or use their email.');
     }
 }

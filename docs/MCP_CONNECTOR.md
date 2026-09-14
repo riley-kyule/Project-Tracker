@@ -1,20 +1,34 @@
 # MCP connector
 
-EWMS exposes a read-only [Model Context Protocol](https://modelcontextprotocol.io)
+EWMS exposes a [Model Context Protocol](https://modelcontextprotocol.io)
 server so the CEO (or anyone else later granted `mcp.manage` through
 /admin/permissions) can connect an AI — Claude, ChatGPT, or any other MCP
-client — and ask it to pull company numbers and summarize them.
+client — to pull company numbers and summarize them, and to create tasks
+and service desk tickets on their behalf.
 
 ## What it can see
 
-Every tool is aggregates and counts only — never a per-employee row. There is
-no tool that returns an individual's salary, a single payslip, or a named
-person's personal leave record. See `App\Services\Mcp\McpToolRegistry` for the
-exact list; broadly: task/ticket counts, department performance, HR
+Every read tool is aggregates and counts only — never a per-employee row.
+There is no tool that returns an individual's salary, a single payslip, or a
+named person's personal leave record. See `App\Services\Mcp\McpToolRegistry`
+for the exact list; broadly: task/ticket counts, department performance, HR
 headcount, leave request counts, company-wide payroll totals for one period
 (full statutory deduction breakdown, plus a per-department split — still no
 individual figure) and month-over-month payroll trend, and GA4/Search
 Console traffic totals.
+
+## What it can do
+
+Two tools mutate state — `create_task` (create a task on a board, optionally
+assigned to someone) and `create_ticket` (raise a service desk ticket for
+IT, R&D, or both). Both call the exact same service class the web UI's own
+controllers call (`TaskService::create()`, `TicketService::submit()`), so
+validation, authorization, notifications, and the audit log entry are
+identical to creating the same thing by hand — there's no separate, looser
+code path for the AI. `create_task` is gated on the `tasks.create`
+permission plus the same per-board visibility check the web form uses;
+`create_ticket` is open to any token holder, matching the web form's
+deliberately role-blind policy (anyone can raise a ticket).
 
 A token is scoped to its owner's own EWMS permissions, re-checked on every
 call — if a permission is later revoked through /admin/permissions, every
