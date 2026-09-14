@@ -89,6 +89,7 @@ class PermissionController extends Controller
             'Department Manager' => "Runs their own department's boards, tasks, and projects, and approves their team's leave.",
             'IT Technician' => 'Works the IT service desk queue.',
             'Research & Development' => 'Works the Research & Development service desk queue.',
+            'R&D Manager' => "Runs the Research & Development department: boards, tasks, and projects, and approves their team's leave — plus works the R&D service desk queue.",
             'Marketing' => 'Creates tasks and views marketing/website statistics.',
             'Customer Service' => 'Creates and works on day-to-day tasks.',
             'Employee' => 'Standard access — sees their own department and can create tasks.',

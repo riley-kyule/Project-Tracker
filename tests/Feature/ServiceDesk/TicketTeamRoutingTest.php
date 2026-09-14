@@ -170,4 +170,18 @@ class TicketTeamRoutingTest extends TestCase
         Notification::assertSentTo($rndManager, TicketSubmitted::class);
         Notification::assertNotSentTo($itManager, TicketSubmitted::class);
     }
+
+    /** R&D Manager = Department Manager (boards/tasks/projects/leave-approval) + the ticket-queue access the plain Research & Development role grants — same pattern as HR Manager. */
+    public function test_rd_manager_can_both_run_the_department_and_work_the_ticket_queue()
+    {
+        $rndDept = Department::query()->where('slug', 'research-development')->firstOrFail();
+        $head = User::factory()->create(['department_id' => $rndDept->id])->assignRole('R&D Manager');
+
+        $this->assertTrue($head->can('hr.leave.approve'));
+        $this->assertTrue($head->can('boards.manage'));
+        $this->assertTrue($head->can('tickets.manage'));
+
+        $ticket = Ticket::factory()->create(['team' => 'rnd', 'category_id' => $this->category()->id]);
+        $this->actingAs($head)->get("/tickets/{$ticket->id}")->assertOk();
+    }
 }

@@ -114,6 +114,12 @@ class RoleSeeder extends Seeder
             // membership, not this role, but anyone actually doing the work
             // needs tickets.manage to act on what lands in that queue.
             'Research & Development' => ['departments.view', 'tasks.create', 'tickets.manage'],
+            // Same reasoning as HR Manager: the head of R&D is a department
+            // head first (Department Manager capabilities — boards, leave
+            // approval, reports) and also needs to see/work their own team's
+            // ticket queue, which the plain Research & Development role alone
+            // doesn't grant.
+            'R&D Manager' => array_values(array_unique([...$departmentManager, 'tickets.manage'])),
             'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics'],
             'Customer Service' => ['departments.view', 'tasks.create'],
             'Employee' => ['departments.view', 'tasks.create'],
