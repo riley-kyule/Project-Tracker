@@ -11,8 +11,10 @@ Every tool is aggregates and counts only — never a per-employee row. There is
 no tool that returns an individual's salary, a single payslip, or a named
 person's personal leave record. See `App\Services\Mcp\McpToolRegistry` for the
 exact list; broadly: task/ticket counts, department performance, HR
-headcount, leave request counts, company-wide payroll totals for one period,
-and GA4/Search Console traffic totals.
+headcount, leave request counts, company-wide payroll totals for one period
+(full statutory deduction breakdown, plus a per-department split — still no
+individual figure) and month-over-month payroll trend, and GA4/Search
+Console traffic totals.
 
 A token is scoped to its owner's own EWMS permissions, re-checked on every
 call — if a permission is later revoked through /admin/permissions, every

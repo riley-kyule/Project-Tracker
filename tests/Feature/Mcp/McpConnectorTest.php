@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Mcp;
 
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\McpOAuthClient;
 use App\Models\McpToken;
@@ -191,5 +192,84 @@ class McpConnectorTest extends TestCase
         // 160000.0) — assertEquals rather than assertSame so that's not a failure.
         $this->assertEquals(160000, $payload['total_gross_pay']);
         $this->assertArrayNotHasKey('employees', $payload);
+    }
+
+    public function test_payroll_summary_includes_a_full_deduction_and_per_department_breakdown_but_still_no_per_employee_row(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        [, $plaintext] = McpToken::issue($ceo, 'Claude');
+
+        // Distinct from DepartmentSeeder's own names (e.g. "Sales") — the base
+        // TestCase seeds those, so a literal collision would fail on the
+        // departments.name unique constraint.
+        $engineering = Department::factory()->create(['name' => 'MCP Test Engineering']);
+        $sales = Department::factory()->create(['name' => 'MCP Test Sales']);
+        $period = PayrollPeriod::create([
+            'year' => 2026, 'month' => 8, 'label' => '2026-08',
+            'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'pay_date' => '2026-08-28',
+            'status' => PayrollPeriod::STATUS_PAID,
+        ]);
+        Payslip::create([
+            'payroll_period_id' => $period->id,
+            'employee_id' => Employee::factory()->create(['department_id' => $engineering->id])->id,
+            'gross_pay' => 100000, 'paye_before_relief' => 25000, 'personal_relief' => 2400, 'insurance_relief' => 0,
+            'paye' => 22600, 'nssf_employee' => 2160, 'nssf_employer' => 2160, 'shif_employee' => 2750,
+            'housing_levy_employee' => 1500, 'housing_levy_employer' => 1500, 'nita_employer' => 50,
+            'net_pay' => 71490, 'employer_cost' => 103710,
+        ]);
+        Payslip::create([
+            'payroll_period_id' => $period->id,
+            'employee_id' => Employee::factory()->create(['department_id' => $sales->id])->id,
+            'gross_pay' => 60000, 'paye_before_relief' => 13500, 'personal_relief' => 2400, 'insurance_relief' => 0,
+            'paye' => 11100, 'nssf_employee' => 2160, 'nssf_employer' => 2160, 'shif_employee' => 1650,
+            'housing_levy_employee' => 900, 'housing_levy_employer' => 900, 'nita_employer' => 50,
+            'net_pay' => 44190, 'employer_cost' => 62950,
+        ]);
+
+        $response = $this->withHeader('Authorization', "Bearer {$plaintext}")->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'id' => 6, 'method' => 'tools/call',
+            'params' => ['name' => 'payroll_summary', 'arguments' => []],
+        ]);
+
+        $payload = json_decode($response->json('result.content.0.text'), true);
+        $this->assertEquals(160000, $payload['total_gross_pay']);
+        $this->assertEquals(33700, $payload['paye_breakdown']['paye_after_relief']);
+        $this->assertEquals(4320, $payload['statutory_deductions']['nssf_employee']);
+        $this->assertEquals(166660, $payload['total_employer_cost']);
+        $this->assertArrayNotHasKey('employees', $payload);
+
+        $byDepartment = collect($payload['by_department'])->keyBy('department');
+        $this->assertEquals(100000, $byDepartment['MCP Test Engineering']['total_gross_pay']);
+        $this->assertEquals(60000, $byDepartment['MCP Test Sales']['total_gross_pay']);
+    }
+
+    public function test_payroll_trend_returns_recent_periods_oldest_first_company_wide_only(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        [, $plaintext] = McpToken::issue($ceo, 'Claude');
+
+        foreach ([['2026-06', 6, 50000], ['2026-07', 7, 55000], ['2026-08', 8, 60000]] as [$label, $month, $gross]) {
+            $period = PayrollPeriod::create([
+                'year' => 2026, 'month' => $month, 'label' => $label,
+                'start_date' => "2026-{$month}-01", 'end_date' => "2026-{$month}-28", 'pay_date' => "2026-{$month}-28",
+                'status' => PayrollPeriod::STATUS_PAID,
+            ]);
+            Payslip::create([
+                'payroll_period_id' => $period->id,
+                'employee_id' => Employee::factory()->create()->id,
+                'gross_pay' => $gross, 'paye' => $gross * 0.2, 'net_pay' => $gross * 0.75,
+            ]);
+        }
+
+        $response = $this->withHeader('Authorization', "Bearer {$plaintext}")->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'id' => 7, 'method' => 'tools/call',
+            'params' => ['name' => 'payroll_trend', 'arguments' => ['periods' => 2]],
+        ]);
+
+        $payload = json_decode($response->json('result.content.0.text'), true);
+        $this->assertCount(2, $payload);
+        $this->assertSame('2026-07', $payload[0]['period']);
+        $this->assertSame('2026-08', $payload[1]['period']);
+        $this->assertArrayNotHasKey('employees', $payload[0]);
     }
 }

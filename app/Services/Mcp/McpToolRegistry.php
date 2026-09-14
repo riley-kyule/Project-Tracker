@@ -6,11 +6,13 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\PayrollPeriod;
+use App\Models\Payslip;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Analytics\GscReportQuery;
 use App\Services\Analytics\TrafficDashboardQuery;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Throwable;
 
@@ -29,6 +31,8 @@ use Throwable;
  */
 class McpToolRegistry
 {
+    private const PROCESSED_PAYROLL_STATUSES = [PayrollPeriod::STATUS_PAID, PayrollPeriod::STATUS_APPROVED, PayrollPeriod::STATUS_CLOSED];
+
     /** @return array<int, array{name: string, description: string, inputSchema: array}> */
     public function definitions(): array
     {
@@ -95,13 +99,23 @@ class McpToolRegistry
             ],
             [
                 'name' => 'payroll_summary',
-                'description' => 'Company-wide payroll totals (gross, statutory deductions, net) for one period — the most recently paid period if none is given. Never a per-employee figure.',
+                'description' => 'Company-wide payroll totals for one period — the most recently paid period if none is given: gross/net/full statutory deduction breakdown (PAYE incl. relief, NSSF, SHIF, housing levy, NITA, employer cost), plus the same broken down per department. Never a per-employee figure.',
                 'permission' => 'hr.payroll.view',
                 'inputSchema' => [
                     'type' => 'object',
                     'properties' => ['period_label' => ['type' => 'string', 'description' => "A payroll period's label, e.g. \"2026-08\". Omit for the latest paid period."]],
                 ],
                 'handler' => fn (array $args) => $this->payrollSummary($args['period_label'] ?? null),
+            ],
+            [
+                'name' => 'payroll_trend',
+                'description' => 'Company-wide payroll totals (employee count, gross, PAYE, net) for each of the most recent processed periods, oldest first — for spotting month-over-month trends. Never a per-employee figure.',
+                'permission' => 'hr.payroll.view',
+                'inputSchema' => [
+                    'type' => 'object',
+                    'properties' => ['periods' => ['type' => 'integer', 'description' => 'How many of the most recent processed periods to include. Defaults to 6.']],
+                ],
+                'handler' => fn (array $args) => $this->payrollTrend((int) ($args['periods'] ?? 6)),
             ],
             [
                 'name' => 'ticket_summary',
@@ -197,32 +211,113 @@ class McpToolRegistry
         ];
     }
 
+    /**
+     * @param  HasMany<Payslip, PayrollPeriod>  $payslips
+     * @return array{count: int, gross: float, paye_before_relief: float, personal_relief: float, insurance_relief: float, paye: float, nssf_employee: float, nssf_employer: float, shif_employee: float, housing_levy_employee: float, housing_levy_employer: float, nita_employer: float, net: float, employer_cost: float}
+     */
+    private function payslipTotals(HasMany $payslips): array
+    {
+        $totals = $payslips->selectRaw(
+            'count(*) as employee_count, sum(gross_pay) as gross_pay, sum(paye_before_relief) as paye_before_relief, '.
+            'sum(personal_relief) as personal_relief, sum(insurance_relief) as insurance_relief, sum(paye) as paye, '.
+            'sum(nssf_employee) as nssf_employee, sum(nssf_employer) as nssf_employer, sum(shif_employee) as shif_employee, '.
+            'sum(housing_levy_employee) as housing_levy_employee, sum(housing_levy_employer) as housing_levy_employer, '.
+            'sum(nita_employer) as nita_employer, sum(net_pay) as net_pay, sum(employer_cost) as employer_cost'
+        )->first();
+
+        return [
+            'count' => (int) $totals->employee_count,
+            'gross' => (float) $totals->gross_pay,
+            'paye_before_relief' => (float) $totals->paye_before_relief,
+            'personal_relief' => (float) $totals->personal_relief,
+            'insurance_relief' => (float) $totals->insurance_relief,
+            'paye' => (float) $totals->paye,
+            'nssf_employee' => (float) $totals->nssf_employee,
+            'nssf_employer' => (float) $totals->nssf_employer,
+            'shif_employee' => (float) $totals->shif_employee,
+            'housing_levy_employee' => (float) $totals->housing_levy_employee,
+            'housing_levy_employer' => (float) $totals->housing_levy_employer,
+            'nita_employer' => (float) $totals->nita_employer,
+            'net' => (float) $totals->net_pay,
+            'employer_cost' => (float) $totals->employer_cost,
+        ];
+    }
+
     private function payrollSummary(?string $periodLabel): array
     {
         $period = $periodLabel !== null
             ? PayrollPeriod::query()->where('label', $periodLabel)->first()
-            : PayrollPeriod::query()->whereIn('status', [PayrollPeriod::STATUS_PAID, PayrollPeriod::STATUS_APPROVED, PayrollPeriod::STATUS_CLOSED])
-                ->orderByDesc('end_date')->first();
+            : PayrollPeriod::query()->whereIn('status', self::PROCESSED_PAYROLL_STATUSES)->orderByDesc('end_date')->first();
 
         if ($period === null) {
             throw new McpToolException($periodLabel !== null ? "No payroll period labeled \"{$periodLabel}\"." : 'No processed payroll period exists yet.');
         }
 
-        $totals = $period->payslips()
-            ->selectRaw('count(*) as employee_count, sum(gross_pay) as gross_pay, sum(paye) as paye, sum(nssf_employee) as nssf_employee, sum(shif_employee) as shif_employee, sum(housing_levy_employee) as housing_levy_employee, sum(net_pay) as net_pay')
-            ->first();
+        $companyWide = $this->payslipTotals($period->payslips());
+
+        $byDepartment = $period->payslips()
+            ->join('employees', 'employees.id', '=', 'payslips.employee_id')
+            ->join('departments', 'departments.id', '=', 'employees.department_id')
+            ->groupBy('departments.name')
+            ->select('departments.name')
+            ->selectRaw('count(*) as employee_count, sum(gross_pay) as gross_pay, sum(paye) as paye, sum(net_pay) as net_pay')
+            ->orderByDesc('gross_pay')
+            ->get()
+            ->map(fn ($row) => [
+                'department' => $row->name,
+                'employee_count' => (int) $row->employee_count,
+                'total_gross_pay' => (float) $row->gross_pay,
+                'total_paye' => (float) $row->paye,
+                'total_net_pay' => (float) $row->net_pay,
+            ])->all();
 
         return [
             'period' => $period->label,
             'status' => $period->status,
-            'employee_count' => (int) $totals->employee_count,
-            'total_gross_pay' => (float) $totals->gross_pay,
-            'total_paye' => (float) $totals->paye,
-            'total_nssf_employee' => (float) $totals->nssf_employee,
-            'total_shif_employee' => (float) $totals->shif_employee,
-            'total_housing_levy_employee' => (float) $totals->housing_levy_employee,
-            'total_net_pay' => (float) $totals->net_pay,
+            'employee_count' => $companyWide['count'],
+            'total_gross_pay' => $companyWide['gross'],
+            'paye_breakdown' => [
+                'paye_before_relief' => $companyWide['paye_before_relief'],
+                'personal_relief' => $companyWide['personal_relief'],
+                'insurance_relief' => $companyWide['insurance_relief'],
+                'paye_after_relief' => $companyWide['paye'],
+            ],
+            'statutory_deductions' => [
+                'nssf_employee' => $companyWide['nssf_employee'],
+                'nssf_employer' => $companyWide['nssf_employer'],
+                'shif_employee' => $companyWide['shif_employee'],
+                'housing_levy_employee' => $companyWide['housing_levy_employee'],
+                'housing_levy_employer' => $companyWide['housing_levy_employer'],
+                'nita_employer' => $companyWide['nita_employer'],
+            ],
+            'total_net_pay' => $companyWide['net'],
+            'total_employer_cost' => $companyWide['employer_cost'],
+            'by_department' => $byDepartment,
         ];
+    }
+
+    private function payrollTrend(int $periods): array
+    {
+        $periods = max(1, min($periods, 24));
+
+        return PayrollPeriod::query()
+            ->whereIn('status', self::PROCESSED_PAYROLL_STATUSES)
+            ->orderByDesc('end_date')
+            ->limit($periods)
+            ->get()
+            ->reverse()
+            ->values()
+            ->map(function (PayrollPeriod $period) {
+                $totals = $this->payslipTotals($period->payslips());
+
+                return [
+                    'period' => $period->label,
+                    'employee_count' => $totals['count'],
+                    'total_gross_pay' => $totals['gross'],
+                    'total_paye' => $totals['paye'],
+                    'total_net_pay' => $totals['net'],
+                ];
+            })->all();
     }
 
     private function ticketSummary(): array
