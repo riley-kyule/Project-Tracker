@@ -102,6 +102,40 @@ class McpOAuthTest extends TestCase
             ->where('clientName', 'ChatGPT'));
     }
 
+    public function test_the_exact_params_handed_to_the_consent_screen_are_enough_to_approve(): void
+    {
+        // Regression test: the consent page's "Allow" button submits exactly
+        // the `params` prop the GET response gave it (useForm(params).post()),
+        // nothing hand-picked. A field present in the query string but missing
+        // from that prop (response_type was, once) passes every unit test that
+        // manually rebuilds the POST body but 400s for real — this drives the
+        // POST from the GET response's own props instead, so it can't happen again.
+        [$ceo, $client] = $this->registerClient();
+
+        // A plain (non-X-Inertia) visit — like the browser's actual first
+        // load of the link ChatGPT redirects to — renders the full page with
+        // props embedded in it, which assertInertia() can read back exactly
+        // as the frontend would receive them via the Inertia page object.
+        $params = null;
+        $this->actingAs($ceo)->get('/oauth/authorize?'.http_build_query([
+            'response_type' => 'code',
+            'client_id' => $client->client_id,
+            'redirect_uri' => self::REDIRECT_URI,
+            'state' => 'xyz',
+            'code_challenge' => 'abc',
+            'code_challenge_method' => 'S256',
+        ]))->assertInertia(function ($page) use (&$params) {
+            $page->component('mcp-oauth/authorize');
+            $params = $page->toArray()['props']['params'];
+        });
+        $this->assertNotNull($params);
+
+        $approve = $this->actingAs($ceo)->withHeader('X-Inertia', 'true')->post('/oauth/authorize', $params);
+
+        $approve->assertStatus(409);
+        $this->assertSame(1, McpOAuthCode::query()->count());
+    }
+
     public function test_two_different_people_can_each_register_their_own_connector_and_authorize_independently(): void
     {
         $alice = User::factory()->create()->assignRole('CEO');

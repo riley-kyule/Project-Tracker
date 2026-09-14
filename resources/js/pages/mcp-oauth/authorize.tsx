@@ -4,6 +4,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
 
 type Params = {
+    response_type: string;
     client_id: string;
     redirect_uri: string;
     state?: string;

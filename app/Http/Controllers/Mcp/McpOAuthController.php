@@ -40,7 +40,10 @@ class McpOAuthController extends Controller
         }
 
         return Inertia::render('mcp-oauth/authorize', [
-            'params' => $request->only(['client_id', 'redirect_uri', 'state', 'scope', 'code_challenge', 'code_challenge_method']),
+            // response_type must round-trip into the Allow button's POST body —
+            // approve() re-validates the full request (defense in depth against a
+            // forged/replayed consent submit), and that check includes response_type.
+            'params' => $request->only(['response_type', 'client_id', 'redirect_uri', 'state', 'scope', 'code_challenge', 'code_challenge_method']),
             'clientName' => $client->name,
         ]);
     }
