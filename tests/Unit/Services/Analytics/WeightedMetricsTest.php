@@ -91,4 +91,26 @@ class WeightedMetricsTest extends TestCase
         $this->assertSame(30, WeightedMetrics::sum([10, 20]));
         $this->assertSame(0, WeightedMetrics::sum([]));
     }
+
+    public function test_cpm_is_weighted_by_impressions_not_averaged_per_row()
+    {
+        // Naive AVG of ($10 CPM, $2 CPM) = $6. Weighted by impressions, the
+        // huge low-CPM row should pull the combined figure close to $2.
+        $rows = [
+            ['money_spent' => 1.0, 'impressions' => 100],      // $10 CPM, tiny volume
+            ['money_spent' => 200.0, 'impressions' => 100000], // $2 CPM, huge volume
+        ];
+
+        $cpm = WeightedMetrics::cpm($rows);
+
+        $expected = (201.0 / 100100) * 1000;
+        $this->assertEqualsWithDelta($expected, $cpm, 0.0001);
+        $this->assertLessThan(6, $cpm);
+    }
+
+    public function test_cpm_is_null_when_there_are_no_impressions()
+    {
+        $this->assertNull(WeightedMetrics::cpm([]));
+        $this->assertNull(WeightedMetrics::cpm([['money_spent' => 0, 'impressions' => 0]]));
+    }
 }

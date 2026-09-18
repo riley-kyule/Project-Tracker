@@ -153,6 +153,7 @@ export default function Ga4Report({
                         />
                     }
                 />
+                <KpiTile label="Key event rate" kpi={kpis?.key_event_rate ?? null} format={pct} />
             </div>
 
             <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">

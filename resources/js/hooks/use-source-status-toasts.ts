@@ -2,7 +2,7 @@ import { type SourceStatus } from '@/types/marketing-statistics';
 import { useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 
-const LABELS: Record<string, string> = { ga4: 'GA4', gsc: 'Google Search Console', ahrefs: 'Ahrefs' };
+const LABELS: Record<string, string> = { ga4: 'GA4', gsc: 'Google Search Console', ahrefs: 'Ahrefs', popcash: 'Popcash' };
 
 const STATUS_TEXT: Record<string, string> = {
     missing: 'has no data for this range',

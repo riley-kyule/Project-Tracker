@@ -6,7 +6,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 import { Head, Link, usePage } from '@inertiajs/react';
 
-const SOURCE_LABELS: Record<string, string> = { ga4: 'GA4', gsc: 'GSC', ahrefs: 'Ahrefs' };
+const SOURCE_LABELS: Record<string, string> = { ga4: 'GA4', gsc: 'GSC', ahrefs: 'Ahrefs', popcash: 'Popcash' };
 
 /**
  * Persistent counterpart to useSourceStatusToasts' one-shot toast — a toast
@@ -36,6 +36,7 @@ const TABS = [
     { key: 'overview', label: 'Overview', path: '/marketing-statistics' },
     { key: 'ga4', label: 'GA4', path: '/marketing-statistics/ga4' },
     { key: 'gsc', label: 'Google Search Console', path: '/marketing-statistics/gsc' },
+    { key: 'popcash', label: 'Popcash', path: '/marketing-statistics/popcash' },
     { key: 'ahrefs', label: 'Ahrefs', path: '/marketing-statistics/ahrefs' },
     { key: 'comparison', label: 'Website Comparison', path: '/marketing-statistics/comparison' },
     { key: 'freshness', label: 'Data Freshness', path: '/marketing-statistics/freshness' },
@@ -86,8 +87,10 @@ export function MarketingStatisticsShell({
 }) {
     const query = buildFilterQuery(selected);
     const activeTab = TABS.find((tab) => tab.key === active)!;
-    const ahrefsEnabled = (usePage().props as { ahrefs_enabled?: boolean }).ahrefs_enabled === true;
-    const tabs = ahrefsEnabled ? TABS : TABS.filter((tab) => tab.key !== 'ahrefs');
+    const pageProps = usePage().props as { ahrefs_enabled?: boolean; popcash_enabled?: boolean };
+    const ahrefsEnabled = pageProps.ahrefs_enabled === true;
+    const popcashEnabled = pageProps.popcash_enabled === true;
+    const tabs = TABS.filter((tab) => (tab.key !== 'ahrefs' || ahrefsEnabled) && (tab.key !== 'popcash' || popcashEnabled));
 
     useSourceStatusToasts(sources);
 

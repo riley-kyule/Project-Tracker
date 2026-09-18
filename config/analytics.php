@@ -11,6 +11,18 @@ return [
             'ANALYTICS_GA4_KEY_EVENTS',
             'WhatsApp,Telegram,CallNow,ViewProfile,Favorite,ShareProfile,SMS,TelNow,PWAInstall,Viber'
         ))))),
+
+        // Popcash has no local pipeline until real API credentials are
+        // confirmed (endpoint/auth/field names are unverified against
+        // Popcash's docs) — off by default so the module doesn't run
+        // doomed requests. See PopcashApiClient. Same reasoning as
+        // bigquery.ahrefs_enabled below, just for the local-sync path.
+        'popcash' => [
+            'enabled' => (bool) env('ANALYTICS_POPCASH_ENABLED', false),
+            'api_key' => env('ANALYTICS_POPCASH_API_KEY'),
+            'base_url' => env('ANALYTICS_POPCASH_BASE_URL', 'https://api.popcash.net'),
+            'request_timeout' => (int) env('ANALYTICS_POPCASH_TIMEOUT', 30),
+        ],
     ],
 
     /*

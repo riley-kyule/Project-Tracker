@@ -1,18 +1,20 @@
 <?php
 namespace App\Services\Analytics;
 use App\Models\Website;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
 class AnalyticsSyncService
 {
-    public function __construct(private Ga4DataApiClient $ga4,private SearchConsoleApiClient $gsc) {}
+    public function __construct(private Ga4DataApiClient $ga4,private SearchConsoleApiClient $gsc,private PopcashApiClient $popcash) {}
 
     public function sync(Website $website,string $date,string $source='all'): array
     {
         $result=[];
         if(in_array($source,['all','ga4'],true) && filled($website->ga4_property_id)) $result['ga4']=$this->tracked($website,'ga4',$date,fn()=>$this->syncGa4($website,$date));
         if(in_array($source,['all','gsc'],true) && filled($website->gsc_property)) $result['gsc']=$this->tracked($website,'gsc',$date,fn()=>$this->syncGsc($website,$date));
+        if(in_array($source,['all','popcash'],true) && filled($website->popcash_campaign_id)) $result['popcash']=$this->tracked($website,'popcash',$date,fn()=>$this->syncPopcash($website,$date));
         return $result;
     }
 
@@ -56,6 +58,14 @@ class AnalyticsSyncService
             $total+=$this->replace($table,$w,$date,$mapped);
         }
         return $total;
+    }
+
+    private function syncPopcash(Website $w,string $date): int
+    {
+        $day=Carbon::parse($date);
+        $rows=array_values(array_filter($this->popcash->dailyStats((string)$w->popcash_campaign_id,$day,$day),fn($r)=>$r['data_date']===$date));
+        $mapped=array_map(fn($r)=>['money_spent'=>$r['money_spent'],'cpm'=>$r['cpm'],'impressions'=>$r['impressions']],$rows);
+        return $this->replace('analytics_popcash_daily_spend',$w,$date,$mapped);
     }
 
     private function replace(string $table,Website $website,string $date,array $rows): int

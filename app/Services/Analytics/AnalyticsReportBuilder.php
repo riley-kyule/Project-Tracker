@@ -68,14 +68,17 @@ class AnalyticsReportBuilder
         return $this->withStale($key, function () use ($ga4, $domain, $dateFrom, $dateTo, $compareFrom, $compareTo) {
             $rows = $ga4->dailyRows($domain, $dateFrom, $dateTo);
             $keyEvents = $ga4->keyEventsTotal($domain, $dateFrom, $dateTo);
+            $sessions = WeightedMetrics::sum(array_column($rows, 'sessions'));
 
             $hasComparison = $compareFrom !== null && $compareTo !== null;
             $compareRows = [];
             $compareKeyEvents = null;
+            $compareSessions = null;
 
             if ($hasComparison) {
                 $compareRows = $ga4->dailyRows($domain, $compareFrom, $compareTo);
                 $compareKeyEvents = $ga4->keyEventsTotal($domain, $compareFrom, $compareTo);
+                $compareSessions = WeightedMetrics::sum(array_column($compareRows, 'sessions'));
             }
 
             // Frozen at the moment this was actually fetched (and cached),
@@ -96,14 +99,22 @@ class AnalyticsReportBuilder
                         'ga4', $lastUpdated,
                     ),
                     'sessions' => KpiBuilder::build(
-                        WeightedMetrics::sum(array_column($rows, 'sessions')),
-                        $hasComparison ? WeightedMetrics::sum(array_column($compareRows, 'sessions')) : null,
+                        $sessions,
+                        $compareSessions,
                         'ga4', $lastUpdated,
                     ),
                     'key_events' => KpiBuilder::build($keyEvents, $compareKeyEvents, 'ga4', $lastUpdated),
                     'engagement_rate' => KpiBuilder::build(
                         WeightedMetrics::engagementRate($rows),
                         $hasComparison ? WeightedMetrics::engagementRate($compareRows) : null,
+                        'ga4', $lastUpdated,
+                    ),
+                    // key_events / sessions — distinct from engagement_rate
+                    // (engaged_sessions / sessions), the rate Marketing asked
+                    // for by name when requesting the Popcash combined view.
+                    'key_event_rate' => KpiBuilder::build(
+                        $sessions > 0 ? $keyEvents / $sessions : null,
+                        ($hasComparison && $compareSessions > 0) ? $compareKeyEvents / $compareSessions : null,
                         'ga4', $lastUpdated,
                     ),
                 ],
@@ -191,6 +202,43 @@ class AnalyticsReportBuilder
                     'lost_backlinks' => $period('lost_backlinks'),
                     'keyword_gains' => $period('keyword_gains'),
                     'keyword_losses' => $period('keyword_losses'),
+                ],
+            ];
+        }, $forceRefresh);
+    }
+
+    public function popcashReport(
+        PopcashReportQuery $popcash, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo,
+        ?Carbon $compareFrom = null, ?Carbon $compareTo = null, bool $forceRefresh = false,
+    ): array {
+        $key = AnalyticsCache::key('popcash', $domain, $dateFrom, $dateTo, $compareFrom, $compareTo);
+
+        return $this->withStale($key, function () use ($popcash, $domain, $dateFrom, $dateTo, $compareFrom, $compareTo) {
+            $hasComparison = $compareFrom !== null && $compareTo !== null;
+            $rows = $popcash->dailyRows($domain, $dateFrom, $dateTo);
+            $compareRows = $hasComparison ? $popcash->dailyRows($domain, $compareFrom, $compareTo) : [];
+            $lastUpdated = now();
+
+            return [
+                'status' => empty($rows) ? 'missing' : 'ok',
+                'error' => null,
+                'trend' => $rows,
+                'kpis' => [
+                    'money_spent' => KpiBuilder::build(
+                        WeightedMetrics::sum(array_column($rows, 'money_spent')),
+                        $hasComparison ? WeightedMetrics::sum(array_column($compareRows, 'money_spent')) : null,
+                        'popcash', $lastUpdated,
+                    ),
+                    'impressions' => KpiBuilder::build(
+                        WeightedMetrics::sum(array_column($rows, 'impressions')),
+                        $hasComparison ? WeightedMetrics::sum(array_column($compareRows, 'impressions')) : null,
+                        'popcash', $lastUpdated,
+                    ),
+                    'cpm' => KpiBuilder::build(
+                        WeightedMetrics::cpm($rows),
+                        $hasComparison ? WeightedMetrics::cpm($compareRows) : null,
+                        'popcash', $lastUpdated,
+                    ),
                 ],
             ];
         }, $forceRefresh);

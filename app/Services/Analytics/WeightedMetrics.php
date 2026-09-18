@@ -67,4 +67,22 @@ class WeightedMetrics
     {
         return array_sum($values);
     }
+
+    /**
+     * CPM is $/1000 impressions — averaging each row's own CPM ignores how
+     * many impressions each row represents, the same reasoning as
+     * averagePosition() above. Combine the additive components instead.
+     *
+     * @param  array<int, array{money_spent: float, impressions: int}>  $rows
+     */
+    public static function cpm(array $rows): ?float
+    {
+        $impressions = array_sum(array_column($rows, 'impressions'));
+
+        if ($impressions <= 0) {
+            return null;
+        }
+
+        return (array_sum(array_column($rows, 'money_spent')) / $impressions) * 1000;
+    }
 }

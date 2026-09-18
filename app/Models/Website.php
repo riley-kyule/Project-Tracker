@@ -24,6 +24,7 @@ class Website extends Model
         'gsc_property',
         'crm_platform_id',
         'ahrefs_target',
+        'popcash_campaign_id',
         'gtm_container_id',
         'metadata',
     ];

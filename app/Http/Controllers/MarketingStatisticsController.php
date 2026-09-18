@@ -7,6 +7,7 @@ use App\Services\Analytics\AnalyticsFreshnessChecker;
 use App\Services\Analytics\AnalyticsReportBuilder;
 use App\Services\Analytics\GscReportQuery;
 use App\Services\Analytics\MarketingStatisticsFilters;
+use App\Services\Analytics\PopcashReportQuery;
 use App\Services\Analytics\TrafficDashboardQuery;
 use App\Services\Analytics\WebsiteRegistryQuery;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ use Inertia\Response;
 class MarketingStatisticsController extends Controller
 {
     public function overview(
-        Request $request, TrafficDashboardQuery $ga4, GscReportQuery $gsc, AhrefsReportQuery $ahrefs,
+        Request $request, TrafficDashboardQuery $ga4, GscReportQuery $gsc, AhrefsReportQuery $ahrefs, PopcashReportQuery $popcash,
         WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
     ): Response {
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
@@ -61,7 +62,17 @@ class MarketingStatisticsController extends Controller
 
                 return ['source' => $reportBuilder->sourceSummary($report), 'kpis' => $report['kpis']];
             }, 'gsc'),
+            // Used only by the combined "Campaign Performance" snapshot
+            // (Users, Key Event Rate, Top locations + Popcash's CPM/Impressions)
+            // — overview() otherwise fetches no GA4 breakdowns.
+            'ga4_locations' => Inertia::defer(
+                fn () => $ga4Report['status'] === 'failed'
+                    ? null
+                    : $reportBuilder->ga4Breakdown($ga4, 'locations', $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh),
+                'ga4-locations',
+            ),
             'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
+            'popcash_enabled' => config('analytics.api.popcash.enabled'),
         ];
 
         if (config('analytics.bigquery.ahrefs_enabled')) {
@@ -72,6 +83,16 @@ class MarketingStatisticsController extends Controller
 
                 return ['source' => $reportBuilder->sourceSummary($report), 'kpis' => $report['kpis']];
             }, 'ahrefs');
+        }
+
+        if (config('analytics.api.popcash.enabled')) {
+            $props['popcash'] = Inertia::defer(function () use ($popcash, $domain, $filters, $reportBuilder) {
+                $report = $reportBuilder->popcashReport(
+                    $popcash, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
+                );
+
+                return ['source' => $reportBuilder->sourceSummary($report), 'kpis' => $report['kpis']];
+            }, 'popcash');
         }
 
         return Inertia::render('marketing-statistics/overview', $props);
@@ -107,6 +128,7 @@ class MarketingStatisticsController extends Controller
         return Inertia::render('marketing-statistics/ga4', [
             'selected' => $filters->toArray(),
             'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
+            'popcash_enabled' => config('analytics.api.popcash.enabled'),
             'websites' => $registry,
             'source' => $reportBuilder->sourceSummary($report),
             'kpis' => $report['kpis'],
@@ -141,6 +163,7 @@ class MarketingStatisticsController extends Controller
         return Inertia::render('marketing-statistics/gsc', [
             'selected' => $filters->toArray(),
             'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
+            'popcash_enabled' => config('analytics.api.popcash.enabled'),
             'websites' => $registry,
             'source' => $reportBuilder->sourceSummary($report),
             'kpis' => $report['kpis'],
@@ -162,6 +185,27 @@ class MarketingStatisticsController extends Controller
         );
 
         return Inertia::render('marketing-statistics/ahrefs', [
+            'selected' => $filters->toArray(),
+            'websites' => $registry,
+            'source' => $reportBuilder->sourceSummary($report),
+            'kpis' => $report['kpis'],
+            'trend' => $report['trend'],
+        ]);
+    }
+
+    public function popcash(Request $request, PopcashReportQuery $popcash, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder): Response
+    {
+        abort_unless($request->user()->canViewMarketingStatistics(), 403);
+        abort_unless(config('analytics.api.popcash.enabled'), 404);
+
+        $filters = MarketingStatisticsFilters::fromRequest($request);
+        $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
+
+        $report = $reportBuilder->popcashReport(
+            $popcash, $filters->resolvedWebsiteId, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
+        );
+
+        return Inertia::render('marketing-statistics/popcash', [
             'selected' => $filters->toArray(),
             'websites' => $registry,
             'source' => $reportBuilder->sourceSummary($report),
@@ -195,6 +239,7 @@ class MarketingStatisticsController extends Controller
         return Inertia::render('marketing-statistics/comparison', [
             'selected' => $filters->toArray(),
             'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
+            'popcash_enabled' => config('analytics.api.popcash.enabled'),
             'websites' => $registry,
             'comparison' => $comparison,
         ]);
@@ -212,6 +257,7 @@ class MarketingStatisticsController extends Controller
         return Inertia::render('marketing-statistics/freshness', [
             'selected' => $filters->toArray(),
             'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
+            'popcash_enabled' => config('analytics.api.popcash.enabled'),
             'websites' => $registry,
             // Deliberately never cached, unlike every other source query in
             // this controller: the entire point of this tab is reporting

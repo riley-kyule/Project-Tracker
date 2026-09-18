@@ -7,12 +7,12 @@ use Illuminate\Support\Carbon;
 use Throwable;
 class SyncAnalytics extends Command
 {
-    protected $signature='ewms:sync-analytics {--date=} {--from=} {--to=} {--days=1} {--website=} {--source=all : all, ga4, or gsc} {--dry-run}';
+    protected $signature='ewms:sync-analytics {--date=} {--from=} {--to=} {--days=1} {--website=} {--source=all : all, ga4, gsc, or popcash} {--dry-run}';
     protected $description='Synchronize GA4 and GSC reports into local PostgreSQL without BigQuery';
     public function handle(AnalyticsSyncService $sync): int
     {
         if(!config('analytics.api.enabled')){ $this->error('ANALYTICS_API_ENABLED is false.'); return self::FAILURE; }
-        $source=$this->option('source'); if(!in_array($source,['all','ga4','gsc'],true)){ $this->error('--source must be all, ga4, or gsc'); return self::FAILURE; }
+        $source=$this->option('source'); if(!in_array($source,['all','ga4','gsc','popcash'],true)){ $this->error('--source must be all, ga4, gsc, or popcash'); return self::FAILURE; }
         [$from,$to]=$this->range();
         $sites=Website::query()->where('status','active')->when($this->option('website'),function($query,$value){
             return ctype_digit((string)$value)
