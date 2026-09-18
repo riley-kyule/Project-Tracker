@@ -22,6 +22,16 @@ return [
             'api_key' => env('ANALYTICS_POPCASH_API_KEY'),
             'base_url' => env('ANALYTICS_POPCASH_BASE_URL', 'https://api.popcash.net'),
             'request_timeout' => (int) env('ANALYTICS_POPCASH_TIMEOUT', 30),
+
+            // The GA4 traffic-source/medium that Popcash-driven sessions are
+            // tagged with (e.g. via UTM params on the destination URL Popcash
+            // sends clicks to) — used to isolate Popcash-attributed GA4 users/
+            // key events/locations from whole-site GA4 traffic. If Popcash
+            // campaigns aren't tagged with these exact values, GA4 won't have
+            // any sessions attributed here and the Campaign Performance
+            // section will show no data even though Popcash spend is synced.
+            'ga4_source' => env('ANALYTICS_POPCASH_GA4_SOURCE', 'popcash'),
+            'ga4_medium' => env('ANALYTICS_POPCASH_GA4_MEDIUM', 'cpm'),
         ],
     ],
 

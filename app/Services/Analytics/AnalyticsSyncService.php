@@ -26,18 +26,23 @@ class AnalyticsSyncService
         $total+=$this->replace('analytics_ga4_daily_metrics',$w,$date,$rows);
 
         $specs=[
-            ['analytics_ga4_traffic_sources',['firstUserSource','firstUserMedium'],['totalUsers'],fn($r)=>['source'=>$r['firstUserSource']?:'(direct)','medium'=>$r['firstUserMedium']?:'(none)','users'=>(int)$r['totalUsers']]],
+            ['analytics_ga4_traffic_sources',['firstUserSource','firstUserMedium'],['totalUsers','sessions','engagedSessions'],fn($r)=>['source'=>$r['firstUserSource']?:'(direct)','medium'=>$r['firstUserMedium']?:'(none)','users'=>(int)$r['totalUsers'],'sessions'=>(int)$r['sessions'],'engaged_sessions'=>(int)$r['engagedSessions']]],
             ['analytics_ga4_devices',['deviceCategory'],['totalUsers'],fn($r)=>['device_category'=>$r['deviceCategory']?:'(not set)','users'=>(int)$r['totalUsers']]],
             ['analytics_ga4_pages',['pageLocation'],['totalUsers','screenPageViews'],fn($r)=>['page_location'=>$r['pageLocation'],'users'=>(int)$r['totalUsers'],'page_views'=>(int)$r['screenPageViews']]],
-            ['analytics_ga4_geo',['country','city'],['totalUsers'],fn($r)=>['user_country'=>$r['country']?:null,'city'=>$r['city']?:null,'users'=>(int)$r['totalUsers']]],
+            // Dimensioned by source+medium too (not just country/city) so a
+            // specific channel's (e.g. Popcash) locations can be isolated
+            // from whole-site geo — see TrafficDashboardQuery::locationsBySourceMedium().
+            ['analytics_ga4_geo',['country','city','firstUserSource','firstUserMedium'],['totalUsers'],fn($r)=>['user_country'=>$r['country']?:null,'city'=>$r['city']?:null,'source'=>$r['firstUserSource']?:null,'medium'=>$r['firstUserMedium']?:null,'users'=>(int)$r['totalUsers']]],
         ];
         foreach($specs as [$table,$dims,$metrics,$map]) $total+=$this->replace($table,$w,$date,array_map($map,$this->ga4->report($id,$dims,$metrics,$date)));
 
+        // Dimensioned by source+medium too, same reason as geo above — lets
+        // a specific channel's key-event count be isolated from the whole site.
         $wanted=array_flip(array_map('strtolower',config('analytics.api.key_events',[])));
         $keyRows=[];
-        foreach($this->ga4->report($id,['eventName'],['keyEvents','totalUsers'],$date) as $r){
+        foreach($this->ga4->report($id,['eventName','firstUserSource','firstUserMedium'],['keyEvents','totalUsers'],$date) as $r){
             if((float)$r['keyEvents']<=0 || ($wanted!==[] && !isset($wanted[strtolower($r['eventName'])]))) continue;
-            $keyRows[]=['event_name'=>$r['eventName'],'display_name'=>Str::headline($r['eventName']),'category'=>'key_event','event_count'=>(int)round((float)$r['keyEvents']),'users'=>(int)$r['totalUsers']];
+            $keyRows[]=['event_name'=>$r['eventName'],'display_name'=>Str::headline($r['eventName']),'category'=>'key_event','source'=>$r['firstUserSource']?:null,'medium'=>$r['firstUserMedium']?:null,'event_count'=>(int)round((float)$r['keyEvents']),'users'=>(int)$r['totalUsers']];
         }
         return $total+$this->replace('analytics_ga4_key_events',$w,$date,$keyRows);
     }
@@ -64,7 +69,9 @@ class AnalyticsSyncService
     {
         $day=Carbon::parse($date);
         $rows=array_values(array_filter($this->popcash->dailyStats((string)$w->popcash_campaign_id,$day,$day),fn($r)=>$r['data_date']===$date));
-        $mapped=array_map(fn($r)=>['money_spent'=>$r['money_spent'],'cpm'=>$r['cpm'],'impressions'=>$r['impressions']],$rows);
+        // `raw` keeps every field the API returned for the day, not just the
+        // three we have typed columns for — see PopcashApiClient::dailyStats().
+        $mapped=array_map(fn($r)=>['money_spent'=>$r['money_spent'],'cpm'=>$r['cpm'],'impressions'=>$r['impressions'],'raw'=>json_encode($r['raw'])],$rows);
         return $this->replace('analytics_popcash_daily_spend',$w,$date,$mapped);
     }
 

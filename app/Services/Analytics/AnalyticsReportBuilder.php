@@ -244,6 +244,65 @@ class AnalyticsReportBuilder
         }, $forceRefresh);
     }
 
+    /**
+     * GA4 users/key-event-rate scoped to Popcash-attributed traffic only
+     * (source/medium from config('analytics.api.popcash.ga4_{source,medium}'))
+     * — the "Campaign Performance" snapshot next to Popcash spend needs
+     * Popcash's own GA4 numbers, not whole-site totals (see ga4Report() for
+     * the unscoped, whole-site version used by the GA4 tab).
+     */
+    public function popcashGa4Report(
+        TrafficDashboardQuery $ga4, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo,
+        ?Carbon $compareFrom = null, ?Carbon $compareTo = null, bool $forceRefresh = false,
+    ): array {
+        $source = config('analytics.api.popcash.ga4_source', 'popcash');
+        $medium = config('analytics.api.popcash.ga4_medium', 'cpm');
+        $key = AnalyticsCache::key("ga4-popcash-{$source}-{$medium}", $domain, $dateFrom, $dateTo, $compareFrom, $compareTo);
+
+        return $this->withStale($key, function () use ($ga4, $domain, $dateFrom, $dateTo, $compareFrom, $compareTo, $source, $medium) {
+            $hasComparison = $compareFrom !== null && $compareTo !== null;
+
+            $users = $ga4->usersBySourceMedium($domain, $dateFrom, $dateTo, $source, $medium);
+            $sessions = $ga4->sessionsBySourceMedium($domain, $dateFrom, $dateTo, $source, $medium);
+            $keyEvents = $ga4->keyEventsTotalBySourceMedium($domain, $dateFrom, $dateTo, $source, $medium);
+
+            $compareUsers = $compareSessions = $compareKeyEvents = null;
+            if ($hasComparison) {
+                $compareUsers = $ga4->usersBySourceMedium($domain, $compareFrom, $compareTo, $source, $medium);
+                $compareSessions = $ga4->sessionsBySourceMedium($domain, $compareFrom, $compareTo, $source, $medium);
+                $compareKeyEvents = $ga4->keyEventsTotalBySourceMedium($domain, $compareFrom, $compareTo, $source, $medium);
+            }
+
+            $lastUpdated = now();
+
+            return [
+                'status' => ($users === 0 && $sessions === 0) ? 'missing' : 'ok',
+                'error' => null,
+                'kpis' => [
+                    'aggregate_property_users' => KpiBuilder::build($users, $compareUsers, 'ga4', $lastUpdated),
+                    'key_event_rate' => KpiBuilder::build(
+                        $sessions > 0 ? $keyEvents / $sessions : null,
+                        ($hasComparison && $compareSessions > 0) ? $compareKeyEvents / $compareSessions : null,
+                        'ga4', $lastUpdated,
+                    ),
+                ],
+            ];
+        }, $forceRefresh);
+    }
+
+    /** Top locations for Popcash-attributed GA4 traffic only — see popcashGa4Report(). */
+    public function popcashGa4Locations(TrafficDashboardQuery $ga4, string|array|null $domain, Carbon $dateFrom, Carbon $dateTo, bool $forceRefresh = false): ?array
+    {
+        $source = config('analytics.api.popcash.ga4_source', 'popcash');
+        $medium = config('analytics.api.popcash.ga4_medium', 'cpm');
+
+        return $this->breakdownWithStale(
+            AnalyticsCache::key("ga4-popcash-locations-{$source}-{$medium}", $domain, $dateFrom, $dateTo),
+            fn () => $ga4->locationsBySourceMedium($domain, $dateFrom, $dateTo, $source, $medium),
+            $forceRefresh,
+        );
+    }
+
     /** @return array{status: string, error: string|null, rows: array} */
     public function attempt(callable $fn): array
     {

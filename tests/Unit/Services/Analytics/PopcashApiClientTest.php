@@ -23,20 +23,23 @@ class PopcashApiClientTest extends TestCase
 
     public function test_daily_stats_maps_the_response_into_the_expected_shape()
     {
+        $apiRow = ['date' => '2026-09-15', 'spend' => '12.50', 'cpm' => '3.25', 'impressions' => 4000, 'clicks' => 120, 'conversions' => 3];
+
         Http::fake([
-            'api.popcash.test/*' => Http::response([
-                'data' => [
-                    ['date' => '2026-09-15', 'spend' => '12.50', 'cpm' => '3.25', 'impressions' => 4000],
-                ],
-            ], 200),
+            'api.popcash.test/*' => Http::response(['data' => [$apiRow]], 200),
         ]);
 
         $client = new PopcashApiClient;
         $rows = $client->dailyStats('camp-1', Carbon::parse('2026-09-15'), Carbon::parse('2026-09-15'));
 
         $this->assertSame([
-            ['data_date' => '2026-09-15', 'money_spent' => 12.5, 'cpm' => 3.25, 'impressions' => 4000],
+            ['data_date' => '2026-09-15', 'money_spent' => 12.5, 'cpm' => 3.25, 'impressions' => 4000, 'raw' => $apiRow],
         ], $rows);
+
+        // Fields with no dedicated column yet (clicks, conversions) must
+        // still survive somewhere — via `raw`, not silently dropped.
+        $this->assertSame(120, $rows[0]['raw']['clicks']);
+        $this->assertSame(3, $rows[0]['raw']['conversions']);
 
         Http::assertSent(fn ($request) => $request['campaign_id'] === 'camp-1'
             && $request['date_from'] === '2026-09-15'

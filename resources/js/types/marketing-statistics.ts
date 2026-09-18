@@ -11,6 +11,8 @@ export type Kpi = {
 
 export type SourceStatus = { status: 'ok' | 'missing' | 'failed' | 'stale'; error: string | null };
 
+export type SourceKpis = { source: SourceStatus; kpis: Record<string, Kpi> | null };
+
 export type DateRange = 'last_7_days' | 'last_30_days' | 'last_90_days' | 'custom';
 export type ComparisonMode = 'none' | 'previous_period' | 'previous_year' | 'custom';
 

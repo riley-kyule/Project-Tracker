@@ -62,14 +62,20 @@ class MarketingStatisticsController extends Controller
 
                 return ['source' => $reportBuilder->sourceSummary($report), 'kpis' => $report['kpis']];
             }, 'gsc'),
-            // Used only by the combined "Campaign Performance" snapshot
-            // (Users, Key Event Rate, Top locations + Popcash's CPM/Impressions)
-            // — overview() otherwise fetches no GA4 breakdowns.
-            'ga4_locations' => Inertia::defer(
-                fn () => $ga4Report['status'] === 'failed'
-                    ? null
-                    : $reportBuilder->ga4Breakdown($ga4, 'locations', $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh),
-                'ga4-locations',
+            // Popcash-attributed GA4 numbers (not whole-site — see
+            // AnalyticsReportBuilder::popcashGa4Report()) for the combined
+            // "Campaign Performance" snapshot. Distinct from the `ga4` prop
+            // above, which is the whole-site GA4 report.
+            'campaign_ga4' => Inertia::defer(function () use ($ga4, $domain, $filters, $reportBuilder) {
+                $report = $reportBuilder->popcashGa4Report(
+                    $ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
+                );
+
+                return $report['kpis'];
+            }, 'campaign_ga4'),
+            'campaign_ga4_locations' => Inertia::defer(
+                fn () => $reportBuilder->popcashGa4Locations($ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh),
+                'campaign_ga4_locations',
             ),
             'ahrefs_enabled' => config('analytics.bigquery.ahrefs_enabled'),
             'popcash_enabled' => config('analytics.api.popcash.enabled'),
@@ -193,16 +199,19 @@ class MarketingStatisticsController extends Controller
         ]);
     }
 
-    public function popcash(Request $request, PopcashReportQuery $popcash, WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder): Response
-    {
+    public function popcash(
+        Request $request, PopcashReportQuery $popcash, TrafficDashboardQuery $ga4,
+        WebsiteRegistryQuery $registryQuery, AnalyticsReportBuilder $reportBuilder,
+    ): Response {
         abort_unless($request->user()->canViewMarketingStatistics(), 403);
         abort_unless(config('analytics.api.popcash.enabled'), 404);
 
         $filters = MarketingStatisticsFilters::fromRequest($request);
         $registry = $reportBuilder->registry($registryQuery, $filters->forceRefresh);
+        $domain = $filters->resolvedWebsiteId;
 
         $report = $reportBuilder->popcashReport(
-            $popcash, $filters->resolvedWebsiteId, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
+            $popcash, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
         );
 
         return Inertia::render('marketing-statistics/popcash', [
@@ -211,6 +220,22 @@ class MarketingStatisticsController extends Controller
             'source' => $reportBuilder->sourceSummary($report),
             'kpis' => $report['kpis'],
             'trend' => $report['trend'],
+            // The combined "Campaign Performance" snapshot (see overview()) —
+            // deferred since this tab's own Popcash numbers above are the
+            // eager/primary data here, GA4 is the secondary lookup. Scoped to
+            // Popcash-attributed traffic only, not whole-site GA4 — see
+            // AnalyticsReportBuilder::popcashGa4Report().
+            'campaign_ga4' => Inertia::defer(function () use ($ga4, $domain, $filters, $reportBuilder) {
+                $ga4Report = $reportBuilder->popcashGa4Report(
+                    $ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->compareFrom, $filters->compareTo, $filters->forceRefresh,
+                );
+
+                return $ga4Report['kpis'];
+            }, 'campaign_ga4'),
+            'campaign_ga4_locations' => Inertia::defer(
+                fn () => $reportBuilder->popcashGa4Locations($ga4, $domain, $filters->dateFrom, $filters->dateTo, $filters->forceRefresh),
+                'campaign_ga4_locations',
+            ),
         ]);
     }
 

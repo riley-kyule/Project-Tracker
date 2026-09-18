@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { Combobox, type ComboboxItem } from '@/components/ui/combobox';
 import { DateField } from '@/components/ui/date-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type ComparisonMode, type DateRange, type MarketingFilters, type MarketingWebsite } from '@/types/marketing-statistics';
@@ -112,23 +113,25 @@ export function FilterBar({
 
     const maxDate = toDateInput(new Date(Date.now() - 86400000));
 
+    const websiteOptions: ComboboxItem[] = [
+        { value: ALL_SITES, label: 'All Sites' },
+        ...websites.map((website) => ({ value: website.website_id, label: website.name, hint: website.domain })),
+    ];
+
     return (
         <div className="border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-end gap-2 rounded-xl border p-3">
             <div className="grid gap-1">
-                <label className="text-muted-foreground text-xs">Website</label>
-                <Select value={pending.website_id} onValueChange={(value) => setPending((p) => ({ ...p, website_id: value }))}>
-                    <SelectTrigger className="w-52">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value={ALL_SITES}>All Sites</SelectItem>
-                        {websites.map((website) => (
-                            <SelectItem key={website.website_id} value={website.website_id}>
-                                {website.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <label className="text-muted-foreground text-xs" id="marketing-statistics-website-label">
+                    Website
+                </label>
+                <Combobox
+                    value={pending.website_id}
+                    onChange={(value) => setPending((p) => ({ ...p, website_id: value }))}
+                    options={websiteOptions}
+                    placeholder="All Sites"
+                    className="w-52"
+                    aria-labelledby="marketing-statistics-website-label"
+                />
             </div>
 
             {showDateRange && (

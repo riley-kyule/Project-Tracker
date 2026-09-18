@@ -1,5 +1,6 @@
+import { CampaignPerformanceSection, type LocationRow } from '@/components/marketing-statistics/campaign-performance-section';
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
-import { MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
+import { buildFilterQuery, MarketingStatisticsShell } from '@/components/marketing-statistics/shell';
 import { TrendChart } from '@/components/marketing-statistics/trend-chart';
 import { type Kpi, type MarketingFilters, type MarketingWebsite, type SourceStatus } from '@/types/marketing-statistics';
 
@@ -20,15 +21,24 @@ export default function PopcashReport({
     source,
     kpis,
     trend,
+    campaign_ga4,
+    campaign_ga4_locations,
 }: {
     selected: MarketingFilters;
     websites: MarketingWebsite[];
     source: SourceStatus;
     kpis: Record<string, Kpi> | null;
     trend: PopcashTrendPoint[];
+    /** Popcash-attributed GA4 KPIs (source/medium filtered) — see CampaignPerformanceSection. */
+    campaign_ga4?: Record<string, Kpi> | null;
+    campaign_ga4_locations?: LocationRow[] | null;
 }) {
+    const query = buildFilterQuery(selected);
+
     return (
         <MarketingStatisticsShell active="popcash" selected={selected} websites={websites} sources={{ popcash: source }}>
+            <CampaignPerformanceSection ga4={campaign_ga4} ga4Locations={campaign_ga4_locations} popcash={{ source, kpis }} query={query} />
+
             {kpis === null ? (
                 <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border border-dashed p-6 text-center">
                     {source.status === 'failed' ? (

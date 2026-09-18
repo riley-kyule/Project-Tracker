@@ -19,7 +19,15 @@ use RuntimeException;
 class PopcashApiClient
 {
     /**
-     * @return array<int, array{data_date: string, money_spent: float, cpm: float, impressions: int}>
+     * Returns every field Popcash's response includes for each row, not
+     * just the three EWMS currently has typed columns/KPIs for — `raw`
+     * carries the untouched row so nothing the API returns is silently
+     * discarded (clicks, conversions, revenue, zone/campaign breakdown,
+     * whatever else Popcash exposes) even before we know its exact schema
+     * well enough to promote a field to its own column. See
+     * AnalyticsSyncService::syncPopcash(), which persists `raw` as-is.
+     *
+     * @return array<int, array{data_date: string, money_spent: float, cpm: float, impressions: int, raw: array}>
      */
     public function dailyStats(string $campaignId, Carbon $from, Carbon $to): array
     {
@@ -43,6 +51,7 @@ class PopcashApiClient
             'money_spent' => (float) $row['spend'],
             'cpm' => (float) $row['cpm'],
             'impressions' => (int) $row['impressions'],
+            'raw' => $row,
         ])->all();
     }
 }

@@ -1,11 +1,24 @@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { fmtDateTime } from '@/lib/utils';
 import { type Kpi } from '@/types/marketing-statistics';
 import { Link } from '@inertiajs/react';
 
 function compact(value: number): string {
     return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+}
+
+/** Loading placeholder shaped like KpiTile — distinct from KpiTile's own "—" so a still-loading
+ *  tile can't be mistaken for a tile that genuinely has no data. */
+export function KpiTileSkeleton({ label }: { label: string }) {
+    return (
+        <div className="border-sidebar-border/70 dark:border-sidebar-border h-full rounded-xl border p-4">
+            <Skeleton className="h-8 w-16" />
+            <div className="text-muted-foreground mt-1 text-sm">{label}</div>
+            <Skeleton className="mt-2 h-4 w-20" />
+        </div>
+    );
 }
 
 export function KpiTile({
