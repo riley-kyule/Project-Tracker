@@ -41,10 +41,11 @@ class PopcashApiClientTest extends TestCase
         $this->assertSame(120, $rows[0]['raw']['clicks']);
         $this->assertSame(3, $rows[0]['raw']['conversions']);
 
+        // The API validates strictly and rejects unrecognized fields (confirmed
+        // via a live 422) — the body must be exactly these three, nothing more.
         Http::assertSent(fn ($request) => $request->url() === 'https://api.popcash.test/reports/advertiser/campaign/camp-1'
             && $request->method() === 'POST'
-            && $request['date_from'] === '2026-09-15'
-            && $request['date_to'] === '2026-09-15'
+            && $request->data() === ['startDate' => '2026-09-15', 'endDate' => '2026-09-15', 'reportType' => 'daily']
             && $request->hasHeader('X-Api-Key', 'secret-key'));
     }
 

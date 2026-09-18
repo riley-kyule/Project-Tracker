@@ -10,12 +10,15 @@ use RuntimeException;
  * Base URL, auth header, and the `reports/advertiser/campaign/{id}`
  * endpoint are confirmed against a working community client
  * (github.com/nebaz/popcash-api) — Popcash has no public docs we could
- * find. The request body's date-range field names and the response's row
- * shape are still unconfirmed, so dailyStats() hedges by sending several
- * plausible field-name aliases and reading several plausible response
- * shapes — adjust once a real response has been seen (check `raw` on
- * analytics_popcash_daily_spend after a sync, or the error body a failed
- * sync logs to analytics_sync_runs, which echoes Popcash's own message).
+ * find. The request body's exact fields (startDate/endDate/reportType) are
+ * confirmed too: the API validates strictly and rejects any unrecognized
+ * field, and a live 422 response named these three as required. `reportType`
+ * itself is still a guess ('daily') — its valid values weren't given by that
+ * error; if wrong, expect a "this value should be one of ..." style 422
+ * naming the real options. The response's row shape is still unconfirmed,
+ * so dailyStats() reads several plausible shapes — adjust once a real
+ * response has been seen (check `raw` on analytics_popcash_daily_spend
+ * after a successful sync).
  */
 class PopcashApiClient
 {
@@ -38,14 +41,9 @@ class PopcashApiClient
             ->timeout(config('analytics.api.popcash.request_timeout'))
             ->retry(4, fn ($attempt) => $attempt * 1000, throw: false)
             ->post("reports/advertiser/campaign/{$campaignId}", [
-                // Unconfirmed field names — sending common aliases since
-                // extra unrecognized fields are harmless on most JSON APIs.
-                'date_from' => $from->toDateString(),
-                'date_to' => $to->toDateString(),
-                'from' => $from->toDateString(),
-                'to' => $to->toDateString(),
-                'start_date' => $from->toDateString(),
-                'end_date' => $to->toDateString(),
+                'startDate' => $from->toDateString(),
+                'endDate' => $to->toDateString(),
+                'reportType' => 'daily',
             ]);
 
         if (! $response->successful() || $response->json('errors') !== null) {
