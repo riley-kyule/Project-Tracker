@@ -22,7 +22,17 @@ class SyncAnalytics extends Command
         $this->info("Plan: {$sites->count()} websites, {$from->toDateString()}..{$to->toDateString()}, source={$source}");
         if($this->option('dry-run')) return self::SUCCESS;
         $failed=0;
-        for($day=$from->copy();$day->lte($to);$day->addDay()) foreach($sites as $i=>$site){
+        // Popcash: one API call per site for the whole range, not one per
+        // day — its reports endpoint takes a date range natively, and
+        // calling it once per day (like GA4/GSC below, which are genuinely
+        // per-day APIs) hit Popcash's rate limit on a live multi-day backfill.
+        if(in_array($source,['all','popcash'],true)) foreach($sites as $site){
+            if(!filled($site->popcash_campaign_id)) continue;
+            try { $out=$sync->syncPopcashRange($site,$from->toDateString(),$to->toDateString()); $this->line("popcash {$site->domain}: ".json_encode($out)); }
+            catch(Throwable $e){ $failed++; $this->error("popcash {$site->domain}: {$e->getMessage()}"); }
+            usleep(max(0,(int)config('analytics.api.request_delay_ms'))*1000);
+        }
+        if(in_array($source,['all','ga4','gsc'],true)) for($day=$from->copy();$day->lte($to);$day->addDay()) foreach($sites as $i=>$site){
             try { $out=$sync->sync($site,$day->toDateString(),$source); $this->line('['.($i+1)."/{$sites->count()}] {$day->toDateString()} {$site->domain}: ".json_encode($out)); }
             catch(Throwable $e){ $failed++; $this->error("{$day->toDateString()} {$site->domain}: {$e->getMessage()}"); }
             usleep(max(0,(int)config('analytics.api.request_delay_ms'))*1000);

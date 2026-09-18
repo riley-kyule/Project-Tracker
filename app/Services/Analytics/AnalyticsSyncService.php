@@ -9,12 +9,35 @@ class AnalyticsSyncService
 {
     public function __construct(private Ga4DataApiClient $ga4,private SearchConsoleApiClient $gsc,private PopcashApiClient $popcash) {}
 
+    /** GA4/GSC only — both APIs are naturally per-day. Popcash isn't: see syncPopcashRange(). */
     public function sync(Website $website,string $date,string $source='all'): array
     {
         $result=[];
         if(in_array($source,['all','ga4'],true) && filled($website->ga4_property_id)) $result['ga4']=$this->tracked($website,'ga4',$date,fn()=>$this->syncGa4($website,$date));
         if(in_array($source,['all','gsc'],true) && filled($website->gsc_property)) $result['gsc']=$this->tracked($website,'gsc',$date,fn()=>$this->syncGsc($website,$date));
-        if(in_array($source,['all','popcash'],true) && filled($website->popcash_campaign_id)) $result['popcash']=$this->tracked($website,'popcash',$date,fn()=>$this->syncPopcash($website,$date));
+        return $result;
+    }
+
+    /**
+     * Popcash's reports endpoint takes a date range in one call (unlike GA4/
+     * GSC, which are queried one day at a time) — calling it once per day
+     * instead, the way sync() does for the other two sources, hit Popcash's
+     * rate limit almost immediately on a live multi-day backfill. One HTTP
+     * request covers the whole range; each day's slice is still written
+     * (and tracked in analytics_sync_runs) separately so freshness checks
+     * and reruns behave exactly like the per-day sources.
+     */
+    public function syncPopcashRange(Website $w,string $from,string $to): array
+    {
+        if(!filled($w->popcash_campaign_id)) return [];
+        $rows=$this->popcash->dailyStats((string)$w->popcash_campaign_id,Carbon::parse($from),Carbon::parse($to));
+        $byDate=collect($rows)->groupBy('data_date');
+        $result=[];
+        for($day=Carbon::parse($from);$day->lte(Carbon::parse($to));$day->addDay()){
+            $date=$day->toDateString();
+            $dayRows=$byDate->get($date,collect())->map(fn($r)=>['money_spent'=>$r['money_spent'],'cpm'=>$r['cpm'],'impressions'=>$r['impressions'],'raw'=>json_encode($r['raw'])])->all();
+            $result[$date]=$this->tracked($w,'popcash',$date,fn()=>$this->replace('analytics_popcash_daily_spend',$w,$date,$dayRows));
+        }
         return $result;
     }
 
@@ -63,16 +86,6 @@ class AnalyticsSyncService
             $total+=$this->replace($table,$w,$date,$mapped);
         }
         return $total;
-    }
-
-    private function syncPopcash(Website $w,string $date): int
-    {
-        $day=Carbon::parse($date);
-        $rows=array_values(array_filter($this->popcash->dailyStats((string)$w->popcash_campaign_id,$day,$day),fn($r)=>$r['data_date']===$date));
-        // `raw` keeps every field the API returned for the day, not just the
-        // three we have typed columns for — see PopcashApiClient::dailyStats().
-        $mapped=array_map(fn($r)=>['money_spent'=>$r['money_spent'],'cpm'=>$r['cpm'],'impressions'=>$r['impressions'],'raw'=>json_encode($r['raw'])],$rows);
-        return $this->replace('analytics_popcash_daily_spend',$w,$date,$mapped);
     }
 
     private function replace(string $table,Website $website,string $date,array $rows): int
