@@ -41,15 +41,42 @@ class PopcashApiClientTest extends TestCase
         $this->assertSame(120, $rows[0]['raw']['clicks']);
         $this->assertSame(3, $rows[0]['raw']['conversions']);
 
-        Http::assertSent(fn ($request) => $request['campaign_id'] === 'camp-1'
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.popcash.test/reports/advertiser/campaign/camp-1'
+            && $request->method() === 'POST'
             && $request['date_from'] === '2026-09-15'
             && $request['date_to'] === '2026-09-15'
-            && $request->hasHeader('Authorization', 'Bearer secret-key'));
+            && $request->hasHeader('X-Api-Key', 'secret-key'));
+    }
+
+    /** Popcash's response nesting isn't confirmed — dailyStats() also accepts `reports.items`, `items`, or `results`. */
+    public function test_daily_stats_accepts_a_nested_reports_items_response_shape()
+    {
+        $apiRow = ['date' => '2026-09-15', 'spend' => '5', 'cpm' => '1', 'impressions' => 100];
+
+        Http::fake([
+            'api.popcash.test/*' => Http::response(['reports' => ['items' => [$apiRow]]], 200),
+        ]);
+
+        $rows = (new PopcashApiClient)->dailyStats('camp-1', Carbon::parse('2026-09-15'), Carbon::parse('2026-09-15'));
+
+        $this->assertSame(100, $rows[0]['impressions']);
     }
 
     public function test_a_non_successful_response_throws()
     {
         Http::fake(['api.popcash.test/*' => Http::response('nope', 500)]);
+
+        $this->expectException(RuntimeException::class);
+
+        (new PopcashApiClient)->dailyStats('camp-1', Carbon::parse('2026-09-15'), Carbon::parse('2026-09-15'));
+    }
+
+    /** Popcash's wrapper convention returns app-level errors inside an `errors` key even alongside a 200 status. */
+    public function test_a_200_response_with_an_errors_key_throws()
+    {
+        Http::fake([
+            'api.popcash.test/*' => Http::response(['errors' => ['message' => 'The resource could not be located!', 'status' => 404]], 200),
+        ]);
 
         $this->expectException(RuntimeException::class);
 
