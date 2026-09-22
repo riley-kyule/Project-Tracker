@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\WordPress;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\WordPressCredential;
 use App\Models\WordPressSite;
@@ -135,6 +136,54 @@ class WordPressUserBulkActionTest extends TestCase
 
         $this->assertDatabaseMissing('wordpress_users', ['id' => $wpUser->id]);
         $this->assertDatabaseHas('audit_logs', ['event' => 'wp_user_deleted']);
+    }
+
+    public function test_reset_password_pushes_a_strong_generated_password_and_returns_it_once()
+    {
+        [, , $wpUser] = $this->credentialWithUser();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        Http::fake(["*/wp-json/wp/v2/users/{$wpUser->wp_user_id}" => Http::response(['id' => $wpUser->wp_user_id], 200)]);
+
+        $response = $this->actingAs($ceo)
+            ->post('/admin/wordpress-users/bulk-reset-password', ['wordpress_user_ids' => [$wpUser->id]])
+            ->assertRedirect();
+
+        $results = $response->getSession()->get('bulkResults');
+        $this->assertSame('ok', $results[0]['status']);
+        $this->assertSame('jdoe', $results[0]['username']);
+        $password = $results[0]['password'];
+        $this->assertNotEmpty($password);
+        $this->assertGreaterThanOrEqual(16, strlen($password));
+        $this->assertMatchesRegularExpression('/[a-z]/', $password);
+        $this->assertMatchesRegularExpression('/[A-Z]/', $password);
+        $this->assertMatchesRegularExpression('/[0-9]/', $password);
+        $this->assertMatchesRegularExpression('/[^a-zA-Z0-9]/', $password);
+
+        Http::assertSent(fn ($request) => $request->method() === 'POST'
+            && str_contains($request->url(), "/wp-json/wp/v2/users/{$wpUser->wp_user_id}")
+            && $request['password'] === $password);
+
+        // The plaintext is never persisted or logged — the response above is the only place it exists.
+        $this->assertDatabaseHas('audit_logs', ['event' => 'wp_user_password_reset', 'actor_id' => $ceo->id]);
+        $auditLog = AuditLog::query()->where('event', 'wp_user_password_reset')->firstOrFail();
+        $this->assertStringNotContainsString($password, json_encode([$auditLog->old_values, $auditLog->new_values]));
+    }
+
+    public function test_reset_password_reports_a_per_user_failure_without_a_password()
+    {
+        [, , $wpUser] = $this->credentialWithUser();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        Http::fake(["*/wp-json/wp/v2/users/{$wpUser->wp_user_id}" => Http::response(['message' => 'Unauthorized'], 401)]);
+
+        $response = $this->actingAs($ceo)
+            ->post('/admin/wordpress-users/bulk-reset-password', ['wordpress_user_ids' => [$wpUser->id]])
+            ->assertRedirect();
+
+        $results = $response->getSession()->get('bulkResults');
+        $this->assertSame('error', $results[0]['status']);
+        $this->assertArrayNotHasKey('password', $results[0]);
     }
 
     public function test_a_partial_failure_across_sites_is_reported_without_aborting_the_rest()
