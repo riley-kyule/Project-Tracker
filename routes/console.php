@@ -14,3 +14,5 @@ Schedule::command('ewms:reset-recurring-tasks')->hourly();
 Schedule::command('ewms:sync-wordpress-users')->dailyAt('01:00');
 Schedule::command('ewms:hr-contract-alerts')->dailyAt('07:00');
 Schedule::command('ewms:accrue-leave')->monthlyOn(1, '01:00');
+Schedule::command('ewms:close-seo-daily-cards')->everyFifteenMinutes()->withoutOverlapping(600)->onOneServer();
+Schedule::command('ewms:retry-failed-seo-report-deliveries')->everyThirtyMinutes()->withoutOverlapping(600)->onOneServer();
