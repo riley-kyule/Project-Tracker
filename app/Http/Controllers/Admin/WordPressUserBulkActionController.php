@@ -85,6 +85,21 @@ class WordPressUserBulkActionController extends Controller
         return back()->with(['success' => $this->summarize($results), 'bulkResults' => $results]);
     }
 
+    public function resetPassword(Request $request, WordPressUserBulkAction $bulkAction): RedirectResponse
+    {
+        abort_unless($request->user()->can('wordpress.manage'), 403);
+
+        $validated = $request->validate([
+            'wordpress_user_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'wordpress_user_ids.*' => ['integer', 'exists:wordpress_users,id'],
+        ]);
+
+        $users = WordPressUser::query()->with('site:id,name')->whereIn('id', $validated['wordpress_user_ids'])->get();
+        $results = $bulkAction->resetPassword($users);
+
+        return back()->with(['success' => $this->summarize($results), 'bulkResults' => $results]);
+    }
+
     private function summarize(array $results): string
     {
         $succeeded = collect($results)->where('status', 'ok')->count();

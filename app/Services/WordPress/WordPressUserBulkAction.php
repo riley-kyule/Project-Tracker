@@ -6,6 +6,7 @@ use App\Models\WordPressCredential;
 use App\Models\WordPressUser;
 use App\Services\AuditLogger;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * Mutation-side counterpart to WordPressUserSync: every method groups its
@@ -92,6 +93,35 @@ class WordPressUserBulkAction
         });
     }
 
+    /**
+     * Generates a fresh Str::password() per user (16 chars — mixed case,
+     * numbers, symbols, satisfies any reasonable strong-password policy) and
+     * pushes it to WordPress via the same updateUser() the "Add user"/role/
+     * email actions use. The plaintext is never stored anywhere in EWMS —
+     * not on the WordPressUser row, not in the audit log — this response is
+     * the only place it's ever visible, so the frontend must show it in full
+     * (not just a pass/fail) or the admin has no way to hand it to the user.
+     *
+     * @return array<int, array{id: int, status: string, error?: string, username: string, site: string, password?: string}>
+     */
+    public function resetPassword(Collection $wordpressUsers): array
+    {
+        return $this->perUser($wordpressUsers, function (WordPressUser $wpUser, WordPressUserClient $client) {
+            $password = Str::password(16);
+            $result = $client->updateUser($wpUser->wp_user_id, ['password' => $password]);
+
+            if ($result['status'] === 'ok') {
+                AuditLogger::log($wpUser, 'wp_user_password_reset', [], []);
+                $result['password'] = $password;
+            }
+
+            $result['username'] = $wpUser->username;
+            $result['site'] = $wpUser->site?->name;
+
+            return $result;
+        });
+    }
+
     /** @return array<int, array{id: int, status: string, error?: string}> */
     public function delete(Collection $wordpressUsers): array
     {
@@ -117,7 +147,13 @@ class WordPressUserBulkAction
 
             if (! $credential) {
                 foreach ($group as $wpUser) {
-                    $results[] = ['id' => $wpUser->id, 'status' => 'error', 'error' => 'No WordPress credentials configured for this site.'];
+                    $results[] = [
+                        'id' => $wpUser->id,
+                        'status' => 'error',
+                        'error' => 'No WordPress credentials configured for this site.',
+                        'username' => $wpUser->username,
+                        'site' => $wpUser->site?->name,
+                    ];
                 }
 
                 continue;
@@ -129,11 +165,10 @@ class WordPressUserBulkAction
             foreach ($group as $wpUser) {
                 $result = $action($wpUser, $client);
 
-                $results[] = [
-                    'id' => $wpUser->id,
-                    'status' => $result['status'],
-                    'error' => $result['error'] ?? null,
-                ];
+                // Spread first so a closure can attach extra fields (resetPassword's
+                // username/site/password) — id/error are re-set after so every row
+                // still guarantees this base shape regardless of what the closure returned.
+                $results[] = ['id' => $wpUser->id, ...$result, 'error' => $result['error'] ?? null];
             }
         }
 

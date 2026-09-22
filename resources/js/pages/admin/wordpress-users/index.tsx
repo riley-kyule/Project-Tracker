@@ -10,8 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { WordPressBulkPasswordReset } from '@/components/wordpress-bulk-password-reset';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import AppLayout from '@/layouts/app-layout';
+import { fmtDateTime } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { type RequestPayload } from '@inertiajs/core';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
@@ -214,9 +216,7 @@ function SitesPanel({ sites }: { sites: Site[] }) {
                                 <td className="p-3">
                                     {site.credential ? <Badge variant={STATUS_VARIANT[site.credential.status]}>{site.credential.status}</Badge> : '—'}
                                 </td>
-                                <td className="p-3 text-xs">
-                                    {site.credential?.last_synced_at ? new Date(site.credential.last_synced_at).toLocaleString() : '—'}
-                                </td>
+                                <td className="p-3 text-xs">{fmtDateTime(site.credential?.last_synced_at)}</td>
                                 <td className="max-w-xs truncate p-3 font-mono text-xs" title={site.credential?.last_error ?? undefined}>
                                     {site.credential?.last_error ?? '—'}
                                 </td>
@@ -466,6 +466,61 @@ function UpdateEmailDialog({
     );
 }
 
+/**
+ * WordPress never returns a password after it's set — the bulk-reset response
+ * is the only place these are ever visible (never stored in EWMS, never
+ * logged). Shown separately from the generic failure alert below, since these
+ * rows need to actually be read and copied, not just glanced at as a status.
+ */
+function GeneratedPasswordsPanel({ results }: { results: NonNullable<SharedData['flash']['bulkResults']> }) {
+    const withPasswords = results.filter((r) => Boolean(r.password));
+    if (withPasswords.length === 0) return null;
+
+    const copy = async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            toast.success('Copied to clipboard.');
+        } catch {
+            toast.error('Could not copy automatically — copy it manually instead.');
+        }
+    };
+
+    const copyAll = () => {
+        copy(withPasswords.map((r) => `${r.username ?? `#${r.id}`} (${r.site ?? 'unknown site'}): ${r.password}`).join('\n'));
+    };
+
+    return (
+        <Alert className="border-dashed border-amber-400/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            <AlertTitle className="flex items-center justify-between gap-2">
+                <span>New passwords — shown once</span>
+                <Button size="sm" variant="outline" onClick={copyAll} className="h-7">
+                    Copy all
+                </Button>
+            </AlertTitle>
+            <AlertDescription>
+                <p className="mb-2 text-xs">WordPress never returns a password after it's set. Copy and deliver these now — they won't show again.</p>
+                <ul className="space-y-1">
+                    {withPasswords.map((r, i) => (
+                        <li key={i} className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                            <span className="min-w-0 flex-1 truncate font-sans">
+                                {r.username ?? `#${r.id}`} · {r.site ?? 'unknown site'}
+                            </span>
+                            <span className="rounded bg-black/5 px-1.5 py-0.5 dark:bg-white/10">{r.password}</span>
+                            <button
+                                type="button"
+                                onClick={() => copy(r.password ?? '')}
+                                className="text-brand-600 dark:text-brand-400 font-sans hover:underline"
+                            >
+                                Copy
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            </AlertDescription>
+        </Alert>
+    );
+}
+
 function BulkActionBar({
     selectedIds,
     selectedUsers,
@@ -499,6 +554,18 @@ function BulkActionBar({
         });
     };
 
+    const [resetting, setResetting] = useState(false);
+    const resetPassword = () => {
+        if (
+            !confirm(
+                `Reset the password for ${selectedIds.length} WordPress user(s)? Each one's current password stops working immediately — the new ones are generated automatically and shown once, here, right after this completes.`,
+            )
+        )
+            return;
+        setResetting(true);
+        post('/admin/wordpress-users/bulk-reset-password', { wordpress_user_ids: selectedIds }, () => setResetting(false));
+    };
+
     return (
         <div className="bg-muted/50 border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-center gap-2 rounded-xl border p-3">
             <span className="text-sm font-medium">
@@ -517,6 +584,9 @@ function BulkActionBar({
                 selectedUsers={selectedUsers}
                 onApply={(updates, onFinish) => post('/admin/wordpress-users/bulk-update-email', { updates }, onFinish)}
             />
+            <Button size="sm" variant="outline" onClick={resetPassword} disabled={resetting}>
+                {resetting ? 'Resetting…' : 'Reset password'}
+            </Button>
             <Button size="sm" variant="destructive" onClick={destroy}>
                 Delete
             </Button>
@@ -619,6 +689,7 @@ export default function WordPressUsersIndex({
                             <RefreshCw className={`mr-1 size-4 ${syncing ? 'animate-spin' : ''}`} />
                             Sync all sites
                         </Button>
+                        <WordPressBulkPasswordReset />
                         <AddUserDialog sites={connectedSites} roles={roles} />
                     </div>
                 </div>
@@ -661,6 +732,8 @@ export default function WordPressUsersIndex({
                     />
                 </div>
 
+                {flash.bulkResults && <GeneratedPasswordsPanel results={flash.bulkResults} />}
+
                 {flash.bulkResults && flash.bulkResults.length > 0 && (
                     <Alert variant={flash.bulkResults.some((r) => r.status !== 'ok') ? 'destructive' : 'default'}>
                         <AlertTitle>Last bulk action results</AlertTitle>
@@ -669,7 +742,7 @@ export default function WordPressUsersIndex({
                                 .filter((r) => r.status !== 'ok')
                                 .map((r, i) => (
                                     <p key={i} className="text-xs">
-                                        {r.site ?? `#${r.id}`}: {r.error ?? 'failed'}
+                                        {r.username ? `${r.username} (${r.site ?? 'site'})` : (r.site ?? `#${r.id}`)}: {r.error ?? 'failed'}
                                     </p>
                                 ))}
                             {flash.bulkResults.every((r) => r.status === 'ok') && <p className="text-muted-foreground text-xs">All succeeded.</p>}
