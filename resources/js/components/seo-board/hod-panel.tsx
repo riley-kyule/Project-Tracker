@@ -1,3 +1,4 @@
+import { SeoBoardTour, type TourStep } from '@/components/seo-board/tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -480,6 +481,54 @@ function WeeklyRowView({ row, templates }: { row: WeeklyRow; templates: Template
     );
 }
 
+type HodTab = 'today' | 'week' | 'exceptions' | 'trends' | 'history';
+
+function hodTourSteps(setTab: (t: HodTab) => void): TourStep[] {
+    return [
+        {
+            target: 'hod-tabs',
+            onShow: () => setTab('today'),
+            title: 'Five views for your team',
+            text: 'Today for daily decisions, This Week for plans, Exceptions for anything blocked or rejected, Trends for scores over time, and History for the full record.',
+        },
+        {
+            target: 'hod-today-list',
+            onShow: () => setTab('today'),
+            title: 'Assign and decide, right here',
+            text: "Click any team member to expand their card — assign that day's extra tasks until it totals 100 points, then approve, mark late, request a fix, or reject each item they submit.",
+        },
+        {
+            target: 'hod-week-list',
+            onShow: () => setTab('week'),
+            title: 'Plan the week ahead',
+            text: "Build each person's weekly tasks and approve the plan before the week starts — it also has to total 100 points.",
+        },
+        {
+            target: 'hod-exceptions',
+            onShow: () => setTab('exceptions'),
+            title: 'Catch problems early',
+            text: 'Anyone with incomplete, late, rejected, or blocked items shows up here automatically — no need to open every card.',
+        },
+        {
+            target: 'hod-trends',
+            onShow: () => setTab('trends'),
+            title: 'See the trend',
+            text: 'Compare final weekly scores across your team over 4 or 12 weeks.',
+        },
+        {
+            target: 'hod-history',
+            onShow: () => setTab('history'),
+            title: 'Look back on anyone, anytime',
+            text: 'Pick a team member and a time range to see their full history, including evidence and your past decisions.',
+        },
+        {
+            target: 'hod-settings-link',
+            title: 'Manage templates & recipients',
+            text: 'Settings is where the task library and who gets the nightly close-of-day report are managed.',
+        },
+    ];
+}
+
 /** The SEO Board section on "My Department" — not a standalone page, per the ease-of-use request: an HOD already has one department home. */
 export function SeoHodPanel({
     department,
@@ -513,12 +562,15 @@ export function SeoHodPanel({
             )}
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">SEO Board — {department.name}</h2>
-                <Link href="/seo-board/settings" className="text-sm underline">
-                    Settings
-                </Link>
+                <div className="flex items-center gap-3">
+                    <SeoBoardTour tourKey="hod" steps={hodTourSteps(setTab)} />
+                    <Link href="/seo-board/settings" className="text-sm underline" data-tour="hod-settings-link">
+                        Settings
+                    </Link>
+                </div>
             </div>
 
-            <div className="flex gap-1 border-b">
+            <div className="flex gap-1 border-b" data-tour="hod-tabs">
                 {(['today', 'week', 'exceptions', 'trends', 'history'] as const).map((t) => (
                     <button
                         key={t}
@@ -539,7 +591,7 @@ export function SeoHodPanel({
             </div>
 
             {tab === 'today' && (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4" data-tour="hod-today-list">
                     {awaitingReview.length > 0 && (
                         <Card>
                             <div className="border-b p-3">
@@ -561,7 +613,7 @@ export function SeoHodPanel({
             )}
 
             {tab === 'week' && (
-                <Card>
+                <Card data-tour="hod-week-list">
                     {weekly.map((row) => (
                         <WeeklyRowView key={row.card_id} row={row} templates={weeklyTemplates} />
                     ))}
@@ -577,7 +629,7 @@ export function SeoHodPanel({
             )}
 
             {tab === 'exceptions' && (
-                <Card className="p-4">
+                <Card className="p-4" data-tour="hod-exceptions">
                     {exceptions.length === 0 && <p className="text-muted-foreground text-sm">No exceptions to review.</p>}
                     <div className="flex flex-col gap-2">
                         {exceptions.map((row) => (
@@ -585,7 +637,11 @@ export function SeoHodPanel({
                                 <span className="font-medium">{row.employee_name}</span>
                                 <span className="flex flex-wrap gap-2">
                                     {row.incomplete_count > 0 && <Badge variant="destructive">{row.incomplete_count} incomplete</Badge>}
-                                    {row.late_count > 0 && <Badge variant="destructive">{row.late_count} late ({fmtRate(row.late_rate)})</Badge>}
+                                    {row.late_count > 0 && (
+                                        <Badge variant="destructive">
+                                            {row.late_count} late ({fmtRate(row.late_rate)})
+                                        </Badge>
+                                    )}
                                     {row.rejected_count > 0 && (
                                         <Badge variant="destructive">
                                             {row.rejected_count} rejected ({fmtRate(row.rejected_rate)})
@@ -603,7 +659,7 @@ export function SeoHodPanel({
             )}
 
             {tab === 'trends' && (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3" data-tour="hod-trends">
                     <div className="flex gap-1">
                         {[4, 12].map((w) => (
                             <Button key={w} size="sm" variant={teamWeeks === w ? 'default' : 'outline'} onClick={() => setTeamWeeks(w)}>
@@ -613,8 +669,8 @@ export function SeoHodPanel({
                     </div>
                     <Card className="overflow-x-auto p-4">
                         <p className="text-muted-foreground mb-3 text-xs">
-                            Weekly final score (70% daily average + 30% weekly) per employee — one row per person, side by side, so a trend over
-                            time and a comparison across the team read off the same table.
+                            Weekly final score (70% daily average + 30% weekly) per employee — one row per person, side by side, so a trend over time
+                            and a comparison across the team read off the same table.
                         </p>
                         <table className="w-full min-w-[500px] text-sm">
                             <thead>
@@ -656,7 +712,7 @@ export function SeoHodPanel({
             )}
 
             {tab === 'history' && (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3" data-tour="hod-history">
                     <div className="flex flex-wrap items-center gap-2">
                         <select
                             className="border-input h-9 rounded-md border bg-transparent px-2 text-sm"
@@ -691,17 +747,23 @@ export function SeoHodPanel({
                                 <div>
                                     <div className="text-muted-foreground text-xs">On-time rate</div>
                                     <div className="text-lg font-semibold">{fmtRate(history.summary.on_time_rate)}</div>
-                                    <div className="text-muted-foreground text-xs">{history.summary.on_time_count} of {history.summary.decided_count}</div>
+                                    <div className="text-muted-foreground text-xs">
+                                        {history.summary.on_time_count} of {history.summary.decided_count}
+                                    </div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground text-xs">Correction rate</div>
                                     <div className="text-lg font-semibold">{fmtRate(history.summary.correction_rate)}</div>
-                                    <div className="text-muted-foreground text-xs">{history.summary.correction_count} of {history.summary.decided_count}</div>
+                                    <div className="text-muted-foreground text-xs">
+                                        {history.summary.correction_count} of {history.summary.decided_count}
+                                    </div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground text-xs">Rejection rate</div>
                                     <div className="text-lg font-semibold">{fmtRate(history.summary.rejection_rate)}</div>
-                                    <div className="text-muted-foreground text-xs">{history.summary.rejection_count} of {history.summary.decided_count}</div>
+                                    <div className="text-muted-foreground text-xs">
+                                        {history.summary.rejection_count} of {history.summary.decided_count}
+                                    </div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground text-xs">Blocked points</div>

@@ -1,3 +1,4 @@
+import { SeoBoardTour, type TourStep } from '@/components/seo-board/tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -125,7 +126,7 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
             </div>
 
             {canUpdate && (
-                <div className="flex flex-wrap items-end gap-2">
+                <div className="flex flex-wrap items-end gap-2" data-tour="emp-status">
                     <div>
                         <Label className="text-xs">Status</Label>
                         <select
@@ -158,7 +159,7 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
                 </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2" data-tour="emp-evidence">
                 {item.evidence.map((e) => (
                     <a key={e.id} href={`/attachments/${e.id}`} className="text-xs underline">
                         {e.original_name}
@@ -187,8 +188,8 @@ function CardPanel({ card, emptyMessage }: { card: Card_ | null; emptyMessage: s
     }, {});
 
     return (
-        <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-4" data-tour="emp-items">
+            <div className="flex flex-wrap items-center gap-2" data-tour="emp-points">
                 <Badge variant="outline">{card.status}</Badge>
                 <Badge variant="outline">planned {card.planned_points}</Badge>
                 {card.employee_submitted_points !== undefined && <Badge variant="outline">submitted {card.employee_submitted_points ?? '—'}</Badge>}
@@ -258,7 +259,7 @@ function HistoryPanel({ history, range }: { history: HistorySummary; range: Page
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex gap-1">
+            <div className="flex gap-1" data-tour="emp-history-range">
                 {['week', 'month', 'quarter'].map((p) => (
                     <Button key={p} size="sm" variant={range.period === p ? 'default' : 'outline'} onClick={() => setPeriod(p)}>
                         {p}
@@ -269,17 +270,23 @@ function HistoryPanel({ history, range }: { history: HistorySummary; range: Page
                 <div>
                     <div className="text-muted-foreground text-xs">On-time rate</div>
                     <div className="text-lg font-semibold">{history.on_time_rate === null ? '—' : `${history.on_time_rate}%`}</div>
-                    <div className="text-muted-foreground text-xs">{history.on_time_count} of {history.decided_count}</div>
+                    <div className="text-muted-foreground text-xs">
+                        {history.on_time_count} of {history.decided_count}
+                    </div>
                 </div>
                 <div>
                     <div className="text-muted-foreground text-xs">Correction rate</div>
                     <div className="text-lg font-semibold">{history.correction_rate === null ? '—' : `${history.correction_rate}%`}</div>
-                    <div className="text-muted-foreground text-xs">{history.correction_count} of {history.decided_count}</div>
+                    <div className="text-muted-foreground text-xs">
+                        {history.correction_count} of {history.decided_count}
+                    </div>
                 </div>
                 <div>
                     <div className="text-muted-foreground text-xs">Rejection rate</div>
                     <div className="text-lg font-semibold">{history.rejection_rate === null ? '—' : `${history.rejection_rate}%`}</div>
-                    <div className="text-muted-foreground text-xs">{history.rejection_count} of {history.decided_count}</div>
+                    <div className="text-muted-foreground text-xs">
+                        {history.rejection_count} of {history.decided_count}
+                    </div>
                 </div>
                 <div>
                     <div className="text-muted-foreground text-xs">Blocked points</div>
@@ -319,13 +326,55 @@ function HistoryPanel({ history, range }: { history: HistorySummary; range: Page
 export default function SeoBoardIndex({ dailyCard, weeklyCard, history, range }: PageProps) {
     const [tab, setTab] = useState<'today' | 'week' | 'history'>('today');
 
+    const tourSteps: TourStep[] = [
+        {
+            target: 'emp-tabs',
+            onShow: () => setTab('today'),
+            title: 'Three tabs, one page',
+            text: 'Today is your daily checklist, This Week is your weekly plan, and History has scores your manager has already approved.',
+        },
+        {
+            target: 'emp-points',
+            onShow: () => setTab('today'),
+            title: 'Your points at a glance',
+            text: "Planned is always 100. Submitted is what you've marked done. Approved only appears once your manager reviews it — submitting isn't scoring.",
+        },
+        {
+            target: 'emp-items',
+            onShow: () => setTab('today'),
+            title: "Today's checklist",
+            text: 'Grouped by section. Monitoring, implementation and documentation are added automatically every day — your manager fills in the rest each morning.',
+        },
+        {
+            target: 'emp-status',
+            onShow: () => setTab('today'),
+            title: 'Update as you work',
+            text: 'Move a task to In progress, then Submitted when it’s ready — or Blocked with a reason if something outside your control is stopping you.',
+        },
+        {
+            target: 'emp-evidence',
+            onShow: () => setTab('today'),
+            title: 'Attach your proof',
+            text: 'Some tasks need a screenshot, document, or link attached before you can submit them.',
+        },
+        {
+            target: 'emp-history-range',
+            onShow: () => setTab('history'),
+            title: 'Check your history anytime',
+            text: 'Switch here to see approved scores from past days and weeks — click any day to see exactly what was recorded.',
+        },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My SEO Board" />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">My SEO Board</h1>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h1 className="text-xl font-semibold">My SEO Board</h1>
+                    <SeoBoardTour tourKey="employee" steps={tourSteps} />
+                </div>
 
-                <div className="flex gap-1 border-b">
+                <div className="flex gap-1 border-b" data-tour="emp-tabs">
                     {(['today', 'week', 'history'] as const).map((t) => (
                         <button
                             key={t}

@@ -1,3 +1,4 @@
+import { SeoBoardTour, type TourStep } from '@/components/seo-board/tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -166,14 +167,50 @@ function NotificationsTab({ department, hod, recipients }: { department: Departm
 export default function SeoSettingsIndex({ department, templates, hod, recipients, can }: PageProps) {
     const [tab, setTab] = useState<'templates' | 'notifications'>(can.templates ? 'templates' : 'notifications');
 
+    const tourSteps: TourStep[] = [
+        ...(can.templates && can.notifications
+            ? [
+                  {
+                      target: 'settings-tabs',
+                      onShow: () => setTab(can.templates ? 'templates' : 'notifications'),
+                      title: 'Two things live here',
+                      text: 'The task library your HOD assigns from, and who gets the automatic nightly close-of-day report.',
+                  } satisfies TourStep,
+              ]
+            : []),
+        ...(can.templates
+            ? [
+                  {
+                      target: 'settings-templates',
+                      onShow: () => setTab('templates'),
+                      title: 'The task library',
+                      text: "Mandatory items are fixed and can't be reweighted here. Production items have a flexible weight range — your HOD picks the exact weight when assigning one to a day.",
+                  } satisfies TourStep,
+              ]
+            : []),
+        ...(can.notifications
+            ? [
+                  {
+                      target: 'settings-notifications',
+                      onShow: () => setTab('notifications'),
+                      title: 'Where the nightly report goes',
+                      text: 'The HOD is included automatically. Add anyone else — like the CEO or a deputy — who should also get the close-of-day email.',
+                  } satisfies TourStep,
+              ]
+            : []),
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="SEO Board Settings" />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">SEO Board Settings — {department.name}</h1>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h1 className="text-xl font-semibold">SEO Board Settings — {department.name}</h1>
+                    <SeoBoardTour tourKey="settings" steps={tourSteps} />
+                </div>
 
                 {can.templates && can.notifications && (
-                    <div className="flex gap-1 border-b">
+                    <div className="flex gap-1 border-b" data-tour="settings-tabs">
                         {(['templates', 'notifications'] as const).map((t) => (
                             <button
                                 key={t}
@@ -186,8 +223,16 @@ export default function SeoSettingsIndex({ department, templates, hod, recipient
                     </div>
                 )}
 
-                {tab === 'templates' && can.templates && <TemplatesTab templates={templates} />}
-                {tab === 'notifications' && can.notifications && <NotificationsTab department={department} hod={hod} recipients={recipients} />}
+                {tab === 'templates' && can.templates && (
+                    <div data-tour="settings-templates">
+                        <TemplatesTab templates={templates} />
+                    </div>
+                )}
+                {tab === 'notifications' && can.notifications && (
+                    <div data-tour="settings-notifications">
+                        <NotificationsTab department={department} hod={hod} recipients={recipients} />
+                    </div>
+                )}
             </div>
         </AppLayout>
     );
