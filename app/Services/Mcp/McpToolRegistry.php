@@ -9,12 +9,14 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\PayrollPeriod;
 use App\Models\Payslip;
+use App\Models\SeoDailyCard;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
 use App\Services\Analytics\GscReportQuery;
 use App\Services\Analytics\TrafficDashboardQuery;
+use App\Services\Seo\SeoPerformanceQuery;
 use App\Services\TaskService;
 use App\Services\TicketService;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -149,6 +151,31 @@ class McpToolRegistry
                     ],
                 ],
                 'handler' => fn (User $user, array $args) => $this->trafficSummary($args['from'] ?? null, $args['to'] ?? null),
+            ],
+            [
+                'name' => 'seo_department_performance',
+                'description' => 'SEO Board today snapshot for a department (default: SEO): each employee\'s live daily card status, approved/provisional points, missing evidence, overdue and blocked items — plus the last 4 weeks\' exceptions (repeated incompletion, lateness, rejections, missing evidence, recurring blockers). Never HR/payroll data.',
+                'permission' => 'seo.cards.view',
+                'inputSchema' => [
+                    'type' => 'object',
+                    'properties' => ['department' => ['type' => 'string', 'description' => "Department name, e.g. \"SEO\". Defaults to \"SEO\"."]],
+                ],
+                'handler' => fn (User $user, array $args) => $this->seoDepartmentPerformance($user, $args['department'] ?? 'SEO'),
+            ],
+            [
+                'name' => 'seo_employee_performance',
+                'description' => 'One SEO employee\'s daily/weekly card history for a date range: planned vs. approved points per day, quota achievement, weighted weekly final scores (70% daily average + 30% weekly, per the SEO Board spec), on-time/late/correction/rejection counts, and blocked points. Never a payslip or salary figure.',
+                'permission' => 'seo.cards.view',
+                'inputSchema' => [
+                    'type' => 'object',
+                    'required' => ['employee'],
+                    'properties' => [
+                        'employee' => ['type' => 'string', 'description' => "The employee's name or email."],
+                        'from' => ['type' => 'string', 'description' => 'Start date, YYYY-MM-DD. Defaults to 7 days ago.'],
+                        'to' => ['type' => 'string', 'description' => 'End date, YYYY-MM-DD. Defaults to today.'],
+                    ],
+                ],
+                'handler' => fn (User $user, array $args) => $this->seoEmployeePerformance($user, (string) $args['employee'], $args['from'] ?? null, $args['to'] ?? null),
             ],
             [
                 'name' => 'create_task',
@@ -409,6 +436,79 @@ class McpToolRegistry
             'gsc_clicks' => (int) array_sum(array_column($gscRows, 'clicks')),
             'gsc_impressions' => (int) array_sum(array_column($gscRows, 'impressions')),
         ];
+    }
+
+    private function seoDepartmentPerformance(User $user, string $departmentNeedle): array
+    {
+        $department = $this->resolveVisibleDepartment($user, $departmentNeedle);
+
+        $query = app(SeoPerformanceQuery::class);
+
+        return [
+            'department' => $department->name,
+            'today' => $query->departmentToday($department),
+            'weekly_plans' => $query->departmentWeekly($department),
+            'exceptions_last_4_weeks' => $query->exceptions($department),
+        ];
+    }
+
+    private function seoEmployeePerformance(User $user, string $employeeNeedle, ?string $from, ?string $to): array
+    {
+        $employee = $this->resolveSeoEmployee($user, $employeeNeedle);
+
+        $toDate = $to !== null ? Carbon::parse($to)->startOfDay() : today();
+        $fromDate = $from !== null ? Carbon::parse($from)->startOfDay() : $toDate->copy()->subDays(6);
+
+        return app(SeoPerformanceQuery::class)->employeeSummary($employee, $fromDate, $toDate);
+    }
+
+    /** Only the SEO (or requested) department if the caller can actually see it — CEO/Admin see any, an HOD only their own mapped department(s), same rule SeoHodController enforces. */
+    private function resolveVisibleDepartment(User $user, string $needle): Department
+    {
+        $needle = trim($needle) ?: 'SEO';
+
+        $department = Department::query()->where('is_active', true)->get()
+            ->first(fn (Department $d) => Str::lower($d->name) === Str::lower($needle));
+
+        if ($department === null) {
+            throw new McpToolException("No active department named \"{$needle}\".");
+        }
+
+        if (! $user->hasAnyRole(['CEO', 'Administrator']) && ! $department->isLedBy($user)) {
+            throw new McpToolException("Not authorized — this token's owner is not the HOD for \"{$department->name}\".");
+        }
+
+        return $department;
+    }
+
+    private function resolveSeoEmployee(User $user, string $needle): Employee
+    {
+        $needle = trim($needle);
+        if ($needle === '') {
+            throw new McpToolException('An employee name or email is required.');
+        }
+
+        $candidates = Employee::query()->active()->with('user')->get()->filter(function (Employee $employee) use ($user) {
+            if ($user->hasAnyRole(['CEO', 'Administrator'])) {
+                return true;
+            }
+
+            return $employee->department !== null && $employee->department->isLedBy($user);
+        });
+
+        $exact = $candidates->first(fn (Employee $e) => Str::lower($e->full_name) === Str::lower($needle) || Str::lower((string) $e->user?->email) === Str::lower($needle));
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        $fuzzy = $candidates->filter(fn (Employee $e) => Str::contains(Str::lower($e->full_name), Str::lower($needle)));
+        if ($fuzzy->count() === 1) {
+            return $fuzzy->first();
+        }
+        if ($fuzzy->isEmpty()) {
+            throw new McpToolException("No SEO-visible employee found matching \"{$needle}\".");
+        }
+        throw new McpToolException("Multiple employees match \"{$needle}\": ".$fuzzy->pluck('full_name')->implode(', ').'. Be more specific or use their email.');
     }
 
     private function createTask(User $user, array $args): array

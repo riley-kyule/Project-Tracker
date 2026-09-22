@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attachment;
+use App\Models\SeoCardItem;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Services\AuditLogger;
@@ -67,6 +68,14 @@ class AttachmentController extends Controller
         return $this->attach($request, $ticket, 'tickets');
     }
 
+    /** Evidence on an SEO Board card item — SEO Board Requirements Specification v1.1 §4.6/§6/§8. */
+    public function storeForSeoItem(Request $request, SeoCardItem $item): RedirectResponse
+    {
+        Gate::authorize('view', $item);
+
+        return $this->attach($request, $item, 'seo-items');
+    }
+
     /** File access inherits the parent record's authorization (PERMISSIONS_MATRIX). */
     public function download(Request $request, Attachment $attachment): StreamedResponse
     {
@@ -81,10 +90,9 @@ class AttachmentController extends Controller
 
         Gate::authorize('view', $parent);
 
-        abort_unless(
-            $attachment->uploaded_by === $request->user()->id || $request->user()->can('boards.manage'),
-            403,
-        );
+        $canManage = $parent instanceof SeoCardItem ? $request->user()->can('seo.cards.approve') : $request->user()->can('boards.manage');
+
+        abort_unless($attachment->uploaded_by === $request->user()->id || $canManage, 403);
 
         Storage::disk($attachment->disk)->delete($attachment->path);
         $attachment->delete();
@@ -152,11 +160,11 @@ class AttachmentController extends Controller
         return $name !== '' ? $name : 'file';
     }
 
-    private function parentOf(Attachment $attachment): Task|Ticket
+    private function parentOf(Attachment $attachment): Task|Ticket|SeoCardItem
     {
         $parent = $attachment->attachable;
 
-        abort_unless($parent instanceof Task || $parent instanceof Ticket, 404);
+        abort_unless($parent instanceof Task || $parent instanceof Ticket || $parent instanceof SeoCardItem, 404);
 
         return $parent;
     }
