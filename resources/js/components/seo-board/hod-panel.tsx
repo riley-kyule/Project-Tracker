@@ -85,6 +85,22 @@ type TeamPerformance = {
     employees: { employee_id: number; employee_name: string; final_scores: (number | null)[]; average_final_score: number | null }[];
 };
 
+type OutputByTaskType = {
+    name: string;
+    section: string;
+    item_count: number;
+    decided_count: number;
+    total_target_quantity: number;
+    total_achieved_quantity: number;
+    quantity_unit: string | null;
+    avg_completion_factor: number | null;
+};
+
+type TaskMix = {
+    sections: string[];
+    employees: { employee_id: number; employee_name: string; by_section: Record<string, number>; total_points: number }[];
+};
+
 type HistoryCard = {
     card_id: number;
     work_date: string;
@@ -118,6 +134,8 @@ export type SeoHodPanelProps = {
     exceptions: ExceptionRow[];
     teamPerformance: TeamPerformance;
     teamWeeks: number;
+    outputByTaskType: OutputByTaskType[];
+    taskMix: TaskMix;
     history: { summary: HistorySummary; range: { from: string; to: string; period: string } } | null;
     productionTemplates: Template[];
     weeklyTemplates: Template[];
@@ -539,6 +557,8 @@ export function SeoHodPanel({
     exceptions,
     teamPerformance,
     teamWeeks,
+    outputByTaskType,
+    taskMix,
     history,
     productionTemplates,
     weeklyTemplates,
@@ -708,6 +728,91 @@ export function SeoHodPanel({
                             </tbody>
                         </table>
                     </Card>
+
+                    <Card className="overflow-x-auto p-4">
+                        <h4 className="mb-1 text-sm font-semibold">Task mix by employee</h4>
+                        <p className="text-muted-foreground mb-3 text-xs">
+                            Earned points by section over the {teamWeeks}-week window — same comparison as above, broken down by what kind of work it
+                            came from.
+                        </p>
+                        <table className="w-full min-w-[500px] text-sm">
+                            <thead>
+                                <tr className="border-b text-left">
+                                    <th className="py-1.5 pr-2 font-medium">Employee</th>
+                                    {taskMix.sections.map((s) => (
+                                        <th key={s} className="px-2 py-1.5 text-center font-medium capitalize">
+                                            {s}
+                                        </th>
+                                    ))}
+                                    <th className="py-1.5 pl-2 text-center font-medium">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {taskMix.employees.map((row) => (
+                                    <tr key={row.employee_id} className="border-b last:border-b-0">
+                                        <td className="py-1.5 pr-2 font-medium">{row.employee_name}</td>
+                                        {taskMix.sections.map((s) => (
+                                            <td key={s} className="px-2 py-1.5 text-center">
+                                                {row.by_section[s] ?? 0}
+                                            </td>
+                                        ))}
+                                        <td className="py-1.5 pl-2 text-center">
+                                            <Badge>{Math.round(row.total_points * 10) / 10}</Badge>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {taskMix.employees.length === 0 && (
+                                    <tr>
+                                        <td colSpan={taskMix.sections.length + 2} className="text-muted-foreground py-3 text-center">
+                                            No decided items in this window yet.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </Card>
+
+                    <Card className="overflow-x-auto p-4">
+                        <h4 className="mb-1 text-sm font-semibold">Output by task type</h4>
+                        <p className="text-muted-foreground mb-3 text-xs">Daily production work in the same window, totalled per task.</p>
+                        <table className="w-full min-w-[560px] text-sm">
+                            <thead>
+                                <tr className="border-b text-left">
+                                    <th className="py-1.5 pr-2 font-medium">Task</th>
+                                    <th className="px-2 py-1.5 text-center font-medium">Items</th>
+                                    <th className="px-2 py-1.5 text-center font-medium">Target</th>
+                                    <th className="px-2 py-1.5 text-center font-medium">Achieved</th>
+                                    <th className="px-2 py-1.5 text-center font-medium">Avg completion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {outputByTaskType.map((row) => (
+                                    <tr key={row.name} className="border-b last:border-b-0">
+                                        <td className="py-1.5 pr-2 font-medium">{row.name}</td>
+                                        <td className="px-2 py-1.5 text-center">
+                                            {row.decided_count} / {row.item_count}
+                                        </td>
+                                        <td className="px-2 py-1.5 text-center">
+                                            {row.total_target_quantity || '—'} {row.quantity_unit ?? ''}
+                                        </td>
+                                        <td className="px-2 py-1.5 text-center">
+                                            {row.total_achieved_quantity || '—'} {row.quantity_unit ?? ''}
+                                        </td>
+                                        <td className="px-2 py-1.5 text-center">
+                                            {row.avg_completion_factor !== null ? `${row.avg_completion_factor}%` : '—'}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {outputByTaskType.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="text-muted-foreground py-3 text-center">
+                                            No production work assigned in this window yet.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </Card>
                 </div>
             )}
 
@@ -743,6 +848,21 @@ export function SeoHodPanel({
                         <p className="text-muted-foreground text-sm">Pick an employee to see their history.</p>
                     ) : (
                         <>
+                            <div className="flex flex-wrap gap-2">
+                                <a
+                                    href={`/seo-board/hod/export/employee?employee_id=${historyEmployeeId}&from=${history.range.from}&to=${history.range.to}`}
+                                    className="text-sm underline"
+                                >
+                                    Export {history.summary.employee_name} (CSV)
+                                </a>
+                                <span className="text-muted-foreground text-sm">·</span>
+                                <a
+                                    href={`/seo-board/hod/export/department?from=${history.range.from}&to=${history.range.to}`}
+                                    className="text-sm underline"
+                                >
+                                    Export whole department (CSV)
+                                </a>
+                            </div>
                             <Card className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-5">
                                 <div>
                                     <div className="text-muted-foreground text-xs">On-time rate</div>

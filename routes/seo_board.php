@@ -4,6 +4,7 @@ use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\Seo\SeoBoardController;
 use App\Http\Controllers\Seo\SeoCardItemController;
 use App\Http\Controllers\Seo\SeoDailyCardController;
+use App\Http\Controllers\Seo\SeoExportController;
 use App\Http\Controllers\Seo\SeoNotificationSettingsController;
 use App\Http\Controllers\Seo\SeoSettingsController;
 use App\Http\Controllers\Seo\SeoTaskTemplateController;
@@ -31,6 +32,10 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('seo-board')->name('s
 
         return redirect()->route('dashboards.department', ['department_id' => $seo->id]);
     })->name('hod.redirect');
+
+    // §11.2 "Exports" — CSV downloads from the HOD Performance section.
+    Route::get('hod/export/employee', [SeoExportController::class, 'employee'])->name('export.employee');
+    Route::get('hod/export/department', [SeoExportController::class, 'department'])->name('export.department');
 
     // Item-level actions (employee status + HOD decisions), shared by daily and weekly cards
     Route::post('items/{item}/status', [SeoCardItemController::class, 'updateStatus'])->name('items.status');

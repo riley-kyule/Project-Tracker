@@ -21,6 +21,14 @@ class SeoHodPanelData
 {
     public function __construct(private readonly SeoPerformanceQuery $query) {}
 
+    /** The SEO department $viewed resolves to — itself, or the nearest descendant slugged "seo" — or null if it has nothing to do with the SEO Board. Shared with App\Http\Controllers\Seo\SeoExportController so the export and the panel it exports from always agree on scope. */
+    public function resolveSeoDepartment(Department $viewed): ?Department
+    {
+        return $viewed->slug === 'seo'
+            ? $viewed
+            : Department::query()->whereIn('id', $viewed->descendantIds())->where('slug', 'seo')->first();
+    }
+
     /** @return array<string, mixed>|null */
     public function forDepartment(Department $viewedDepartment, User $user, ?int $historyEmployeeId, ?string $historyPeriod, int $teamWeeks = 4): ?array
     {
@@ -30,9 +38,7 @@ class SeoHodPanelData
             return null;
         }
 
-        $seoDepartment = $viewedDepartment->slug === 'seo'
-            ? $viewedDepartment
-            : Department::query()->whereIn('id', $viewedDepartment->descendantIds())->where('slug', 'seo')->first();
+        $seoDepartment = $this->resolveSeoDepartment($viewedDepartment);
 
         if ($seoDepartment === null) {
             return null;
@@ -48,6 +54,9 @@ class SeoHodPanelData
         $employees = Employee::query()->active()
             ->whereHas('user', fn ($q) => $q->where('department_id', $seoDepartment->id))
             ->orderBy('first_name')->get();
+
+        $windowStart = now()->startOfWeek()->subWeeks($teamWeeks - 1);
+        $windowEnd = now()->endOfWeek();
 
         $history = null;
         if ($historyEmployeeId !== null) {
@@ -70,6 +79,8 @@ class SeoHodPanelData
             'exceptions' => $this->query->exceptions($seoDepartment),
             'teamPerformance' => $this->query->teamPerformance($seoDepartment, $teamWeeks),
             'teamWeeks' => $teamWeeks,
+            'outputByTaskType' => $this->query->outputByTaskType($seoDepartment, $windowStart, $windowEnd),
+            'taskMix' => $this->query->taskMixByEmployee($seoDepartment, $windowStart, $windowEnd),
             'history' => $history,
             'productionTemplates' => SeoTaskTemplate::query()->active()->forCardType(SeoTaskTemplate::CARD_TYPE_DAILY)
                 ->where('classification', SeoTaskTemplate::CLASSIFICATION_PRODUCTION)->orderBy('position')->get(),

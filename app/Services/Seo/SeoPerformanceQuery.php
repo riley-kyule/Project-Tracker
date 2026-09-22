@@ -8,8 +8,10 @@ use App\Models\Employee;
 use App\Models\SeoCardItem;
 use App\Models\SeoDailyCard;
 use App\Models\SeoFinalScore;
+use App\Models\SeoTaskTemplate;
 use App\Models\SeoWeeklyCard;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * The single source of truth behind the SEO Board dashboards (§11), the
@@ -155,7 +157,7 @@ class SeoPerformanceQuery
         ])->all();
     }
 
-    /** @param  \Illuminate\Support\Collection<int, SeoCardItem>  $items */
+    /** @param  Collection<int, SeoCardItem>  $items */
     public static function itemsPayload($items): array
     {
         return $items->map(fn (SeoCardItem $i) => [
@@ -286,6 +288,156 @@ class SeoPerformanceQuery
                     'average_final_score' => $finalScores->filter(fn (?float $v) => $v !== null)->avg(),
                 ];
             })->all(),
+        ];
+    }
+
+    /**
+     * §11 "Output quantities by task type" — daily production items in the
+     * window, rolled up by task name rather than left as one row per card, so
+     * an HOD can see total pages improved, links placed, etc. without adding
+     * every card by hand.
+     */
+    public function outputByTaskType(Department $department, Carbon $from, Carbon $to): array
+    {
+        $cardIds = SeoDailyCard::query()
+            ->whereIn('department_id', $department->descendantIds())
+            ->whereDate('work_date', '>=', $from->toDateString())
+            ->whereDate('work_date', '<=', $to->toDateString())
+            ->pluck('id');
+
+        $items = SeoCardItem::query()
+            ->where('cardable_type', SeoDailyCard::class)
+            ->whereIn('cardable_id', $cardIds)
+            ->where('classification', SeoTaskTemplate::CLASSIFICATION_PRODUCTION)
+            ->get();
+
+        return $items->groupBy('name')->map(function ($group, string $name) {
+            $decided = $group->filter(fn (SeoCardItem $i) => $i->isDecided() && $i->completion_factor !== null);
+
+            return [
+                'name' => $name,
+                'section' => $group->first()->section,
+                'item_count' => $group->count(),
+                'decided_count' => $decided->count(),
+                'total_target_quantity' => (float) $group->sum('target_quantity'),
+                'total_achieved_quantity' => (float) $group->sum('achieved_quantity'),
+                'quantity_unit' => $group->first()->quantity_unit,
+                'avg_completion_factor' => $decided->isNotEmpty() ? round((float) $decided->avg('completion_factor'), 1) : null,
+            ];
+        })->values()->sortByDesc('item_count')->values()->all();
+    }
+
+    /**
+     * §11 "Comparison among employees in the same SEO role, with task mix
+     * visible" — earned points per employee broken down by the same four
+     * daily sections the card itself is scored in (§4.1), so a role
+     * comparison also shows what kind of work made up each person's score.
+     */
+    public function taskMixByEmployee(Department $department, Carbon $from, Carbon $to): array
+    {
+        $cards = SeoDailyCard::query()
+            ->whereIn('department_id', $department->descendantIds())
+            ->whereDate('work_date', '>=', $from->toDateString())
+            ->whereDate('work_date', '<=', $to->toDateString())
+            ->with('employee')
+            ->get();
+
+        $employeeByCard = $cards->pluck('employee_id', 'id');
+
+        $items = SeoCardItem::query()
+            ->where('cardable_type', SeoDailyCard::class)
+            ->whereIn('cardable_id', $cards->pluck('id'))
+            ->get();
+
+        $sections = ['monitoring', 'production', 'implementation', 'documentation'];
+        $byEmployee = $items->groupBy(fn (SeoCardItem $i) => $employeeByCard->get($i->cardable_id));
+        $employees = $cards->pluck('employee')->filter()->unique('id')->values();
+
+        $rows = $employees->map(function (Employee $employee) use ($byEmployee, $sections) {
+            $group = $byEmployee->get($employee->id) ?? collect();
+            $bySection = collect($sections)->mapWithKeys(fn (string $s) => [
+                $s => round((float) $group->where('section', $s)->sum(fn (SeoCardItem $i) => $i->earned_points !== null ? (float) $i->earned_points : 0.0), 1),
+            ]);
+
+            return [
+                'employee_id' => $employee->id,
+                'employee_name' => $employee->full_name,
+                'by_section' => $bySection->all(),
+                'total_points' => (float) $bySection->sum(),
+            ];
+        })->sortByDesc('total_points')->values()->all();
+
+        return ['sections' => $sections, 'employees' => $rows];
+    }
+
+    /**
+     * §11.2 "Exports: Authorised export of the selected employee, department
+     * and date range." One row per item (daily and weekly) rather than per
+     * card, since that's the level evidence and quantities actually live at.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function exportRows(Department $department, ?int $employeeId, Carbon $from, Carbon $to): array
+    {
+        $employeeIds = $employeeId !== null
+            ? [$employeeId]
+            : Employee::query()->active()->whereHas('user', fn ($q) => $q->where('department_id', $department->id))->pluck('id')->all();
+
+        $daily = SeoDailyCard::query()
+            ->whereIn('employee_id', $employeeIds)
+            ->whereDate('work_date', '>=', $from->toDateString())
+            ->whereDate('work_date', '<=', $to->toDateString())
+            ->with(['employee', 'items.evidence'])
+            ->orderBy('work_date')
+            ->get();
+
+        $weekly = SeoWeeklyCard::query()
+            ->whereIn('employee_id', $employeeIds)
+            ->whereDate('week_start_date', '>=', $from->toDateString())
+            ->whereDate('week_start_date', '<=', $to->toDateString())
+            ->with(['employee', 'items.evidence'])
+            ->orderBy('week_start_date')
+            ->get();
+
+        $rows = [];
+
+        foreach ($daily as $card) {
+            foreach ($card->items as $item) {
+                $rows[] = self::exportRow('Daily', $card->employee?->full_name, $card->work_date->toDateString(), $card->status, $card->approved_points, $item);
+            }
+        }
+
+        foreach ($weekly as $card) {
+            $period = $card->week_start_date->toDateString().' to '.$card->week_end_date->toDateString();
+            foreach ($card->items as $item) {
+                $rows[] = self::exportRow('Weekly', $card->employee?->full_name, $period, $card->status, $card->approved_points, $item);
+            }
+        }
+
+        return $rows;
+    }
+
+    /** @return array<string, mixed> */
+    private static function exportRow(string $cardType, ?string $employeeName, string $period, string $cardStatus, ?string $cardApprovedPoints, SeoCardItem $item): array
+    {
+        return [
+            'employee' => $employeeName,
+            'card_type' => $cardType,
+            'period' => $period,
+            'card_status' => $cardStatus,
+            'card_approved_points' => $cardApprovedPoints,
+            'section' => $item->section,
+            'task' => $item->name,
+            'classification' => $item->classification,
+            'weight' => (float) $item->weight,
+            'target_quantity' => $item->target_quantity !== null ? (float) $item->target_quantity : null,
+            'achieved_quantity' => $item->achieved_quantity !== null ? (float) $item->achieved_quantity : null,
+            'quantity_unit' => $item->quantity_unit,
+            'employee_status' => $item->employee_status,
+            'hod_decision' => $item->hod_decision,
+            'completion_factor' => $item->completion_factor !== null ? (float) $item->completion_factor : null,
+            'earned_points' => $item->earned_points !== null ? (float) $item->earned_points : null,
+            'evidence_count' => $item->evidence->count(),
         ];
     }
 
