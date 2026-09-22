@@ -89,6 +89,52 @@ class Department extends Model
         return $this->manager_id === $userId || $this->assistant_manager_id === $userId;
     }
 
+    public function notificationRecipients(): HasMany
+    {
+        return $this->hasMany(DepartmentNotificationRecipient::class);
+    }
+
+    /**
+     * The Head of Department for scoring/approval purposes (e.g. the SEO
+     * Board's HOD, per SEO Board Requirements Specification v1.1 §1): this
+     * department's own manager if set, else the nearest ancestor's manager.
+     * SEO itself carries no manager today — this resolves to Marketing's.
+     */
+    public function resolveHod(): ?User
+    {
+        $department = $this;
+        $visited = [];
+
+        while ($department !== null && ! in_array($department->id, $visited, true)) {
+            if ($department->manager_id !== null) {
+                return $department->manager;
+            }
+
+            $visited[] = $department->id;
+            $department = $department->parent;
+        }
+
+        return null;
+    }
+
+    /** Whether $user is the manager or assistant manager leading this department, walking up to the nearest ancestor that has either set — same walk as resolveHod(), checked against a specific user rather than returning one. */
+    public function isLedBy(User $user): bool
+    {
+        $department = $this;
+        $visited = [];
+
+        while ($department !== null && ! in_array($department->id, $visited, true)) {
+            if ($department->manager_id !== null || $department->assistant_manager_id !== null) {
+                return $department->manager_id === $user->id || $department->assistant_manager_id === $user->id;
+            }
+
+            $visited[] = $department->id;
+            $department = $department->parent;
+        }
+
+        return false;
+    }
+
     /**
      * Self + every descendant id, walked level-by-level rather than assuming
      * one level of nesting — keeps working if the hierarchy ever grows past

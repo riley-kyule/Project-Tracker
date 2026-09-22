@@ -145,6 +145,21 @@ class Employee extends Model
         return $this->morphMany(Attachment::class, 'attachable');
     }
 
+    public function seoDailyCards(): HasMany
+    {
+        return $this->hasMany(SeoDailyCard::class);
+    }
+
+    public function seoWeeklyCards(): HasMany
+    {
+        return $this->hasMany(SeoWeeklyCard::class);
+    }
+
+    public function seoFinalScores(): HasMany
+    {
+        return $this->hasMany(SeoFinalScore::class);
+    }
+
     public function primaryNextOfKin(): HasOne
     {
         return $this->hasOne(EmployeeNextOfKin::class)->where('is_primary', true);

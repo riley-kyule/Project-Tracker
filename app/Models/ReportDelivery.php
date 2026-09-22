@@ -16,12 +16,15 @@ class ReportDelivery extends Model
     protected $fillable = [
         'report_snapshot_id',
         'recipient_user_id',
+        'recipient_email',
+        'recipient_name',
         'status',
         'queued_at',
         'sent_at',
         'failed_at',
         'failure_reason',
         'retry_count',
+        'admin_alerted_at',
     ];
 
     protected function casts(): array
@@ -30,6 +33,7 @@ class ReportDelivery extends Model
             'queued_at' => 'datetime',
             'sent_at' => 'datetime',
             'failed_at' => 'datetime',
+            'admin_alerted_at' => 'datetime',
         ];
     }
 
@@ -41,5 +45,16 @@ class ReportDelivery extends Model
     public function recipient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recipient_user_id');
+    }
+
+    /** The address actually mailed — a linked user's email, or the standalone recipient_email for a non-user recipient. */
+    public function resolvedEmail(): ?string
+    {
+        return $this->recipient?->email ?? $this->recipient_email;
+    }
+
+    public function resolvedName(): ?string
+    {
+        return $this->recipient?->name ?? $this->recipient_name;
     }
 }

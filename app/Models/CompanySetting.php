@@ -46,6 +46,7 @@ class CompanySetting extends Model
         'google_drive_refresh_token',
         'google_drive_token_expires_at',
         'google_drive_folder_id',
+        'seo_calibration_ends_at',
     ];
 
     protected $hidden = [
@@ -58,6 +59,7 @@ class CompanySetting extends Model
     {
         return [
             'ceo_summary_last_sent_on' => 'date',
+            'seo_calibration_ends_at' => 'date',
             // Laravel's built-in encrypt-on-write/decrypt-on-read cast — these
             // are credentials at rest in the database, not plaintext columns.
             'mail_password' => 'encrypted',
