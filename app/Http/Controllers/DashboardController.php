@@ -13,6 +13,7 @@ use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\WordPressUser;
+use App\Services\Seo\SeoHodPanelData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -216,6 +217,17 @@ class DashboardController extends Controller
                 ->latest('completed_at')
                 ->limit(10)
                 ->get(),
+            // Present only when this department is (or leads to) SEO and the
+            // viewer can approve SEO cards — an HOD already has this page as
+            // their department home, so the SEO Board is a section here
+            // rather than a second screen. See SeoHodPanelData.
+            'seoBoard' => app(SeoHodPanelData::class)->forDepartment(
+                $department,
+                $user,
+                $request->integer('seo_employee_id') ?: null,
+                $request->string('seo_period')->toString() ?: null,
+                $request->integer('seo_team_weeks') ?: 4,
+            ),
         ]);
     }
 

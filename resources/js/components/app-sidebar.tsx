@@ -22,6 +22,7 @@ import {
     ListTodo,
     Mail,
     Plug,
+    Search,
     ShieldCheck,
     Sliders,
     Tag,
@@ -48,6 +49,11 @@ export function AppSidebar() {
     const overview: NavItem[] = [
         ...(isExec ? [{ title: 'CEO Dashboard', url: '/dashboards/ceo', icon: Crown }] : []),
         ...(auth.managesDepartment ? [{ title: 'My Department', url: '/dashboards/department', icon: UsersRound }] : []),
+        // CEO/Administrator don't necessarily "manage" any department themselves
+        // (managesDepartment above is about being someone's manager/assistant),
+        // so without this they'd have no discoverable way into the SEO Board at
+        // all — a redirect straight to My Department scoped to SEO.
+        ...(isExec && !auth.managesDepartment ? [{ title: 'SEO Board', url: '/seo-board/hod', icon: Search }] : []),
         ...(has('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
         ...(has('reports.view') ? [{ title: 'Task Reports', url: '/reports/tasks', icon: BarChart3 }] : []),
         ...(auth.canViewMarketingStatistics ? [{ title: 'Marketing Statistics', url: '/marketing-statistics', icon: LineChart }] : []),
@@ -66,6 +72,7 @@ export function AppSidebar() {
         ...(auth.hasEmployeeRecord ? [{ title: 'Leave Application', url: '/hr/me/leave', icon: CalendarDays }] : []),
         ...(auth.hasEmployeeRecord ? [{ title: 'My Payslips', url: '/hr/me/payslips', icon: Banknote }] : []),
         ...(auth.hasWebsiteAssignments ? [{ title: 'My System Reports', url: '/my-reports', icon: FileText }] : []),
+        ...(has('seo.cards.view') ? [{ title: 'My SEO Cards', url: '/seo-board', icon: Search }] : []),
     ];
 
     const admin: NavItem[] = [

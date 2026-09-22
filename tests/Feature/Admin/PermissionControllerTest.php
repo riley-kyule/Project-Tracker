@@ -49,7 +49,10 @@ class PermissionControllerTest extends TestCase
         $log = AuditLog::query()->where('event', 'role.permissions.updated')->latest('id')->first();
         $this->assertNotNull($log);
         $this->assertSame($marketing->id, $log->auditable_id);
-        $this->assertSame($before, $log->old_values['permissions']);
+        // Set equality, not order: old_values['permissions'] and $before come from
+        // different query paths (audit capture vs. the relation's own pluck), and
+        // nothing about "which permissions were granted before" depends on sequence.
+        $this->assertEqualsCanonicalizing($before, $log->old_values['permissions']);
         $this->assertEqualsCanonicalizing(['departments.view', 'reports.view'], $log->new_values['permissions']);
     }
 

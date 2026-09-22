@@ -45,6 +45,20 @@ class RoleSeeder extends Seeder
             'mcp.manage',
         ];
 
+        // SEO Board (SEO Board Requirements Specification v1.1 §9). "Approve"
+        // is the HOD action (approve/correct/reject/exempt items, approve the
+        // weekly plan); "manage templates" and "manage settings" are separate
+        // so a department head can run day-to-day approvals without also
+        // being able to redefine the point library or notification recipients.
+        $seoPermissions = [
+            'seo.cards.view',
+            'seo.cards.update',
+            'seo.cards.approve',
+            'seo.cards.reopen',
+            'seo.templates.manage',
+            'seo.settings.manage',
+        ];
+
         // HR module. Compensation and payroll are deliberately split out from
         // the rest of HR so an "HR Staff" role can administer people, leave and
         // assets without ever seeing salary figures or running payroll.
@@ -73,7 +87,7 @@ class RoleSeeder extends Seeder
             'hr.payroll.approve',
         ]));
 
-        $permissions = [...$permissions, ...$hrPermissions];
+        $permissions = [...$permissions, ...$hrPermissions, ...$seoPermissions];
 
         foreach ($permissions as $permission) {
             Permission::findOrCreate($permission);
@@ -106,8 +120,13 @@ class RoleSeeder extends Seeder
             // People, leave and assets — but no salary or payroll visibility.
             'HR Staff' => [...$hrStaffPermissions, 'users.view', 'departments.view'],
             // Managers approve their team's leave and see (non-salary) employee
-            // records for their reports; scoping lives in the policies.
-            'Department Manager' => $departmentManager,
+            // records for their reports; scoping lives in the policies. Also
+            // covers the SEO Board's HOD role (§9): maintains the template
+            // library and approves cards for whichever department(s) they
+            // lead — SeoDailyCardPolicy/SeoWeeklyCardPolicy/SeoTaskTemplatePolicy
+            // scope that to their own department, this permission alone
+            // doesn't reach every department's cards.
+            'Department Manager' => [...$departmentManager, 'seo.cards.view', 'seo.cards.approve', 'seo.cards.reopen', 'seo.templates.manage'],
             'IT Technician' => ['departments.view', 'tasks.create', 'tickets.manage'],
             // Services the R&D ticket queue the same way IT Technician services
             // IT's — see Ticket::TEAM_DEPARTMENT_SLUGS. Routing is by department
@@ -120,9 +139,12 @@ class RoleSeeder extends Seeder
             // ticket queue, which the plain Research & Development role alone
             // doesn't grant.
             'R&D Manager' => array_values(array_unique([...$departmentManager, 'tickets.manage'])),
-            'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics'],
+            // SEO Board execution permissions: any SEO employee's own daily/weekly
+            // cards, scoped by SeoDailyCardPolicy/SeoWeeklyCardPolicy to records
+            // where employees.user_id matches them — not every card company-wide.
+            'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics', 'seo.cards.view', 'seo.cards.update'],
             'Customer Service' => ['departments.view', 'tasks.create'],
-            'Employee' => ['departments.view', 'tasks.create'],
+            'Employee' => ['departments.view', 'tasks.create', 'seo.cards.view', 'seo.cards.update'],
             'Viewer' => ['departments.view'],
         ];
 

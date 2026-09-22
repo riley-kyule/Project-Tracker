@@ -75,6 +75,12 @@ class PermissionController extends Controller
             'hr.payroll.view' => ['label' => 'View payroll', 'description' => 'See payroll runs and payslips.', 'group' => 'HR — pay (sensitive)'],
             'hr.payroll.process' => ['label' => 'Process payroll', 'description' => 'Run a payroll period and generate payslips.', 'group' => 'HR — pay (sensitive)'],
             'hr.payroll.approve' => ['label' => 'Approve & send payroll', 'description' => 'Give final sign-off on a payroll run and release payslips to staff.', 'group' => 'HR — pay (sensitive)'],
+            'seo.cards.view' => ['label' => 'View SEO Board cards', 'description' => 'See SEO daily/weekly cards, scores, and history.', 'group' => 'SEO Board'],
+            'seo.cards.update' => ['label' => 'Update own SEO cards', 'description' => 'Update status, evidence, and comments on your own SEO daily/weekly cards.', 'group' => 'SEO Board'],
+            'seo.cards.approve' => ['label' => 'Approve SEO cards', 'description' => 'Assign items, decide (approve/correct/reject/exempt), and approve weekly plans for a mapped department.', 'group' => 'SEO Board'],
+            'seo.cards.reopen' => ['label' => 'Reopen SEO cards', 'description' => 'Reopen a closed SEO daily or weekly card, with a recorded reason.', 'group' => 'SEO Board'],
+            'seo.templates.manage' => ['label' => 'Manage SEO task templates', 'description' => 'Maintain the SEO Board\'s item library and standard point bands.', 'group' => 'SEO Board'],
+            'seo.settings.manage' => ['label' => 'Manage SEO notification settings', 'description' => 'Configure additional report recipient emails for the SEO Board\'s midnight report.', 'group' => 'SEO Board'],
         ];
     }
 

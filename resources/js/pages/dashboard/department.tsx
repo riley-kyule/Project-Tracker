@@ -1,4 +1,5 @@
 import { ListPagination, usePagedList } from '@/components/list-pagination';
+import { SeoHodPanel, type SeoHodPanelProps } from '@/components/seo-board/hod-panel';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
@@ -176,6 +177,7 @@ export default function DepartmentDashboard({
     recentlyCompleted,
     canSwitchDepartment,
     allDepartments,
+    seoBoard,
 }: {
     department: { id: number; name: string };
     subDepartments: SubDepartmentRow[] | null;
@@ -186,6 +188,7 @@ export default function DepartmentDashboard({
     recentlyCompleted: DeptTask[];
     canSwitchDepartment: boolean;
     allDepartments: DepartmentOption[];
+    seoBoard: SeoHodPanelProps | null;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [{ title: `${department.name} Dashboard`, href: `/dashboards/department?department_id=${department.id}` }];
 
@@ -232,6 +235,8 @@ export default function DepartmentDashboard({
                     <TaskList title="Upcoming deadlines (7 days)" tasks={upcoming} />
                     <TaskList title="Recently completed" tasks={recentlyCompleted} />
                 </div>
+
+                {seoBoard && <SeoHodPanel {...seoBoard} />}
             </div>
         </AppLayout>
     );
