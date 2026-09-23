@@ -144,6 +144,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether this user actually works on the SEO team — their own
+     * department resolves to SEO or a descendant of it. Narrower than
+     * merely holding the seo.cards.view permission (granted at the role
+     * level, e.g. to everyone with the "Marketing" role): this is the check
+     * that decides whether the SEO Board nav link shows up and whether
+     * SeoBoardController::mine() will actually provision a card, so a
+     * non-SEO employee who happens to hold the permission can never end up
+     * with a stray card under their own department.
+     */
+    public function isSeoEmployee(): bool
+    {
+        $seo = Department::query()->where('slug', 'seo')->first();
+
+        return $seo !== null && $this->department_id !== null && in_array($this->department_id, $seo->descendantIds(), true);
+    }
+
+    /**
      * Query-scope equivalent of canViewMarketingStatistics() — for bulk
      * lookups (e.g. "who should be notified about stale analytics data")
      * where loading every user just to filter in PHP would be wasteful.

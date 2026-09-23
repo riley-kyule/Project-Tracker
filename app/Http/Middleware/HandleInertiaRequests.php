@@ -52,6 +52,9 @@ class HandleInertiaRequests extends Middleware
                 'hasWebsiteAssignments' => $user ? $user->websiteAssignments()->exists() : false,
                 // Drives the "My HR" self-service nav entry.
                 'hasEmployeeRecord' => $user ? $user->employee()->exists() : false,
+                // Drives the "My SEO Board" nav entry — narrower than the
+                // seo.cards.view permission alone (see User::isSeoEmployee()).
+                'isSeoEmployee' => $user?->isSeoEmployee() ?? false,
                 // Broader than the 'view marketing statistics' permission
                 // alone — also true for Marketing department (and
                 // sub-department) members, matching

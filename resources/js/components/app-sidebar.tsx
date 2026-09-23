@@ -72,7 +72,7 @@ export function AppSidebar() {
         ...(auth.hasEmployeeRecord ? [{ title: 'Leave Application', url: '/hr/me/leave', icon: CalendarDays }] : []),
         ...(auth.hasEmployeeRecord ? [{ title: 'My Payslips', url: '/hr/me/payslips', icon: Banknote }] : []),
         ...(auth.hasWebsiteAssignments ? [{ title: 'My System Reports', url: '/my-reports', icon: FileText }] : []),
-        ...(has('seo.cards.view') ? [{ title: 'My SEO Cards', url: '/seo-board', icon: Search }] : []),
+        ...(auth.isSeoEmployee ? [{ title: 'My SEO Cards', url: '/seo-board', icon: Search }] : []),
     ];
 
     const admin: NavItem[] = [

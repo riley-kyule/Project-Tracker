@@ -26,16 +26,25 @@ class SeoBoardController extends Controller
         $employee = $request->user()->employee;
         abort_if($employee === null, 404, 'No employee record is linked to your account.');
 
-        // User::department_id, not Employee::department_id — see the identical
-        // note in SeoHodPanelData::forDepartment(). A card filed under the
-        // employee's HR department instead of their actual platform team would
-        // silently vanish from that team's HOD view.
-        $seoBoardDepartmentId = $request->user()->department_id ?? $employee->department_id;
+        // Hard gate, not just the seo.cards.view permission: that permission is
+        // granted at the role level (e.g. to everyone with "Marketing"), so
+        // without this check anyone holding it — regardless of which
+        // department they actually work in — would get a daily card silently
+        // provisioned under their own department here, and that department's
+        // own HOD would end up on the midnight report's recipient list for
+        // work that was never actually SEO work.
+        abort_unless($request->user()->isSeoEmployee(), 404, 'The SEO Board is only available to SEO team members.');
+
+        // Validated by isSeoEmployee() above to be SEO itself or a descendant
+        // of it — kept as the user's own specific department (not collapsed
+        // to the top-level SEO id) so a future SEO sub-team still files under
+        // itself, same as SeoHodPanelData::forDepartment's descendantIds() scan expects.
+        $seoBoardDepartmentId = $request->user()->department_id;
 
         $today = $lifecycle->businessDay();
 
         $dailyCard = SeoDailyCard::query()->where('employee_id', $employee->id)->whereDate('work_date', $today->toDateString())->first();
-        if ($dailyCard === null && $seoBoardDepartmentId !== null) {
+        if ($dailyCard === null) {
             $dailyCard = $lifecycle->createNextCard($employee, $seoBoardDepartmentId, $today->copy()->subDay());
         }
         $dailyCard?->load(['items' => fn ($q) => $q->orderBy('position'), 'items.evidence']);

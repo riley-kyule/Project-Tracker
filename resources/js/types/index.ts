@@ -8,6 +8,7 @@ export interface Auth {
     hasWebsiteAssignments: boolean;
     hasEmployeeRecord: boolean;
     canViewMarketingStatistics: boolean;
+    isSeoEmployee: boolean;
 }
 
 export interface BreadcrumbItem {

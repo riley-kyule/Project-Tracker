@@ -144,6 +144,23 @@ class RoleSeeder extends Seeder
             // where employees.user_id matches them — not every card company-wide.
             'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics', 'seo.cards.view', 'seo.cards.update'],
             'Customer Service' => ['departments.view', 'tasks.create'],
+            // seo.cards.view/update stay here deliberately, same as
+            // seo.cards.approve stays on the blanket "Department Manager"
+            // role above: the permission is only the coarse "this role may
+            // call these routes at all" gate, never the actual scope. Until
+            // 2026-09-23 that was the only gate SeoBoardController::mine()
+            // had, so any employee — in any department — got a daily card
+            // silently provisioned under their own department the moment
+            // they visited the SEO Board, and that department's HOD ended up
+            // on the midnight report's recipient list for work that was
+            // never actually SEO work. The real fix is
+            // User::isSeoEmployee(): mine() now refuses to provision
+            // anything unless the visitor's own department resolves to SEO,
+            // regardless of which role granted them this permission — so an
+            // item-status update on a card an employee already, legitimately
+            // owns (SeoDailyCardPolicy::update()'s ownership check) still
+            // needs this permission, but no non-SEO employee can ever end up
+            // owning a card to begin with.
             'Employee' => ['departments.view', 'tasks.create', 'seo.cards.view', 'seo.cards.update'],
             'Viewer' => ['departments.view'],
         ];
