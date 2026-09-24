@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { fmtDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 type Evidence = { id: number; original_name: string };
@@ -77,6 +77,7 @@ type PageProps = {
     weeklyCard: Card_ | null;
     history: HistorySummary;
     range: { from: string; to: string; period: string };
+    kanbanBoardId: number | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'My SEO Board', href: '/seo-board' }];
@@ -323,10 +324,15 @@ function HistoryPanel({ history, range }: { history: HistorySummary; range: Page
     );
 }
 
-export default function SeoBoardIndex({ dailyCard, weeklyCard, history, range }: PageProps) {
+export default function SeoBoardIndex({ dailyCard, weeklyCard, history, range, kanbanBoardId }: PageProps) {
     const [tab, setTab] = useState<'today' | 'week' | 'history'>('today');
 
     const tourSteps: TourStep[] = [
+        {
+            target: 'emp-board-type',
+            title: 'Two ways to work',
+            text: "Score Based is this page — weighted points, evidence, and approval. Kanban is the team's existing board, still here and still yours to use, just a click away.",
+        },
         {
             target: 'emp-tabs',
             onShow: () => setTab('today'),
@@ -372,6 +378,21 @@ export default function SeoBoardIndex({ dailyCard, weeklyCard, history, range }:
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h1 className="text-xl font-semibold">My SEO Board</h1>
                     <SeoBoardTour tourKey="employee" steps={tourSteps} />
+                </div>
+
+                {/* Board type switcher — the weighted Score Based system this page shows, alongside the team's existing Kanban board (kept running, not replaced). */}
+                <div className="flex gap-1 rounded-lg border p-1" data-tour="emp-board-type">
+                    <span className="bg-background text-foreground flex-1 rounded-md px-3 py-1.5 text-center text-sm font-medium shadow-xs">
+                        Score Based
+                    </span>
+                    {kanbanBoardId !== null && (
+                        <Link
+                            href={`/boards/${kanbanBoardId}`}
+                            className="text-muted-foreground hover:text-foreground flex-1 rounded-md px-3 py-1.5 text-center text-sm font-medium"
+                        >
+                            Kanban
+                        </Link>
+                    )}
                 </div>
 
                 <div className="flex gap-1 border-b" data-tour="emp-tabs">

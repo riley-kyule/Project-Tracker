@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Seo;
 
+use App\Models\Board;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\User;
@@ -55,6 +56,26 @@ class SeoConsolidatedPagesTest extends TestCase
         $this->actingAs($user)->get('/seo-board')->assertNotFound();
 
         $this->assertDatabaseCount('seo_daily_cards', 0);
+    }
+
+    /**
+     * The Kanban board was kept running alongside the weighted scoring
+     * system, not replaced by it — My SEO Board's "Kanban" tab links to it,
+     * and the Kanban board itself links back, so a member can move freely
+     * between the two rather than being stuck on whichever one they opened.
+     */
+    public function test_my_seo_board_links_to_the_departments_kanban_board_and_back(): void
+    {
+        $department = $this->seoDepartment();
+        $user = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
+        Employee::factory()->create(['user_id' => $user->id, 'department_id' => $department->id]);
+        $kanban = Board::factory()->create(['department_id' => $department->id, 'name' => 'SEO Board']);
+
+        $this->actingAs($user)->get('/seo-board')->assertInertia(fn ($page) => $page
+            ->where('kanbanBoardId', $kanban->id));
+
+        $this->actingAs($user)->get("/boards/{$kanban->id}")->assertInertia(fn ($page) => $page
+            ->where('seoScoreBoardUrl', '/seo-board'));
     }
 
     public function test_seo_board_settings_shows_only_the_tabs_the_user_can_manage(): void

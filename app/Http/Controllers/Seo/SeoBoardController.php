@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Seo;
 
 use App\Http\Controllers\Controller;
+use App\Models\Board;
 use App\Models\SeoDailyCard;
 use App\Models\SeoWeeklyCard;
 use App\Services\Seo\SeoCardLifecycleService;
@@ -55,7 +56,16 @@ class SeoBoardController extends Controller
 
         $range = $this->resolveRange($request);
 
+        // The pre-existing generic Kanban board for the SEO department — kept
+        // running alongside the weighted scoring system rather than replaced
+        // by it, so a "Kanban" tab here can send a member straight to it.
+        // Resolved by department, not a hardcoded id, since that id isn't
+        // stable across environments.
+        $kanbanBoard = Board::query()->where('department_id', $seoBoardDepartmentId)->where('is_active', true)->orderBy('id')->get()
+            ->first(fn (Board $b) => Gate::forUser($request->user())->allows('view', $b));
+
         return Inertia::render('seo-board/index', [
+            'kanbanBoardId' => $kanbanBoard?->id,
             'dailyCard' => $dailyCard ? [
                 'id' => $dailyCard->id,
                 'work_date' => $dailyCard->work_date->toDateString(),

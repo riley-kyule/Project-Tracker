@@ -24,7 +24,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Bookmark, ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -765,6 +765,7 @@ export default function BoardShow({
     labels,
     savedFilters,
     can,
+    seoScoreBoardUrl,
 }: {
     board: Board;
     boardTaskOptions: BoardTaskOption[];
@@ -773,6 +774,7 @@ export default function BoardShow({
     labels: LabelOption[];
     savedFilters: SavedFilter[];
     can: Can;
+    seoScoreBoardUrl: string | null;
 }) {
     const [columns, setColumns] = useState<Column[]>(board.columns);
     const [activeTask, setActiveTask] = useState<BoardTask | null>(null);
@@ -1023,6 +1025,11 @@ export default function BoardShow({
             <div className="flex h-[calc(100svh-4rem)] flex-col gap-3 overflow-hidden p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
+                    {seoScoreBoardUrl && (
+                        <Link href={seoScoreBoardUrl} className="text-muted-foreground hover:text-foreground text-sm underline">
+                            Switch to Score Based
+                        </Link>
+                    )}
                     {can.manage && (
                         <Button variant={selectMode ? 'secondary' : 'outline'} size="sm" onClick={toggleSelectMode}>
                             {selectMode ? 'Done selecting' : 'Select'}

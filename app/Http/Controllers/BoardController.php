@@ -99,7 +99,7 @@ class BoardController extends Controller
         Gate::authorize('view', $board);
 
         $board->load([
-            'department:id,name',
+            'department:id,name,slug',
             'columns',
             'columns.tasks' => fn ($query) => $query
                 ->with(['assignee:id,name', 'labels:id,name,color'])
@@ -134,6 +134,11 @@ class BoardController extends Controller
 
         return Inertia::render('boards/show', [
             'board' => $board,
+            // Lets the page offer a link back to the weighted Score Based
+            // system for the same team — see SeoBoardController::mine()'s
+            // reciprocal "Kanban" tab. Not shown to a viewer who couldn't
+            // actually open that page themselves.
+            'seoScoreBoardUrl' => $board->department?->slug === 'seo' && $request->user()->isSeoEmployee() ? '/seo-board' : null,
             'boardTaskOptions' => Task::query()
                 ->where('board_id', $board->id)
                 ->whereNull('archived_at')
