@@ -59,6 +59,13 @@ class DeployLatestRelease implements ShouldQueue
                 // RoleSeeder uses findOrCreate()/syncPermissions(), so a deploy with no
                 // permission changes is a no-op here.
                 [PHP_BINARY, 'artisan', 'db:seed', '--class=RoleSeeder', '--force'],
+                // Same reasoning as RoleSeeder above, and the same missing step
+                // that left the SEO Board's task template library empty in
+                // production for a week after it shipped: adding this seeder to
+                // DatabaseSeeder was never enough on its own, nothing had ever
+                // actually invoked it here. firstOrCreate() throughout, so a
+                // deploy with no template changes is a no-op.
+                [PHP_BINARY, 'artisan', 'db:seed', '--class=SeoTaskTemplateSeeder', '--force'],
                 [PHP_BINARY, 'artisan', 'optimize'],
             ];
 
