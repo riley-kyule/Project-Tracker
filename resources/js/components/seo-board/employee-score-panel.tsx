@@ -4,10 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/app-layout';
 import { fmtDate } from '@/lib/utils';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { useState } from 'react';
 
 type Evidence = { id: number; original_name: string };
@@ -31,7 +29,7 @@ type Item = {
     evidence: Evidence[];
 };
 
-type Card_ = {
+export type ScoreCard = {
     id: number;
     work_date?: string;
     week_start_date?: string;
@@ -44,7 +42,7 @@ type Card_ = {
     items: Item[];
 };
 
-type HistorySummary = {
+export type ScoreHistory = {
     on_time_count: number;
     correction_count: number;
     rejection_count: number;
@@ -72,15 +70,13 @@ type HistorySummary = {
     }[];
 };
 
-type PageProps = {
-    dailyCard: Card_ | null;
-    weeklyCard: Card_ | null;
-    history: HistorySummary;
+export type EmployeeScoreBoardPayload = {
+    dailyCard: ScoreCard | null;
+    weeklyCard: ScoreCard | null;
+    history: ScoreHistory;
     range: { from: string; to: string; period: string };
-    kanbanBoardId: number | null;
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'My SEO Board', href: '/seo-board' }];
 const STATUS_OPTIONS = ['not_started', 'in_progress', 'submitted', 'blocked'];
 
 function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
@@ -178,7 +174,7 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
     );
 }
 
-function CardPanel({ card, emptyMessage }: { card: Card_ | null; emptyMessage: string }) {
+function CardPanel({ card, emptyMessage }: { card: ScoreCard | null; emptyMessage: string }) {
     if (card === null) {
         return <p className="text-muted-foreground p-4 text-sm">{emptyMessage}</p>;
     }
@@ -209,7 +205,7 @@ function CardPanel({ card, emptyMessage }: { card: Card_ | null; emptyMessage: s
 }
 
 /** A past day, expandable to see exactly what was recorded — read-only, since only the HOD's decision (visible here) ever changes it, not the employee viewing their own history. */
-function HistoryCardRow({ card }: { card: HistorySummary['cards'][number] }) {
+function HistoryCardRow({ card }: { card: ScoreHistory['cards'][number] }) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -255,8 +251,13 @@ function HistoryCardRow({ card }: { card: HistorySummary['cards'][number] }) {
     );
 }
 
-function HistoryPanel({ history, range }: { history: HistorySummary; range: PageProps['range'] }) {
-    const setPeriod = (period: string) => router.get('/seo-board', { period }, { preserveState: true, only: ['history', 'range'] });
+function HistoryPanel({ history, range }: { history: ScoreHistory; range: EmployeeScoreBoardPayload['range'] }) {
+    // Reloads only the seoScoreBoard prop on whatever board page this panel is embedded in.
+    const setPeriod = (period: string) => {
+        const params = new URLSearchParams(window.location.search);
+        params.set('period', period);
+        router.get(window.location.pathname, Object.fromEntries(params), { preserveState: true, preserveScroll: true, only: ['seoScoreBoard'] });
+    };
 
     return (
         <div className="flex flex-col gap-4">
@@ -324,15 +325,17 @@ function HistoryPanel({ history, range }: { history: HistorySummary; range: Page
     );
 }
 
-export default function SeoBoardIndex({ dailyCard, weeklyCard, history, range, kanbanBoardId }: PageProps) {
+/**
+ * The weighted scoring system's employee view — today's checklist, this
+ * week's plan, and personal history — embedded as the "Score Based" tab on
+ * the SEO Board (resources/js/pages/boards/show.tsx), alongside the
+ * existing "Kanban" tab, per the team's request to keep both board types on
+ * one page rather than as two separately-linked pages.
+ */
+export function SeoEmployeeScorePanel({ dailyCard, weeklyCard, history, range }: EmployeeScoreBoardPayload) {
     const [tab, setTab] = useState<'today' | 'week' | 'history'>('today');
 
     const tourSteps: TourStep[] = [
-        {
-            target: 'emp-board-type',
-            title: 'Two ways to work',
-            text: "Score Based is this page — weighted points, evidence, and approval. Kanban is the team's existing board, still here and still yours to use, just a click away.",
-        },
         {
             target: 'emp-tabs',
             onShow: () => setTab('today'),
@@ -372,45 +375,26 @@ export default function SeoBoardIndex({ dailyCard, weeklyCard, history, range, k
     ];
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="My SEO Board" />
-            <div className="flex flex-col gap-4 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h1 className="text-xl font-semibold">My SEO Board</h1>
-                    <SeoBoardTour tourKey="employee" steps={tourSteps} />
-                </div>
-
-                {/* Board type switcher — the weighted Score Based system this page shows, alongside the team's existing Kanban board (kept running, not replaced). */}
-                <div className="flex gap-1 rounded-lg border p-1" data-tour="emp-board-type">
-                    <span className="bg-background text-foreground flex-1 rounded-md px-3 py-1.5 text-center text-sm font-medium shadow-xs">
-                        Score Based
-                    </span>
-                    {kanbanBoardId !== null && (
-                        <Link
-                            href={`/boards/${kanbanBoardId}`}
-                            className="text-muted-foreground hover:text-foreground flex-1 rounded-md px-3 py-1.5 text-center text-sm font-medium"
-                        >
-                            Kanban
-                        </Link>
-                    )}
-                </div>
-
-                <div className="flex gap-1 border-b" data-tour="emp-tabs">
-                    {(['today', 'week', 'history'] as const).map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => setTab(t)}
-                            className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
-                        >
-                            {t === 'today' ? 'Today' : t === 'week' ? 'This Week' : 'History'}
-                        </button>
-                    ))}
-                </div>
-
-                {tab === 'today' && <CardPanel card={dailyCard} emptyMessage="No daily card yet — check back tomorrow or ask your HOD." />}
-                {tab === 'week' && <CardPanel card={weeklyCard} emptyMessage="No weekly card yet — ask your HOD to set this week's plan." />}
-                {tab === 'history' && <HistoryPanel history={history} range={range} />}
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto pb-2">
+            <div className="flex justify-end">
+                <SeoBoardTour tourKey="employee" steps={tourSteps} />
             </div>
-        </AppLayout>
+
+            <div className="flex gap-1 border-b" data-tour="emp-tabs">
+                {(['today', 'week', 'history'] as const).map((t) => (
+                    <button
+                        key={t}
+                        onClick={() => setTab(t)}
+                        className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
+                    >
+                        {t === 'today' ? 'Today' : t === 'week' ? 'This Week' : 'History'}
+                    </button>
+                ))}
+            </div>
+
+            {tab === 'today' && <CardPanel card={dailyCard} emptyMessage="No daily card yet — check back tomorrow or ask your HOD." />}
+            {tab === 'week' && <CardPanel card={weeklyCard} emptyMessage="No weekly card yet — ask your HOD to set this week's plan." />}
+            {tab === 'history' && <HistoryPanel history={history} range={range} />}
+        </div>
     );
 }

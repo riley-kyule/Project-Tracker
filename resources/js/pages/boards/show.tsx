@@ -1,5 +1,6 @@
 import { TaskCard, TaskDialog, type BoardTask, type Can, type ColumnOption, type LabelOption, type Member } from '@/components/board/task-card';
 import InputError from '@/components/input-error';
+import { SeoEmployeeScorePanel, type EmployeeScoreBoardPayload } from '@/components/seo-board/employee-score-panel';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -24,7 +25,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { Bookmark, ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -765,7 +766,7 @@ export default function BoardShow({
     labels,
     savedFilters,
     can,
-    seoScoreBoardUrl,
+    seoScoreBoard,
 }: {
     board: Board;
     boardTaskOptions: BoardTaskOption[];
@@ -774,8 +775,9 @@ export default function BoardShow({
     labels: LabelOption[];
     savedFilters: SavedFilter[];
     can: Can;
-    seoScoreBoardUrl: string | null;
+    seoScoreBoard: EmployeeScoreBoardPayload | null;
 }) {
+    const [boardTab, setBoardTab] = useState<'kanban' | 'score'>('kanban');
     const [columns, setColumns] = useState<Column[]>(board.columns);
     const [activeTask, setActiveTask] = useState<BoardTask | null>(null);
     const [openTask, setOpenTask] = useState<BoardTask | null>(null);
@@ -1025,132 +1027,153 @@ export default function BoardShow({
             <div className="flex h-[calc(100svh-4rem)] flex-col gap-3 overflow-hidden p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
-                    {seoScoreBoardUrl && (
-                        <Link href={seoScoreBoardUrl} className="text-muted-foreground hover:text-foreground text-sm underline">
-                            Switch to Score Based
-                        </Link>
+                    {seoScoreBoard && (
+                        <div className="flex gap-1 rounded-lg border p-1">
+                            <button
+                                type="button"
+                                onClick={() => setBoardTab('kanban')}
+                                className={`rounded-md px-3 py-1 text-sm font-medium ${boardTab === 'kanban' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                Kanban
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setBoardTab('score')}
+                                className={`rounded-md px-3 py-1 text-sm font-medium ${boardTab === 'score' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                Score Based
+                            </button>
+                        </div>
                     )}
-                    {can.manage && (
+                    {boardTab === 'kanban' && can.manage && (
                         <Button variant={selectMode ? 'secondary' : 'outline'} size="sm" onClick={toggleSelectMode}>
                             {selectMode ? 'Done selecting' : 'Select'}
                         </Button>
                     )}
-                    <div className="ml-auto flex flex-wrap items-center gap-2">
-                        <Input
-                            placeholder="Search tasks…"
-                            aria-label="Search tasks on this board"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full sm:w-48"
-                        />
-                        <Combobox
-                            className="w-40"
-                            aria-label="Filter by assignee"
-                            value={assigneeFilter === ALL ? '' : assigneeFilter}
-                            onChange={(v) => setAssigneeFilter(v || ALL)}
-                            placeholder="All assignees"
-                            options={[
-                                { value: ALL, label: 'All assignees' },
-                                ...members.map((member) => ({ value: member.id.toString(), label: member.name })),
-                            ]}
-                        />
-                        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                            <SelectTrigger className="w-36" aria-label="Filter by priority">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>All priorities</SelectItem>
-                                <SelectItem value="critical">Critical</SelectItem>
-                                <SelectItem value="high">High</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="low">Low</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {filtering && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                    setSearch('');
-                                    setAssigneeFilter(ALL);
-                                    setPriorityFilter(ALL);
-                                }}
-                            >
-                                Clear
-                            </Button>
-                        )}
-                        <SaveBoardFilterDialog boardId={board.id} currentFilters={currentFilters} />
-                    </div>
-                </div>
-                {savedFilters.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Bookmark className="text-muted-foreground size-4" />
-                        {savedFilters.map((savedFilter) => (
-                            <span
-                                key={savedFilter.id}
-                                className="border-sidebar-border/70 dark:border-sidebar-border flex items-center gap-1 rounded-full border py-1 pr-1 pl-3 text-sm"
-                            >
-                                <button type="button" onClick={() => applySavedFilter(savedFilter)} className="hover:underline">
-                                    {savedFilter.name}
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label={`Delete ${savedFilter.name}`}
-                                    onClick={() => deleteSavedFilter(savedFilter.id)}
-                                    className="text-muted-foreground hover:text-destructive rounded-full p-0.5"
-                                >
-                                    <X className="size-3" />
-                                </button>
-                            </span>
-                        ))}
-                    </div>
-                )}
-                {selectedIds.size > 0 && (
-                    <BulkActionsBar
-                        selectedIds={[...selectedIds]}
-                        columns={columnOptions}
-                        allMembers={allMembers}
-                        onDone={() => setSelectedIds(new Set())}
-                    />
-                )}
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCorners}
-                    onDragStart={handleDragStart}
-                    onDragOver={filtering ? undefined : handleDragOver}
-                    onDragEnd={handleDragEnd}
-                >
-                    <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-12px),transparent)]">
-                        {visibleColumns.map((column, index) => (
-                            <BoardColumn
-                                key={column.id}
-                                column={column}
-                                boardId={board.id}
-                                canCreate={can.createTask && !filtering}
-                                canManage={can.manage}
-                                isFirst={index === 0}
-                                isLast={index === visibleColumns.length - 1}
-                                selectMode={selectMode}
-                                selectedIds={selectedIds}
-                                onToggleSelect={toggleSelect}
-                                onOpenTask={setOpenTask}
-                                onEdit={setColumnDialog}
-                                onMove={moveColumn}
-                                pendingTaskId={pendingTaskId}
+                    {boardTab === 'kanban' && (
+                        <div className="ml-auto flex flex-wrap items-center gap-2">
+                            <Input
+                                placeholder="Search tasks…"
+                                aria-label="Search tasks on this board"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full sm:w-48"
                             />
-                        ))}
-                        {can.manage && (
-                            <button
-                                type="button"
-                                onClick={() => setColumnDialog('new')}
-                                className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex w-24 shrink-0 flex-col items-center justify-center gap-1 self-start rounded-xl border border-dashed p-3 text-xs"
-                            >
-                                <Plus className="size-4" /> Add column
-                            </button>
+                            <Combobox
+                                className="w-40"
+                                aria-label="Filter by assignee"
+                                value={assigneeFilter === ALL ? '' : assigneeFilter}
+                                onChange={(v) => setAssigneeFilter(v || ALL)}
+                                placeholder="All assignees"
+                                options={[
+                                    { value: ALL, label: 'All assignees' },
+                                    ...members.map((member) => ({ value: member.id.toString(), label: member.name })),
+                                ]}
+                            />
+                            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                                <SelectTrigger className="w-36" aria-label="Filter by priority">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>All priorities</SelectItem>
+                                    <SelectItem value="critical">Critical</SelectItem>
+                                    <SelectItem value="high">High</SelectItem>
+                                    <SelectItem value="medium">Medium</SelectItem>
+                                    <SelectItem value="low">Low</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {filtering && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setSearch('');
+                                        setAssigneeFilter(ALL);
+                                        setPriorityFilter(ALL);
+                                    }}
+                                >
+                                    Clear
+                                </Button>
+                            )}
+                            <SaveBoardFilterDialog boardId={board.id} currentFilters={currentFilters} />
+                        </div>
+                    )}
+                </div>
+                {boardTab === 'score' && seoScoreBoard ? (
+                    <SeoEmployeeScorePanel {...seoScoreBoard} />
+                ) : (
+                    <>
+                        {savedFilters.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Bookmark className="text-muted-foreground size-4" />
+                                {savedFilters.map((savedFilter) => (
+                                    <span
+                                        key={savedFilter.id}
+                                        className="border-sidebar-border/70 dark:border-sidebar-border flex items-center gap-1 rounded-full border py-1 pr-1 pl-3 text-sm"
+                                    >
+                                        <button type="button" onClick={() => applySavedFilter(savedFilter)} className="hover:underline">
+                                            {savedFilter.name}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            aria-label={`Delete ${savedFilter.name}`}
+                                            onClick={() => deleteSavedFilter(savedFilter.id)}
+                                            className="text-muted-foreground hover:text-destructive rounded-full p-0.5"
+                                        >
+                                            <X className="size-3" />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
                         )}
-                    </div>
-                    <DragOverlay>{activeTask && <TaskCard task={activeTask} overlay />}</DragOverlay>
-                </DndContext>
+                        {selectedIds.size > 0 && (
+                            <BulkActionsBar
+                                selectedIds={[...selectedIds]}
+                                columns={columnOptions}
+                                allMembers={allMembers}
+                                onDone={() => setSelectedIds(new Set())}
+                            />
+                        )}
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCorners}
+                            onDragStart={handleDragStart}
+                            onDragOver={filtering ? undefined : handleDragOver}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-12px),transparent)]">
+                                {visibleColumns.map((column, index) => (
+                                    <BoardColumn
+                                        key={column.id}
+                                        column={column}
+                                        boardId={board.id}
+                                        canCreate={can.createTask && !filtering}
+                                        canManage={can.manage}
+                                        isFirst={index === 0}
+                                        isLast={index === visibleColumns.length - 1}
+                                        selectMode={selectMode}
+                                        selectedIds={selectedIds}
+                                        onToggleSelect={toggleSelect}
+                                        onOpenTask={setOpenTask}
+                                        onEdit={setColumnDialog}
+                                        onMove={moveColumn}
+                                        pendingTaskId={pendingTaskId}
+                                    />
+                                ))}
+                                {can.manage && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setColumnDialog('new')}
+                                        className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex w-24 shrink-0 flex-col items-center justify-center gap-1 self-start rounded-xl border border-dashed p-3 text-xs"
+                                    >
+                                        <Plus className="size-4" /> Add column
+                                    </button>
+                                )}
+                            </div>
+                            <DragOverlay>{activeTask && <TaskCard task={activeTask} overlay />}</DragOverlay>
+                        </DndContext>
+                    </>
+                )}
             </div>
             {openTask && (
                 <TaskDialog

@@ -11,6 +11,7 @@ use App\Models\SavedFilter;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Seo\SeoEmployeeBoardData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -132,13 +133,17 @@ class BoardController extends Controller
             $column->setRelation('tasks', $sorted->values());
         });
 
+        // The weighted scoring system's "Score Based" tab data — only
+        // resolved (an extra handful of queries) when this is actually the
+        // SEO department's board and the viewer has a personal card to see,
+        // never for any other department's board.
+        $seoScoreBoard = $board->department?->slug === 'seo' && app(SeoEmployeeBoardData::class)->appliesTo($request->user())
+            ? app(SeoEmployeeBoardData::class)->forUser($request)
+            : null;
+
         return Inertia::render('boards/show', [
             'board' => $board,
-            // Lets the page offer a link back to the weighted Score Based
-            // system for the same team — see SeoBoardController::mine()'s
-            // reciprocal "Kanban" tab. Not shown to a viewer who couldn't
-            // actually open that page themselves.
-            'seoScoreBoardUrl' => $board->department?->slug === 'seo' && $request->user()->isSeoEmployee() ? '/seo-board' : null,
+            'seoScoreBoard' => $seoScoreBoard,
             'boardTaskOptions' => Task::query()
                 ->where('board_id', $board->id)
                 ->whereNull('archived_at')

@@ -19,20 +19,37 @@ class SeoConsolidatedPagesTest extends TestCase
         return Department::query()->where('slug', 'seo')->firstOrFail();
     }
 
-    public function test_my_seo_board_auto_provisions_todays_card_and_renders_history(): void
+    /** /seo-board is now just a redirect to the SEO department's Kanban board, which carries the Score Based tab — see boards/show.tsx and SeoEmployeeBoardData. */
+    public function test_seo_board_redirects_to_the_departments_kanban_board(): void
+    {
+        $department = $this->seoDepartment();
+        $user = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
+        Employee::factory()->create(['user_id' => $user->id, 'department_id' => $department->id]);
+        $kanban = Board::factory()->create(['department_id' => $department->id, 'name' => 'SEO Board']);
+
+        $this->actingAs($user)->get('/seo-board')->assertRedirect("/boards/{$kanban->id}");
+    }
+
+    /**
+     * The weighted scoring system now lives as a tab on the existing Kanban
+     * board, not a separate page, so the auto-provisioning and history data
+     * are checked directly against that board's own response.
+     */
+    public function test_the_kanban_board_carries_the_score_based_tabs_data_and_auto_provisions_todays_card(): void
     {
         $department = $this->seoDepartment();
         // User::department_id, not just Employee::department_id — see
         // User::isSeoEmployee() and the identical note elsewhere in the SEO
-        // Board (SeoHodPanelData::forDepartment(), SeoBoardController::mine()):
+        // Board (SeoHodPanelData::forDepartment(), SeoEmployeeBoardData):
         // that's the authoritative "which team do you actually work in" field.
         $user = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
         Employee::factory()->create(['user_id' => $user->id, 'department_id' => $department->id]);
+        $kanban = Board::factory()->create(['department_id' => $department->id, 'name' => 'SEO Board']);
 
-        $this->actingAs($user)->get('/seo-board')->assertInertia(fn ($page) => $page
-            ->where('dailyCard.status', 'open')
-            ->where('weeklyCard', null)
-            ->has('history'));
+        $this->actingAs($user)->get("/boards/{$kanban->id}")->assertInertia(fn ($page) => $page
+            ->where('seoScoreBoard.dailyCard.status', 'open')
+            ->where('seoScoreBoard.weeklyCard', null)
+            ->has('seoScoreBoard.history'));
 
         $this->assertDatabaseCount('seo_daily_cards', 1);
     }
@@ -50,32 +67,19 @@ class SeoConsolidatedPagesTest extends TestCase
         $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
         $user = User::factory()->create(['department_id' => $marketing->id])->assignRole('Marketing');
         Employee::factory()->create(['user_id' => $user->id, 'department_id' => $marketing->id]);
+        $seoKanban = Board::factory()->create(['department_id' => $this->seoDepartment()->id]);
 
         $this->assertTrue($user->can('seo.cards.view'), 'sanity check: still holds the permission at the role level');
 
         $this->actingAs($user)->get('/seo-board')->assertNotFound();
 
+        // Also confirmed from the other side: even opening the real SEO Board
+        // directly (they can view it, it's visibility=company/department),
+        // no Score Based data ever comes back for them.
+        $this->actingAs($user)->get("/boards/{$seoKanban->id}")->assertInertia(fn ($page) => $page
+            ->where('seoScoreBoard', null));
+
         $this->assertDatabaseCount('seo_daily_cards', 0);
-    }
-
-    /**
-     * The Kanban board was kept running alongside the weighted scoring
-     * system, not replaced by it — My SEO Board's "Kanban" tab links to it,
-     * and the Kanban board itself links back, so a member can move freely
-     * between the two rather than being stuck on whichever one they opened.
-     */
-    public function test_my_seo_board_links_to_the_departments_kanban_board_and_back(): void
-    {
-        $department = $this->seoDepartment();
-        $user = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
-        Employee::factory()->create(['user_id' => $user->id, 'department_id' => $department->id]);
-        $kanban = Board::factory()->create(['department_id' => $department->id, 'name' => 'SEO Board']);
-
-        $this->actingAs($user)->get('/seo-board')->assertInertia(fn ($page) => $page
-            ->where('kanbanBoardId', $kanban->id));
-
-        $this->actingAs($user)->get("/boards/{$kanban->id}")->assertInertia(fn ($page) => $page
-            ->where('seoScoreBoardUrl', '/seo-board'));
     }
 
     public function test_seo_board_settings_shows_only_the_tabs_the_user_can_manage(): void
