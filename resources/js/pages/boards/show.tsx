@@ -1031,18 +1031,18 @@ export default function BoardShow({
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
                     {(seoScoreBoard || seoHodBoard) && (
-                        <div className="flex gap-1 rounded-lg border p-1">
+                        <div className="bg-primary/5 border-primary/25 flex gap-1 rounded-lg border p-1">
                             <button
                                 type="button"
                                 onClick={() => setBoardTab('kanban')}
-                                className={`rounded-md px-3 py-1 text-sm font-medium ${boardTab === 'kanban' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
+                                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${boardTab === 'kanban' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 Kanban
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setBoardTab('score')}
-                                className={`rounded-md px-3 py-1 text-sm font-medium ${boardTab === 'score' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
+                                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${boardTab === 'score' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 Score Based
                             </button>

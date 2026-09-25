@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { fmtDate } from '@/lib/utils';
 import { Link, router } from '@inertiajs/react';
+import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 type Evidence = { id: number; original_name: string };
@@ -332,6 +333,10 @@ function AssignPanel({ endpoint, templates, fixedPoints = 0 }: { endpoint: strin
 
 function TodayRowView({ row, templates }: { row: TodayRow; templates: Template[] }) {
     const [open, setOpen] = useState(false);
+    // The fixed 35 mandatory points are always seeded; anything short of 100
+    // means production work hasn't been assigned yet — surfaced here so it's
+    // visible without opening every row to check.
+    const needsAssignment = row.status !== 'closed' && row.items.reduce((sum, i) => sum + i.weight, 0) < 100;
 
     const reopen = () => {
         const reason = window.prompt('Reason for reopening this closed card:');
@@ -345,8 +350,16 @@ function TodayRowView({ row, templates }: { row: TodayRow; templates: Template[]
                 className="hover:bg-accent flex w-full flex-wrap items-center justify-between gap-2 p-3 text-left"
                 onClick={() => setOpen((v) => !v)}
             >
-                <span className="font-medium">{row.employee_name}</span>
+                <span className="flex items-center gap-1.5 font-medium">
+                    <ChevronRight className={`text-muted-foreground size-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                    {row.employee_name}
+                </span>
                 <span className="flex gap-2">
+                    {needsAssignment && (
+                        <Badge className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                            needs assignment
+                        </Badge>
+                    )}
                     <Badge variant="outline">{row.status}</Badge>
                     <Badge>{row.approved_points ?? row.employee_submitted_points ?? '—'}</Badge>
                     {row.missing_evidence_count > 0 && <Badge variant="destructive">{row.missing_evidence_count} missing evidence</Badge>}
@@ -389,7 +402,8 @@ function AwaitingReviewRowView({ row }: { row: AwaitingReviewRow }) {
                 className="hover:bg-accent flex w-full flex-wrap items-center justify-between gap-2 p-3 text-left"
                 onClick={() => setOpen((v) => !v)}
             >
-                <span className="font-medium">
+                <span className="flex items-center gap-1.5 font-medium">
+                    <ChevronRight className={`text-muted-foreground size-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
                     {row.employee_name} — {fmtDate(row.work_date)}
                 </span>
                 <span className="flex gap-2">
@@ -420,7 +434,10 @@ function HistoryCardRowView({ card }: { card: HistoryCard }) {
                 className="hover:bg-accent flex w-full items-center justify-between gap-2 py-1.5 text-left text-sm"
                 onClick={() => setOpen((v) => !v)}
             >
-                <span>{fmtDate(card.work_date)}</span>
+                <span className="flex items-center gap-1.5">
+                    <ChevronRight className={`text-muted-foreground size-3.5 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                    {fmtDate(card.work_date)}
+                </span>
                 <span className="flex gap-2">
                     <Badge variant="outline">{card.status}</Badge>
                     {hasPending && <Badge variant="destructive">pending review</Badge>}
@@ -448,7 +465,10 @@ function NewWeeklyPlanRow({ employee, templates }: { employee: EmployeeRef; temp
                 className="hover:bg-accent flex w-full flex-wrap items-center justify-between gap-2 p-3 text-left"
                 onClick={() => setOpen((v) => !v)}
             >
-                <span className="font-medium">{employee.full_name}</span>
+                <span className="flex items-center gap-1.5 font-medium">
+                    <ChevronRight className={`text-muted-foreground size-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                    {employee.full_name}
+                </span>
                 <Badge variant="secondary">no plan yet</Badge>
             </button>
             {open && (
@@ -471,7 +491,10 @@ function WeeklyRowView({ row, templates }: { row: WeeklyRow; templates: Template
                 className="hover:bg-accent flex w-full flex-wrap items-center justify-between gap-2 p-3 text-left"
                 onClick={() => setOpen((v) => !v)}
             >
-                <span className="font-medium">{row.employee_name}</span>
+                <span className="flex items-center gap-1.5 font-medium">
+                    <ChevronRight className={`text-muted-foreground size-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                    {row.employee_name}
+                </span>
                 <span className="flex gap-2">
                     <Badge variant="outline">{row.status}</Badge>
                     <Badge>{row.approved_points ?? '—'}</Badge>
