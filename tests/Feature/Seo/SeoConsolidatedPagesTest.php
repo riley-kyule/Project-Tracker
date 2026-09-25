@@ -47,9 +47,9 @@ class SeoConsolidatedPagesTest extends TestCase
         $kanban = Board::factory()->create(['department_id' => $department->id, 'name' => 'SEO Board']);
 
         $this->actingAs($user)->get("/boards/{$kanban->id}")->assertInertia(fn ($page) => $page
-            ->where('seoScoreBoard.dailyCard.status', 'open')
-            ->where('seoScoreBoard.weeklyCard', null)
-            ->has('seoScoreBoard.history'));
+            ->where('scoreBoard.data.dailyCard.status', 'open')
+            ->where('scoreBoard.data.weeklyCard', null)
+            ->has('scoreBoard.data.history'));
 
         $this->assertDatabaseCount('seo_daily_cards', 1);
     }
@@ -77,14 +77,14 @@ class SeoConsolidatedPagesTest extends TestCase
         // directly (they can view it, it's visibility=company/department),
         // no Score Based data ever comes back for them.
         $this->actingAs($user)->get("/boards/{$seoKanban->id}")->assertInertia(fn ($page) => $page
-            ->where('seoScoreBoard', null));
+            ->where('scoreBoard', null));
 
         $this->assertDatabaseCount('seo_daily_cards', 0);
     }
 
     /**
      * A CEO/Administrator has no personal SEO card of their own, so they
-     * never get seoScoreBoard — but they still get a Score Based tab,
+     * never get scoreBoard — but they still get a Score Based tab,
      * carrying the same team management view already on "My Department"
      * (SeoHodPanelData), so "CEO/Admin see everything" holds on the board
      * page too, not just the dashboard.
@@ -100,9 +100,9 @@ class SeoConsolidatedPagesTest extends TestCase
             $viewer = User::factory()->create()->assignRole($role);
 
             $this->actingAs($viewer)->get("/boards/{$kanban->id}")->assertInertia(fn ($page) => $page
-                ->where('seoScoreBoard', null)
-                ->where('seoHodBoard.department.id', $department->id)
-                ->has('seoHodBoard.employees', 1));
+                ->where('scoreBoard', null)
+                ->where('hodBoard.data.department.id', $department->id)
+                ->has('hodBoard.data.employees', 1));
         }
     }
 
