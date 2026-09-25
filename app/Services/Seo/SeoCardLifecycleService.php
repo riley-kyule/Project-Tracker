@@ -103,11 +103,30 @@ class SeoCardLifecycleService
 
         $employee = $card->employee;
 
-        if ($employee !== null) {
+        // Without this check, a stray card created for a non-SEO employee
+        // before User::isSeoEmployee() existed (SeoBoardController::mine() is
+        // gated now, but this close step never was) would recreate itself for
+        // the next workday every single night, forever, and keep dispatching
+        // an SEO report about it — a self-perpetuating instance of the exact
+        // bug that gate was meant to close. A department can also legitimately
+        // stop being someone's actual team after their card was opened (a
+        // transfer), so this is checked fresh at close time, not just trusted
+        // from whenever the card was created.
+        $isCurrentlySeoEmployee = $employee?->user?->isSeoEmployee() ?? false;
+
+        if ($employee !== null && $isCurrentlySeoEmployee) {
             $this->createNextCard($employee, $card->department_id, $card->work_date->copy());
         }
 
-        GenerateSeoDailyCardReport::dispatch($card->id);
+        if ($isCurrentlySeoEmployee) {
+            GenerateSeoDailyCardReport::dispatch($card->id);
+        } else {
+            Log::warning('Skipped SEO daily card report and next-day card: owner is not currently an SEO team member.', [
+                'card_id' => $card->id,
+                'employee_id' => $card->employee_id,
+                'department_id' => $card->department_id,
+            ]);
+        }
     }
 
     /** Opens a clean card for the next date $employee is actually expected to work — never the closed card, never copying its status/evidence/comments forward, per §4.2/§9.2. */

@@ -29,7 +29,10 @@ class SeoLifecycleTest extends TestCase
         Queue::fake();
 
         $department = $this->seoDepartment();
-        $user = User::factory()->create()->assignRole('Employee');
+        // User::department_id, not just Employee::department_id — see
+        // User::isSeoEmployee(), which SeoCardLifecycleService::closeOne() now
+        // checks before perpetuating the next card or dispatching a report.
+        $user = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
         $employee = Employee::factory()->create(['user_id' => $user->id, 'department_id' => $department->id]);
 
         $yesterday = today()->subDay();
@@ -83,7 +86,7 @@ class SeoLifecycleTest extends TestCase
         $hod = User::factory()->create()->assignRole('Department Manager');
         $marketing->update(['manager_id' => $hod->id]);
 
-        $user = User::factory()->create()->assignRole('Employee');
+        $user = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
         $employee = Employee::factory()->create(['user_id' => $user->id, 'department_id' => $department->id]);
 
         $yesterday = today()->subDay();
@@ -125,7 +128,7 @@ class SeoLifecycleTest extends TestCase
         Queue::fake();
 
         $department = $this->seoDepartment();
-        $user = User::factory()->create()->assignRole('Employee');
+        $user = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
         $employee = Employee::factory()->create(['user_id' => $user->id, 'department_id' => $department->id]);
 
         $card = SeoDailyCard::query()->create([
@@ -141,5 +144,42 @@ class SeoLifecycleTest extends TestCase
         $countAfterSecond = SeoDailyCard::query()->where('employee_id', $employee->id)->count();
 
         $this->assertSame($countAfterFirst, $countAfterSecond);
+    }
+
+    /**
+     * The actual production incident this guards against: a stray card
+     * created for a non-SEO employee before User::isSeoEmployee() existed
+     * (or created after, e.g. a department transfer) would otherwise
+     * recreate itself for the next workday every single night forever, and
+     * dispatch an SEO report about it each time — a self-perpetuating
+     * instance of the bug SeoBoardController::mine()'s gate alone doesn't
+     * stop, since it never runs again once the card already exists.
+     */
+    public function test_a_stray_card_for_a_non_seo_employee_does_not_perpetuate_or_report(): void
+    {
+        Queue::fake();
+
+        $department = $this->seoDepartment();
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+        // Holds the Marketing role (so seo.cards.view is present), but their
+        // actual department is Marketing, not SEO — the exact shape of the
+        // real incident.
+        $user = User::factory()->create(['department_id' => $marketing->id])->assignRole('Marketing');
+        $employee = Employee::factory()->create(['user_id' => $user->id, 'department_id' => $marketing->id]);
+
+        $card = SeoDailyCard::query()->create([
+            'employee_id' => $employee->id, 'department_id' => $marketing->id,
+            'work_date' => today()->subDay(), 'status' => SeoDailyCard::STATUS_OPEN, 'planned_points' => 100,
+        ]);
+
+        app(SeoCardLifecycleService::class)->closeDueCards();
+
+        $card->refresh();
+        $this->assertSame(SeoDailyCard::STATUS_CLOSED, $card->status, 'the stray card itself still closes and snapshots normally');
+
+        $next = SeoDailyCard::query()->where('employee_id', $employee->id)->where('id', '!=', $card->id)->first();
+        $this->assertNull($next, 'no next-day card should be perpetuated for a non-SEO employee');
+
+        Queue::assertNotPushed(GenerateSeoDailyCardReport::class);
     }
 }
