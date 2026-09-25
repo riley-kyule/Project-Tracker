@@ -13,6 +13,7 @@ use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\WordPressUser;
+use App\Services\Cs\CsHodPanelData;
 use App\Services\Seo\SeoHodPanelData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -227,6 +228,16 @@ class DashboardController extends Controller
                 $request->integer('seo_employee_id') ?: null,
                 $request->string('seo_period')->toString() ?: null,
                 $request->integer('seo_team_weeks') ?: 4,
+            ),
+            // Same reasoning as seoBoard above, for the Customer Service
+            // Board — present only when this department is (or leads to)
+            // Customer Service and the viewer can approve its cards.
+            'csBoard' => app(CsHodPanelData::class)->forDepartment(
+                $department,
+                $user,
+                $request->integer('cs_employee_id') ?: null,
+                $request->string('cs_period')->toString() ?: null,
+                $request->integer('cs_team_weeks') ?: 4,
             ),
         ]);
     }

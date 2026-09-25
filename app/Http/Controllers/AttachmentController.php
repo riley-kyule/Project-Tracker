@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attachment;
+use App\Models\CsCardItem;
+use App\Models\CsSalesRecord;
 use App\Models\SeoCardItem;
 use App\Models\Task;
 use App\Models\Ticket;
@@ -76,6 +78,22 @@ class AttachmentController extends Controller
         return $this->attach($request, $item, 'seo-items');
     }
 
+    /** Evidence on a Customer Service Board card item — Customer Service Board Requirements Specification v1.0 §7/§8. */
+    public function storeForCsItem(Request $request, CsCardItem $item): RedirectResponse
+    {
+        Gate::authorize('view', $item);
+
+        return $this->attach($request, $item, 'cs-items');
+    }
+
+    /** Evidence on a Customer Service sales record (payment reference, receipt) — Customer Service Board Requirements Specification v1.0 §4/§5.1. */
+    public function storeForCsSalesRecord(Request $request, CsSalesRecord $record): RedirectResponse
+    {
+        Gate::authorize('view', $record);
+
+        return $this->attach($request, $record, 'cs-sales-records');
+    }
+
     /** File access inherits the parent record's authorization (PERMISSIONS_MATRIX). */
     public function download(Request $request, Attachment $attachment): StreamedResponse
     {
@@ -90,7 +108,11 @@ class AttachmentController extends Controller
 
         Gate::authorize('view', $parent);
 
-        $canManage = $parent instanceof SeoCardItem ? $request->user()->can('seo.cards.approve') : $request->user()->can('boards.manage');
+        $canManage = match (true) {
+            $parent instanceof SeoCardItem => $request->user()->can('seo.cards.approve'),
+            $parent instanceof CsCardItem, $parent instanceof CsSalesRecord => $request->user()->can('cs.cards.approve'),
+            default => $request->user()->can('boards.manage'),
+        };
 
         abort_unless($attachment->uploaded_by === $request->user()->id || $canManage, 403);
 
@@ -160,11 +182,15 @@ class AttachmentController extends Controller
         return $name !== '' ? $name : 'file';
     }
 
-    private function parentOf(Attachment $attachment): Task|Ticket|SeoCardItem
+    private function parentOf(Attachment $attachment): Task|Ticket|SeoCardItem|CsCardItem|CsSalesRecord
     {
         $parent = $attachment->attachable;
 
-        abort_unless($parent instanceof Task || $parent instanceof Ticket || $parent instanceof SeoCardItem, 404);
+        abort_unless(
+            $parent instanceof Task || $parent instanceof Ticket || $parent instanceof SeoCardItem
+                || $parent instanceof CsCardItem || $parent instanceof CsSalesRecord,
+            404,
+        );
 
         return $parent;
     }

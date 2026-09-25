@@ -55,6 +55,8 @@ class HandleInertiaRequests extends Middleware
                 // Drives the "My SEO Board" nav entry — narrower than the
                 // seo.cards.view permission alone (see User::isSeoEmployee()).
                 'isSeoEmployee' => $user?->isSeoEmployee() ?? false,
+                // Drives the "My CS Cards" nav entry (see User::isCsEmployee()).
+                'isCsEmployee' => $user?->isCsEmployee() ?? false,
                 // Broader than the 'view marketing statistics' permission
                 // alone — also true for Marketing department (and
                 // sub-department) members, matching

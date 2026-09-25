@@ -161,6 +161,26 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether this user is a scored member of the Customer Service team:
+     * their own department (User::department_id, never the HR record's
+     * Employee::department_id) resolves to Customer Service or a descendant
+     * of it, and they don't lead it. A CS manager, assistant manager, CEO or
+     * Administrator sees the team management view instead of a personal card,
+     * so they are never provisioned a card or emailed a report about
+     * themselves. This, not the cs.cards.* role permission, is the real gate.
+     */
+    public function isCsEmployee(): bool
+    {
+        $cs = Department::query()->where('slug', 'customer-service')->first();
+
+        if ($cs === null || $this->department_id === null || ! in_array($this->department_id, $cs->descendantIds(), true)) {
+            return false;
+        }
+
+        return ! $this->hasAnyRole(['CEO', 'Administrator']) && ! $cs->isLedBy($this);
+    }
+
+    /**
      * Query-scope equivalent of canViewMarketingStatistics() — for bulk
      * lookups (e.g. "who should be notified about stale analytics data")
      * where loading every user just to filter in PHP would be wasteful.

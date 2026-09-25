@@ -16,6 +16,8 @@ use App\Models\TicketCategory;
 use App\Models\User;
 use App\Services\Analytics\GscReportQuery;
 use App\Services\Analytics\TrafficDashboardQuery;
+use App\Services\Cs\CsAccess;
+use App\Services\Cs\CsPerformanceQuery;
 use App\Services\Seo\SeoPerformanceQuery;
 use App\Services\TaskService;
 use App\Services\TicketService;
@@ -176,6 +178,31 @@ class McpToolRegistry
                     ],
                 ],
                 'handler' => fn (User $user, array $args) => $this->seoEmployeePerformance($user, (string) $args['employee'], $args['from'] ?? null, $args['to'] ?? null),
+            ],
+            [
+                'name' => 'cs_department_performance',
+                'description' => 'Customer Service Board today snapshot for a department (default: Customer Service): each employee\'s live daily card status, approved/provisional points, missing evidence, blocked items, and pending (not yet HOD-cleared) sales records — plus the last 4 weeks\' exceptions. Never HR/payroll data.',
+                'permission' => 'cs.cards.view',
+                'inputSchema' => [
+                    'type' => 'object',
+                    'properties' => ['department' => ['type' => 'string', 'description' => 'Department name, e.g. "Customer Service". Defaults to "Customer Service".']],
+                ],
+                'handler' => fn (User $user, array $args) => $this->csDepartmentPerformance($user, $args['department'] ?? 'Customer Service'),
+            ],
+            [
+                'name' => 'cs_employee_performance',
+                'description' => 'One Customer Service employee\'s daily/weekly card history for a date range: planned vs. approved points per day, quota achievement, weighted weekly final scores (70% daily average + 30% weekly), on-time/late/correction/rejection counts, blocked points, and weekly commercial achievement (new customers, renewals/reactivations, both by count and cleared revenue, against target). Never a payslip or salary figure.',
+                'permission' => 'cs.cards.view',
+                'inputSchema' => [
+                    'type' => 'object',
+                    'required' => ['employee'],
+                    'properties' => [
+                        'employee' => ['type' => 'string', 'description' => "The employee's name or email."],
+                        'from' => ['type' => 'string', 'description' => 'Start date, YYYY-MM-DD. Defaults to 7 days ago.'],
+                        'to' => ['type' => 'string', 'description' => 'End date, YYYY-MM-DD. Defaults to today.'],
+                    ],
+                ],
+                'handler' => fn (User $user, array $args) => $this->csEmployeePerformance($user, (string) $args['employee'], $args['from'] ?? null, $args['to'] ?? null),
             ],
             [
                 'name' => 'create_task',
@@ -460,6 +487,57 @@ class McpToolRegistry
         $fromDate = $from !== null ? Carbon::parse($from)->startOfDay() : $toDate->copy()->subDays(6);
 
         return app(SeoPerformanceQuery::class)->employeeSummary($employee, $fromDate, $toDate);
+    }
+
+    private function csDepartmentPerformance(User $user, string $departmentNeedle): array
+    {
+        $department = $this->resolveVisibleDepartment($user, $departmentNeedle);
+
+        $query = app(CsPerformanceQuery::class);
+
+        return [
+            'department' => $department->name,
+            'today' => $query->departmentToday($department),
+            'weekly_plans' => $query->departmentWeekly($department),
+            'exceptions_last_4_weeks' => $query->exceptions($department),
+        ];
+    }
+
+    private function csEmployeePerformance(User $user, string $employeeNeedle, ?string $from, ?string $to): array
+    {
+        $employee = $this->resolveCsEmployee($user, $employeeNeedle);
+
+        $toDate = $to !== null ? Carbon::parse($to)->startOfDay() : today();
+        $fromDate = $from !== null ? Carbon::parse($from)->startOfDay() : $toDate->copy()->subDays(6);
+
+        return app(CsPerformanceQuery::class)->employeeSummary($employee, $fromDate, $toDate);
+    }
+
+    private function resolveCsEmployee(User $user, string $needle): Employee
+    {
+        $needle = trim($needle);
+        if ($needle === '') {
+            throw new McpToolException('An employee name or email is required.');
+        }
+
+        // Scored CS team members only, and only for the department's own
+        // leadership (manager, assistant manager, CEO, Administrator): the
+        // same CsAccess rule the Score Based tab enforces.
+        $candidates = CsAccess::scoredEmployees()->filter(fn (Employee $employee) => CsAccess::leadsEmployee($user, $employee));
+
+        $exact = $candidates->first(fn (Employee $e) => Str::lower($e->full_name) === Str::lower($needle) || Str::lower((string) $e->user?->email) === Str::lower($needle));
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        $fuzzy = $candidates->filter(fn (Employee $e) => Str::contains(Str::lower($e->full_name), Str::lower($needle)));
+        if ($fuzzy->count() === 1) {
+            return $fuzzy->first();
+        }
+        if ($fuzzy->isEmpty()) {
+            throw new McpToolException("No Customer Service-visible employee found matching \"{$needle}\".");
+        }
+        throw new McpToolException("Multiple employees match \"{$needle}\": ".$fuzzy->pluck('full_name')->implode(', ').'. Be more specific or use their email.');
     }
 
     /** Only the SEO (or requested) department if the caller can actually see it — CEO/Admin see any, an HOD only their own mapped department(s), same rule SeoHodController enforces. */

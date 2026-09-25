@@ -16,3 +16,6 @@ Schedule::command('ewms:hr-contract-alerts')->dailyAt('07:00');
 Schedule::command('ewms:accrue-leave')->monthlyOn(1, '01:00');
 Schedule::command('ewms:close-seo-daily-cards')->everyFifteenMinutes()->withoutOverlapping(600)->onOneServer();
 Schedule::command('ewms:retry-failed-seo-report-deliveries')->everyThirtyMinutes()->withoutOverlapping(600)->onOneServer();
+Schedule::command('ewms:close-cs-daily-cards')->everyFifteenMinutes()->withoutOverlapping(600)->onOneServer();
+Schedule::command('ewms:retry-failed-cs-report-deliveries')->everyThirtyMinutes()->withoutOverlapping(600)->onOneServer();
+Schedule::command('ewms:sync-cs-exchange-rates')->dailyAt('05:00')->withoutOverlapping(600)->onOneServer();

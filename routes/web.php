@@ -20,6 +20,7 @@ require __DIR__.'/tickets.php';
 require __DIR__.'/projects.php';
 require __DIR__.'/marketing.php';
 require __DIR__.'/seo_board.php';
+require __DIR__.'/cs_board.php';
 require __DIR__.'/reports.php';
 require __DIR__.'/push.php';
 require __DIR__.'/e2e.php';
