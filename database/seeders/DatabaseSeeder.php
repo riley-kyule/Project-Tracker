@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             CountrySeeder::class,
             HrSeeder::class,
             SeoTaskTemplateSeeder::class,
+            CsTaskTemplateSeeder::class,
         ]);
 
         // Local development accounts only; production accounts are created

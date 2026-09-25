@@ -66,6 +66,10 @@ class DeployLatestRelease implements ShouldQueue
                 // actually invoked it here. firstOrCreate() throughout, so a
                 // deploy with no template changes is a no-op.
                 [PHP_BINARY, 'artisan', 'db:seed', '--class=SeoTaskTemplateSeeder', '--force'],
+                // The Customer Service Board's template library, seeded here for
+                // the same reason (DatabaseSeeder alone is never invoked by a
+                // deploy). firstOrCreate() throughout, so it is a no-op once seeded.
+                [PHP_BINARY, 'artisan', 'db:seed', '--class=CsTaskTemplateSeeder', '--force'],
                 [PHP_BINARY, 'artisan', 'optimize'],
             ];
 

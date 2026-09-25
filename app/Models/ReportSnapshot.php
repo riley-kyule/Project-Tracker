@@ -20,6 +20,9 @@ class ReportSnapshot extends Model
     /** One employee's SEO daily-card midnight report — keyed by user_id, same as TYPE_WEEKLY_PERSONAL. */
     public const TYPE_SEO_DAILY_CARD = 'seo_daily_card';
 
+    /** One employee's Customer Service daily-card midnight report — keyed by user_id, same as TYPE_SEO_DAILY_CARD. */
+    public const TYPE_CS_DAILY_CARD = 'cs_daily_card';
+
     public const STATUS_GENERATED = 'generated';
 
     protected $fillable = [

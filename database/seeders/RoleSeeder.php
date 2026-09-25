@@ -59,6 +59,22 @@ class RoleSeeder extends Seeder
             'seo.settings.manage',
         ];
 
+        // Customer Service Board (Customer Service Board Requirements
+        // Specification v1.0 §10). Same split as the SEO permissions above:
+        // "approve" is the HOD action (approve/correct/reject/exempt items,
+        // approve the weekly plan, clear/flag sales records, set weekly
+        // targets); templates and settings stay separate so a department
+        // head can run day-to-day approvals without redefining the point
+        // library or notification recipients.
+        $csPermissions = [
+            'cs.cards.view',
+            'cs.cards.update',
+            'cs.cards.approve',
+            'cs.cards.reopen',
+            'cs.templates.manage',
+            'cs.settings.manage',
+        ];
+
         // HR module. Compensation and payroll are deliberately split out from
         // the rest of HR so an "HR Staff" role can administer people, leave and
         // assets without ever seeing salary figures or running payroll.
@@ -87,7 +103,7 @@ class RoleSeeder extends Seeder
             'hr.payroll.approve',
         ]));
 
-        $permissions = [...$permissions, ...$hrPermissions, ...$seoPermissions];
+        $permissions = [...$permissions, ...$hrPermissions, ...$seoPermissions, ...$csPermissions];
 
         foreach ($permissions as $permission) {
             Permission::findOrCreate($permission);
@@ -126,7 +142,11 @@ class RoleSeeder extends Seeder
             // lead — SeoDailyCardPolicy/SeoWeeklyCardPolicy/SeoTaskTemplatePolicy
             // scope that to their own department, this permission alone
             // doesn't reach every department's cards.
-            'Department Manager' => [...$departmentManager, 'seo.cards.view', 'seo.cards.approve', 'seo.cards.reopen', 'seo.templates.manage'],
+            'Department Manager' => [
+                ...$departmentManager,
+                'seo.cards.view', 'seo.cards.approve', 'seo.cards.reopen', 'seo.templates.manage',
+                'cs.cards.view', 'cs.cards.approve', 'cs.cards.reopen', 'cs.templates.manage',
+            ],
             'IT Technician' => ['departments.view', 'tasks.create', 'tickets.manage'],
             // Services the R&D ticket queue the same way IT Technician services
             // IT's — see Ticket::TEAM_DEPARTMENT_SLUGS. Routing is by department
@@ -143,7 +163,11 @@ class RoleSeeder extends Seeder
             // cards, scoped by SeoDailyCardPolicy/SeoWeeklyCardPolicy to records
             // where employees.user_id matches them — not every card company-wide.
             'Marketing' => ['departments.view', 'tasks.create', 'view marketing statistics', 'seo.cards.view', 'seo.cards.update'],
-            'Customer Service' => ['departments.view', 'tasks.create'],
+            // Customer Service Board execution permissions: any Customer
+            // Service employee's own daily/weekly cards and sales records,
+            // scoped by CsDailyCardPolicy/CsWeeklyCardPolicy/CsSalesRecordPolicy
+            // to records where employees.user_id matches them.
+            'Customer Service' => ['departments.view', 'tasks.create', 'cs.cards.view', 'cs.cards.update'],
             // seo.cards.view/update stay here deliberately, same as
             // seo.cards.approve stays on the blanket "Department Manager"
             // role above: the permission is only the coarse "this role may

@@ -20,6 +20,7 @@ class DepartmentSeeder extends Seeder
             'Research & Development',
             'Legal',
             'Management',
+            'Customer Service',
         ];
 
         foreach ($departments as $name) {

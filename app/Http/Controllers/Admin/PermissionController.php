@@ -81,6 +81,12 @@ class PermissionController extends Controller
             'seo.cards.reopen' => ['label' => 'Reopen SEO cards', 'description' => 'Reopen a closed SEO daily or weekly card, with a recorded reason.', 'group' => 'SEO Board'],
             'seo.templates.manage' => ['label' => 'Manage SEO task templates', 'description' => 'Maintain the SEO Board\'s item library and standard point bands.', 'group' => 'SEO Board'],
             'seo.settings.manage' => ['label' => 'Manage SEO notification settings', 'description' => 'Configure additional report recipient emails for the SEO Board\'s midnight report.', 'group' => 'SEO Board'],
+            'cs.cards.view' => ['label' => 'View Customer Service Board cards', 'description' => 'See your own Customer Service daily/weekly cards, scores, and history. Seeing other people\'s cards also needs leading the department.', 'group' => 'Customer Service Board'],
+            'cs.cards.update' => ['label' => 'Update own Customer Service cards', 'description' => 'Update status, evidence, enquiries, and sales records on your own Customer Service cards.', 'group' => 'Customer Service Board'],
+            'cs.cards.approve' => ['label' => 'Approve Customer Service cards', 'description' => 'Coarse role gate only. Deciding items, clearing sales and setting targets is limited to the department\'s manager, assistant manager, CEO and Administrators.', 'group' => 'Customer Service Board'],
+            'cs.cards.reopen' => ['label' => 'Reopen Customer Service cards', 'description' => 'Reopen a closed Customer Service daily or weekly card, with a recorded reason.', 'group' => 'Customer Service Board'],
+            'cs.templates.manage' => ['label' => 'Manage Customer Service task templates', 'description' => 'Maintain the Customer Service Board\'s item library. Also needs leading the Customer Service department.', 'group' => 'Customer Service Board'],
+            'cs.settings.manage' => ['label' => 'Manage Customer Service notification settings', 'description' => 'Configure additional report recipient emails for the Customer Service Board\'s daily report.', 'group' => 'Customer Service Board'],
         ];
     }
 

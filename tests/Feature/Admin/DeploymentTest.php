@@ -120,6 +120,7 @@ class DeploymentTest extends TestCase
         // nothing ever actually invoked it here, leaving the SEO Board's task
         // template library empty in production for days after it shipped.
         Process::assertRan(fn ($process) => str_contains(implode(' ', $process->command), 'db:seed --class=SeoTaskTemplateSeeder --force'));
+        Process::assertRan(fn ($process) => str_contains(implode(' ', $process->command), 'db:seed --class=CsTaskTemplateSeeder --force'));
     }
 
     public function test_deploy_job_restarts_app_and_scheduler_when_compose_project_is_configured()

@@ -40,6 +40,7 @@ npm run build
 php artisan migrate --force
 php artisan db:seed --class=RoleSeeder --force
 php artisan db:seed --class=SeoTaskTemplateSeeder --force
+php artisan db:seed --class=CsTaskTemplateSeeder --force
 php artisan optimize
 php artisan queue:restart
 ```
@@ -62,6 +63,7 @@ docker compose exec app npm run build
 docker compose exec app php artisan migrate --force
 docker compose exec app php artisan db:seed --class=RoleSeeder --force
 docker compose exec app php artisan db:seed --class=SeoTaskTemplateSeeder --force
+docker compose exec app php artisan db:seed --class=CsTaskTemplateSeeder --force
 docker compose restart app queue scheduler
 docker compose exec app php artisan optimize
 ```
