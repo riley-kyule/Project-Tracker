@@ -147,6 +147,55 @@ class SeoLifecycleTest extends TestCase
     }
 
     /**
+     * The actual "ease of use" gap this guards against: without proactive
+     * provisioning, an HOD's "Today" tab has no rows at all — nothing to
+     * expand, no Assign items button anywhere — until every team member has
+     * individually visited their own board first. This ensures a card
+     * always exists once the working day begins, regardless of who's
+     * logged in yet.
+     */
+    public function test_ensure_todays_cards_exist_provisions_for_every_active_seo_employee_without_one(): void
+    {
+        $department = $this->seoDepartment();
+        $employees = collect(range(1, 2))->map(function () use ($department) {
+            $user = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
+
+            return Employee::factory()->create(['user_id' => $user->id, 'department_id' => $department->id]);
+        });
+
+        $this->assertSame(0, SeoDailyCard::query()->count());
+
+        $created = app(SeoCardLifecycleService::class)->ensureTodaysCardsExist();
+
+        $this->assertSame(2, $created);
+        $this->assertSame(2, SeoDailyCard::query()->count());
+        // The fixed-weight mandatory sections (§4.1) are seeded immediately, not left blank until assignment.
+        $this->assertSame(7, SeoDailyCard::query()->where('employee_id', $employees->first()->id)->firstOrFail()->items()->count());
+
+        // Idempotent — a second poll (this runs every 15 minutes) never duplicates.
+        $createdAgain = app(SeoCardLifecycleService::class)->ensureTodaysCardsExist();
+        $this->assertSame(0, $createdAgain);
+        $this->assertSame(2, SeoDailyCard::query()->count());
+    }
+
+    public function test_ensure_todays_cards_exist_skips_non_seo_and_inactive_employees(): void
+    {
+        $department = $this->seoDepartment();
+        $marketing = Department::query()->where('slug', 'marketing')->firstOrFail();
+
+        $outsideUser = User::factory()->create(['department_id' => $marketing->id])->assignRole('Marketing');
+        Employee::factory()->create(['user_id' => $outsideUser->id, 'department_id' => $marketing->id]);
+
+        $inactiveUser = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
+        Employee::factory()->create(['user_id' => $inactiveUser->id, 'department_id' => $department->id, 'employment_status' => 'terminated']);
+
+        $created = app(SeoCardLifecycleService::class)->ensureTodaysCardsExist();
+
+        $this->assertSame(0, $created);
+        $this->assertSame(0, SeoDailyCard::query()->count());
+    }
+
+    /**
      * The actual production incident this guards against: a stray card
      * created for a non-SEO employee before User::isSeoEmployee() existed
      * (or created after, e.g. a department transfer) would otherwise

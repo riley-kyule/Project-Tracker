@@ -4,6 +4,7 @@ namespace App\Services\Seo;
 
 use App\Jobs\GenerateSeoDailyCardReport;
 use App\Models\CompanySetting;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\SeoCardItem;
 use App\Models\SeoDailyCard;
@@ -71,6 +72,46 @@ class SeoCardLifecycleService
         }
 
         return $closed;
+    }
+
+    /**
+     * Provisions today's card for every active SEO employee who doesn't
+     * already have one, rather than waiting for each of them to visit their
+     * own board first. Without this, on a day nobody on the team has logged
+     * in yet, the HOD's "Today" view has no rows at all — no card to
+     * expand, nowhere to assign anything — even though it's a normal
+     * working day. Idempotent (createNextCard() no-ops if the card already
+     * exists), so safe to call on every poll of this scheduled command.
+     */
+    public function ensureTodaysCardsExist(): int
+    {
+        $seo = Department::query()->where('slug', 'seo')->first();
+        if ($seo === null) {
+            return 0;
+        }
+
+        $seoDepartmentIds = $seo->descendantIds();
+        $today = $this->businessDay();
+        $yesterday = $today->copy()->subDay();
+
+        $employees = Employee::query()->active()
+            ->whereHas('user', fn ($q) => $q->whereIn('department_id', $seoDepartmentIds))
+            ->with('user')
+            ->get();
+
+        $created = 0;
+
+        foreach ($employees as $employee) {
+            $hasToday = SeoDailyCard::query()->where('employee_id', $employee->id)->whereDate('work_date', $today->toDateString())->exists();
+            if ($hasToday) {
+                continue;
+            }
+
+            $this->createNextCard($employee, $employee->user->department_id, $yesterday->copy());
+            $created++;
+        }
+
+        return $created;
     }
 
     private function closeOne(SeoDailyCard $card): void
