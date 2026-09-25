@@ -11,6 +11,8 @@ use App\Models\SavedFilter;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Cs\CsEmployeeBoardData;
+use App\Services\Cs\CsHodPanelData;
 use App\Services\Seo\SeoEmployeeBoardData;
 use App\Services\Seo\SeoHodPanelData;
 use Illuminate\Http\RedirectResponse;
@@ -134,35 +136,12 @@ class BoardController extends Controller
             $column->setRelation('tasks', $sorted->values());
         });
 
-        // The weighted scoring system's "Score Based" tab data — only
-        // resolved (an extra handful of queries) when this is actually the
-        // SEO department's board. Two different views share the one tab: a
-        // real SEO team member sees their own card (SeoEmployeeBoardData);
-        // an HOD, CEO or Administrator — who has no personal card of their
-        // own — sees the same team management view already on "My
-        // Department" (SeoHodPanelData), so "CEO/Admin see everything"
-        // holds here too, not just on the dashboard.
-        $seoScoreBoard = null;
-        $seoHodBoard = null;
-
-        if ($board->department?->slug === 'seo') {
-            if (app(SeoEmployeeBoardData::class)->appliesTo($request->user())) {
-                $seoScoreBoard = app(SeoEmployeeBoardData::class)->forUser($request);
-            }
-
-            $seoHodBoard = app(SeoHodPanelData::class)->forDepartment(
-                $board->department,
-                $request->user(),
-                $request->integer('seo_employee_id') ?: null,
-                $request->string('seo_period')->toString() ?: null,
-                $request->integer('seo_team_weeks') ?: 4,
-            );
-        }
+        [$scoreBoard, $hodBoard] = $this->scoreBoardProps($request, $board);
 
         return Inertia::render('boards/show', [
             'board' => $board,
-            'seoScoreBoard' => $seoScoreBoard,
-            'seoHodBoard' => $seoHodBoard,
+            'scoreBoard' => $scoreBoard,
+            'hodBoard' => $hodBoard,
             'boardTaskOptions' => Task::query()
                 ->where('board_id', $board->id)
                 ->whereNull('archived_at')
@@ -196,6 +175,49 @@ class BoardController extends Controller
                 'delete' => $request->user()->can('delete', $board),
             ],
         ]);
+    }
+
+    /**
+     * The weighted scoring system's "Score Based" tab data, resolved only
+     * when this board belongs to a department that has one (SEO, Customer
+     * Service), so every other department's board gets null/null and is
+     * untouched. Two different views share the one tab: a scored team member
+     * sees their own cards (the *EmployeeBoardData services), while a
+     * manager, assistant manager, CEO or Administrator, who has no personal
+     * card, sees the team management view (the *HodPanelData services). Each
+     * payload is tagged with its board `kind` so the page renders the right
+     * panel.
+     *
+     * @return array{0: ?array{kind: string, data: array<string, mixed>}, 1: ?array{kind: string, data: array<string, mixed>}}
+     */
+    private function scoreBoardProps(Request $request, Board $board): array
+    {
+        $user = $request->user();
+        $tag = fn (string $kind, ?array $data) => $data === null ? null : ['kind' => $kind, 'data' => $data];
+
+        return match ($board->department?->slug) {
+            'seo' => [
+                $tag('seo', app(SeoEmployeeBoardData::class)->appliesTo($user) ? app(SeoEmployeeBoardData::class)->forUser($request) : null),
+                $tag('seo', app(SeoHodPanelData::class)->forDepartment(
+                    $board->department,
+                    $user,
+                    $request->integer('seo_employee_id') ?: null,
+                    $request->string('seo_period')->toString() ?: null,
+                    $request->integer('seo_team_weeks') ?: 4,
+                )),
+            ],
+            'customer-service' => [
+                $tag('cs', app(CsEmployeeBoardData::class)->appliesTo($user) ? app(CsEmployeeBoardData::class)->forUser($request) : null),
+                $tag('cs', app(CsHodPanelData::class)->forDepartment(
+                    $board->department,
+                    $user,
+                    $request->integer('cs_employee_id') ?: null,
+                    $request->string('cs_period')->toString() ?: null,
+                    $request->integer('cs_team_weeks') ?: 4,
+                )),
+            ],
+            default => [null, null],
+        };
     }
 
     public function store(BoardRequest $request): RedirectResponse

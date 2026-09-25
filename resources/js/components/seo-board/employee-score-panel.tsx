@@ -252,11 +252,11 @@ function HistoryCardRow({ card }: { card: ScoreHistory['cards'][number] }) {
 }
 
 function HistoryPanel({ history, range }: { history: ScoreHistory; range: EmployeeScoreBoardPayload['range'] }) {
-    // Reloads only the seoScoreBoard prop on whatever board page this panel is embedded in.
+    // Reloads only the scoreBoard prop on whatever board page this panel is embedded in.
     const setPeriod = (period: string) => {
         const params = new URLSearchParams(window.location.search);
         params.set('period', period);
-        router.get(window.location.pathname, Object.fromEntries(params), { preserveState: true, preserveScroll: true, only: ['seoScoreBoard'] });
+        router.get(window.location.pathname, Object.fromEntries(params), { preserveState: true, preserveScroll: true, only: ['scoreBoard'] });
     };
 
     return (

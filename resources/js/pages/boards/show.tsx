@@ -1,4 +1,6 @@
 import { TaskCard, TaskDialog, type BoardTask, type Can, type ColumnOption, type LabelOption, type Member } from '@/components/board/task-card';
+import { CsEmployeeScorePanel, type CsEmployeeScoreBoardPayload } from '@/components/cs-board/employee-score-panel';
+import { CsHodPanel, type CsHodPanelProps } from '@/components/cs-board/hod-panel';
 import InputError from '@/components/input-error';
 import { SeoEmployeeScorePanel, type EmployeeScoreBoardPayload } from '@/components/seo-board/employee-score-panel';
 import { SeoHodPanel, type SeoHodPanelProps } from '@/components/seo-board/hod-panel';
@@ -759,6 +761,27 @@ function BoardColumn({
     );
 }
 
+/**
+ * The "Score Based" tab's payloads, one pair per board. `kind` says which
+ * department's scoring system the data belongs to, so the same tab plumbing
+ * serves SEO and Customer Service (every other department's board gets null).
+ */
+type ScoreBoardProp = { kind: 'seo'; data: EmployeeScoreBoardPayload } | { kind: 'cs'; data: CsEmployeeScoreBoardPayload };
+type HodBoardProp = { kind: 'seo'; data: SeoHodPanelProps } | { kind: 'cs'; data: CsHodPanelProps };
+
+/** A scored team member sees their own cards; otherwise leadership (HOD, assistant, CEO, Administrator) sees the team view. */
+function ScoreTab({ scoreBoard, hodBoard }: { scoreBoard: ScoreBoardProp | null; hodBoard: HodBoardProp | null }) {
+    if (scoreBoard) {
+        return scoreBoard.kind === 'cs' ? <CsEmployeeScorePanel {...scoreBoard.data} /> : <SeoEmployeeScorePanel {...scoreBoard.data} />;
+    }
+
+    if (hodBoard) {
+        return hodBoard.kind === 'cs' ? <CsHodPanel {...hodBoard.data} reloadKey="hodBoard" /> : <SeoHodPanel {...hodBoard.data} />;
+    }
+
+    return null;
+}
+
 export default function BoardShow({
     board,
     boardTaskOptions,
@@ -767,8 +790,8 @@ export default function BoardShow({
     labels,
     savedFilters,
     can,
-    seoScoreBoard,
-    seoHodBoard,
+    scoreBoard,
+    hodBoard,
 }: {
     board: Board;
     boardTaskOptions: BoardTaskOption[];
@@ -777,8 +800,8 @@ export default function BoardShow({
     labels: LabelOption[];
     savedFilters: SavedFilter[];
     can: Can;
-    seoScoreBoard: EmployeeScoreBoardPayload | null;
-    seoHodBoard: SeoHodPanelProps | null;
+    scoreBoard: ScoreBoardProp | null;
+    hodBoard: HodBoardProp | null;
 }) {
     const [boardTab, setBoardTab] = useState<'kanban' | 'score'>('kanban');
     const [columns, setColumns] = useState<Column[]>(board.columns);
@@ -1030,7 +1053,7 @@ export default function BoardShow({
             <div className="flex h-[calc(100svh-4rem)] flex-col gap-3 overflow-hidden p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
-                    {(seoScoreBoard || seoHodBoard) && (
+                    {(scoreBoard || hodBoard) && (
                         <div className="bg-primary/5 border-primary/25 flex gap-1 rounded-lg border p-1">
                             <button
                                 type="button"
@@ -1102,9 +1125,9 @@ export default function BoardShow({
                         </div>
                     )}
                 </div>
-                {boardTab === 'score' && (seoScoreBoard || seoHodBoard) ? (
+                {boardTab === 'score' && (scoreBoard || hodBoard) ? (
                     <div className="min-h-0 flex-1 overflow-y-auto">
-                        {seoScoreBoard ? <SeoEmployeeScorePanel {...seoScoreBoard} /> : <SeoHodPanel {...seoHodBoard!} />}
+                        <ScoreTab scoreBoard={scoreBoard} hodBoard={hodBoard} />
                     </div>
                 ) : (
                     <>

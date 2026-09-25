@@ -14,6 +14,7 @@ import {
     Crown,
     FileText,
     Gauge,
+    Headset,
     IdCard,
     KanbanSquare,
     LayoutGrid,
@@ -54,6 +55,7 @@ export function AppSidebar() {
         // so without this they'd have no discoverable way into the SEO Board at
         // all — a redirect straight to My Department scoped to SEO.
         ...(isExec && !auth.managesDepartment ? [{ title: 'SEO Board', url: '/seo-board/hod', icon: Search }] : []),
+        ...(isExec && !auth.managesDepartment ? [{ title: 'CS Board', url: '/cs-board/hod', icon: Headset }] : []),
         ...(has('tickets.manage') ? [{ title: 'IT Dashboard', url: '/dashboards/it', icon: Gauge }] : []),
         ...(has('reports.view') ? [{ title: 'Task Reports', url: '/reports/tasks', icon: BarChart3 }] : []),
         ...(auth.canViewMarketingStatistics ? [{ title: 'Marketing Statistics', url: '/marketing-statistics', icon: LineChart }] : []),
@@ -73,6 +75,7 @@ export function AppSidebar() {
         ...(auth.hasEmployeeRecord ? [{ title: 'My Payslips', url: '/hr/me/payslips', icon: Banknote }] : []),
         ...(auth.hasWebsiteAssignments ? [{ title: 'My System Reports', url: '/my-reports', icon: FileText }] : []),
         ...(auth.isSeoEmployee ? [{ title: 'My SEO Cards', url: '/seo-board', icon: Search }] : []),
+        ...(auth.isCsEmployee ? [{ title: 'My CS Cards', url: '/cs-board', icon: Headset }] : []),
     ];
 
     const admin: NavItem[] = [

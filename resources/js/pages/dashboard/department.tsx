@@ -1,3 +1,4 @@
+import { CsHodPanel, type CsHodPanelProps } from '@/components/cs-board/hod-panel';
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SeoHodPanel, type SeoHodPanelProps } from '@/components/seo-board/hod-panel';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
@@ -178,6 +179,7 @@ export default function DepartmentDashboard({
     canSwitchDepartment,
     allDepartments,
     seoBoard,
+    csBoard,
 }: {
     department: { id: number; name: string };
     subDepartments: SubDepartmentRow[] | null;
@@ -189,6 +191,7 @@ export default function DepartmentDashboard({
     canSwitchDepartment: boolean;
     allDepartments: DepartmentOption[];
     seoBoard: SeoHodPanelProps | null;
+    csBoard: CsHodPanelProps | null;
 }) {
     const breadcrumbs: BreadcrumbItem[] = [{ title: `${department.name} Dashboard`, href: `/dashboards/department?department_id=${department.id}` }];
 
@@ -237,6 +240,7 @@ export default function DepartmentDashboard({
                 </div>
 
                 {seoBoard && <SeoHodPanel {...seoBoard} />}
+                {csBoard && <CsHodPanel {...csBoard} />}
             </div>
         </AppLayout>
     );
