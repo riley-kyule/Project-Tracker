@@ -12,6 +12,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Seo\SeoEmployeeBoardData;
+use App\Services\Seo\SeoHodPanelData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -135,15 +136,33 @@ class BoardController extends Controller
 
         // The weighted scoring system's "Score Based" tab data — only
         // resolved (an extra handful of queries) when this is actually the
-        // SEO department's board and the viewer has a personal card to see,
-        // never for any other department's board.
-        $seoScoreBoard = $board->department?->slug === 'seo' && app(SeoEmployeeBoardData::class)->appliesTo($request->user())
-            ? app(SeoEmployeeBoardData::class)->forUser($request)
-            : null;
+        // SEO department's board. Two different views share the one tab: a
+        // real SEO team member sees their own card (SeoEmployeeBoardData);
+        // an HOD, CEO or Administrator — who has no personal card of their
+        // own — sees the same team management view already on "My
+        // Department" (SeoHodPanelData), so "CEO/Admin see everything"
+        // holds here too, not just on the dashboard.
+        $seoScoreBoard = null;
+        $seoHodBoard = null;
+
+        if ($board->department?->slug === 'seo') {
+            if (app(SeoEmployeeBoardData::class)->appliesTo($request->user())) {
+                $seoScoreBoard = app(SeoEmployeeBoardData::class)->forUser($request);
+            }
+
+            $seoHodBoard = app(SeoHodPanelData::class)->forDepartment(
+                $board->department,
+                $request->user(),
+                $request->integer('seo_employee_id') ?: null,
+                $request->string('seo_period')->toString() ?: null,
+                $request->integer('seo_team_weeks') ?: 4,
+            );
+        }
 
         return Inertia::render('boards/show', [
             'board' => $board,
             'seoScoreBoard' => $seoScoreBoard,
+            'seoHodBoard' => $seoHodBoard,
             'boardTaskOptions' => Task::query()
                 ->where('board_id', $board->id)
                 ->whereNull('archived_at')

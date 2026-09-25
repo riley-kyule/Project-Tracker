@@ -375,7 +375,7 @@ export function SeoEmployeeScorePanel({ dailyCard, weeklyCard, history, range }:
     ];
 
     return (
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto pb-2">
+        <div className="flex flex-col gap-4 pb-2">
             <div className="flex justify-end">
                 <SeoBoardTour tourKey="employee" steps={tourSteps} />
             </div>

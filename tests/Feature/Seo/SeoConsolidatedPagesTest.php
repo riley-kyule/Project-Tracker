@@ -82,6 +82,30 @@ class SeoConsolidatedPagesTest extends TestCase
         $this->assertDatabaseCount('seo_daily_cards', 0);
     }
 
+    /**
+     * A CEO/Administrator has no personal SEO card of their own, so they
+     * never get seoScoreBoard — but they still get a Score Based tab,
+     * carrying the same team management view already on "My Department"
+     * (SeoHodPanelData), so "CEO/Admin see everything" holds on the board
+     * page too, not just the dashboard.
+     */
+    public function test_ceo_and_administrator_get_the_hod_view_on_the_score_based_tab(): void
+    {
+        $department = $this->seoDepartment();
+        $kanban = Board::factory()->create(['department_id' => $department->id, 'name' => 'SEO Board']);
+        $employeeUser = User::factory()->create(['department_id' => $department->id])->assignRole('Marketing');
+        Employee::factory()->create(['user_id' => $employeeUser->id, 'department_id' => $department->id]);
+
+        foreach (['CEO', 'Administrator'] as $role) {
+            $viewer = User::factory()->create()->assignRole($role);
+
+            $this->actingAs($viewer)->get("/boards/{$kanban->id}")->assertInertia(fn ($page) => $page
+                ->where('seoScoreBoard', null)
+                ->where('seoHodBoard.department.id', $department->id)
+                ->has('seoHodBoard.employees', 1));
+        }
+    }
+
     public function test_seo_board_settings_shows_only_the_tabs_the_user_can_manage(): void
     {
         $ceo = User::factory()->create()->assignRole('CEO');

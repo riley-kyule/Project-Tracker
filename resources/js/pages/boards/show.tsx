@@ -1,6 +1,7 @@
 import { TaskCard, TaskDialog, type BoardTask, type Can, type ColumnOption, type LabelOption, type Member } from '@/components/board/task-card';
 import InputError from '@/components/input-error';
 import { SeoEmployeeScorePanel, type EmployeeScoreBoardPayload } from '@/components/seo-board/employee-score-panel';
+import { SeoHodPanel, type SeoHodPanelProps } from '@/components/seo-board/hod-panel';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -767,6 +768,7 @@ export default function BoardShow({
     savedFilters,
     can,
     seoScoreBoard,
+    seoHodBoard,
 }: {
     board: Board;
     boardTaskOptions: BoardTaskOption[];
@@ -776,6 +778,7 @@ export default function BoardShow({
     savedFilters: SavedFilter[];
     can: Can;
     seoScoreBoard: EmployeeScoreBoardPayload | null;
+    seoHodBoard: SeoHodPanelProps | null;
 }) {
     const [boardTab, setBoardTab] = useState<'kanban' | 'score'>('kanban');
     const [columns, setColumns] = useState<Column[]>(board.columns);
@@ -1027,7 +1030,7 @@ export default function BoardShow({
             <div className="flex h-[calc(100svh-4rem)] flex-col gap-3 overflow-hidden p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
-                    {seoScoreBoard && (
+                    {(seoScoreBoard || seoHodBoard) && (
                         <div className="flex gap-1 rounded-lg border p-1">
                             <button
                                 type="button"
@@ -1099,8 +1102,10 @@ export default function BoardShow({
                         </div>
                     )}
                 </div>
-                {boardTab === 'score' && seoScoreBoard ? (
-                    <SeoEmployeeScorePanel {...seoScoreBoard} />
+                {boardTab === 'score' && (seoScoreBoard || seoHodBoard) ? (
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                        {seoScoreBoard ? <SeoEmployeeScorePanel {...seoScoreBoard} /> : <SeoHodPanel {...seoHodBoard!} />}
+                    </div>
                 ) : (
                     <>
                         {savedFilters.length > 0 && (
