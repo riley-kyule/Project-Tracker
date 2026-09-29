@@ -33,6 +33,25 @@ class CsScoringTest extends TestCase
         $this->assertSame(0, CsFinalScore::query()->count());
     }
 
+    public function test_a_member_can_mark_an_item_blocked_with_a_reason(): void
+    {
+        [$member, $employee] = $this->csMember();
+        app(CsCardLifecycleService::class)->ensureTodaysCardsExist();
+        $item = CsCardItem::query()->where('cardable_type', CsDailyCard::class)->firstOrFail();
+
+        $this->actingAs($member)->post("/cs-board/items/{$item->id}/status", ['employee_status' => 'blocked'])
+            ->assertSessionHasErrors('blocker_reason');
+        $this->assertSame('not_started', $item->fresh()->employee_status);
+
+        $this->actingAs($member)->post("/cs-board/items/{$item->id}/status", [
+            'employee_status' => 'blocked', 'blocker_reason' => 'Waiting on the customer to confirm payment.',
+        ])->assertRedirect();
+
+        $item->refresh();
+        $this->assertSame('blocked', $item->employee_status);
+        $this->assertSame('Waiting on the customer to confirm payment.', $item->blocker_reason);
+    }
+
     public function test_an_hod_decision_scores_the_card_and_feeds_the_final_score(): void
     {
         [$hod] = $this->csLeaders();

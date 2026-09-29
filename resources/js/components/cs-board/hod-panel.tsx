@@ -259,7 +259,10 @@ function DecideRow({ item }: { item: Item }) {
                 </div>
             )}
             <div>
-                <Label className="text-xs">Decision</Label>
+                <Label className="text-xs">
+                    Decision
+                    <InfoTooltip text="Exempted: full credit, the blocker was entirely valid and outside their control. Excluded: no credit but no penalty either, dropped from today's point total. Carried forward: moved to a future card instead of decided today." />
+                </Label>
                 <select
                     className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
                     value={decision}

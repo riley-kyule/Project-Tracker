@@ -115,6 +115,7 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
     const [status, setStatus] = useState(item.employee_status);
     const [comment, setComment] = useState(item.employee_comment ?? '');
     const [quantity, setQuantity] = useState(item.achieved_quantity?.toString() ?? '');
+    const [blockerReason, setBlockerReason] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const [processing, setProcessing] = useState(false);
     const isAutoCalculated = item.metric_type !== null;
@@ -123,7 +124,12 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
         setProcessing(true);
         router.post(
             `/cs-board/items/${item.id}/status`,
-            { employee_status: status, employee_comment: comment, achieved_quantity: isAutoCalculated ? undefined : quantity || undefined },
+            {
+                employee_status: status,
+                employee_comment: comment,
+                achieved_quantity: isAutoCalculated ? undefined : quantity || undefined,
+                blocker_reason: status === 'blocked' ? blockerReason : undefined,
+            },
             { preserveScroll: true, onFinish: () => setProcessing(false) },
         );
     };
@@ -160,7 +166,10 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
             {canUpdate && (
                 <div className="flex flex-wrap items-end gap-2">
                     <div>
-                        <Label className="text-xs">Status</Label>
+                        <Label className="text-xs">
+                            Status
+                            <InfoTooltip text="Blocked means something outside your control is stopping you. It escalates to your HOD and needs a reason below. It never scores the item for you; only your HOD's decision does that." />
+                        </Label>
                         <select
                             className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
                             value={status}
@@ -173,6 +182,12 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
                             ))}
                         </select>
                     </div>
+                    {status === 'blocked' && (
+                        <div>
+                            <Label className="text-xs">Blocker reason</Label>
+                            <Input className="h-8 w-48" value={blockerReason} onChange={(e) => setBlockerReason(e.target.value)} />
+                        </div>
+                    )}
                     {!isAutoCalculated && item.target_quantity !== null && (
                         <div>
                             <Label className="text-xs">
