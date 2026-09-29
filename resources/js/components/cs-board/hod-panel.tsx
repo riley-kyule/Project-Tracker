@@ -1,3 +1,4 @@
+import { InfoTooltip } from '@/components/cs-board/info-tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -383,19 +384,31 @@ function WeeklyTargetForm({ employeeId, reportingCurrency }: { employeeId: numbe
             <h4 className="mb-2 text-sm font-semibold">This week's commercial targets</h4>
             <div className="grid gap-2 sm:grid-cols-3">
                 <div>
-                    <Label className="text-xs">New customers (count)</Label>
+                    <Label className="text-xs">
+                        New customers (count)
+                        <InfoTooltip text="Unique advertisers who have never paid before, whose cleared payment activated a listing this week." />
+                    </Label>
                     <Input className="h-8" value={newCustomers} onChange={(e) => setNewCustomers(e.target.value)} />
                 </div>
                 <div>
-                    <Label className="text-xs">New customer revenue</Label>
+                    <Label className="text-xs">
+                        New customer revenue
+                        <InfoTooltip text="Cleared revenue from those new customers this week, in the reporting currency." />
+                    </Label>
                     <Input className="h-8" value={newRevenue} onChange={(e) => setNewRevenue(e.target.value)} />
                 </div>
                 <div>
-                    <Label className="text-xs">Renewed/reactivated (count)</Label>
+                    <Label className="text-xs">
+                        Renewed/reactivated (count)
+                        <InfoTooltip text="Unique existing or expired advertisers whose cleared payment renewed or restored their listing this week." />
+                    </Label>
                     <Input className="h-8" value={renewedCustomers} onChange={(e) => setRenewedCustomers(e.target.value)} />
                 </div>
                 <div>
-                    <Label className="text-xs">Retained/recovered revenue</Label>
+                    <Label className="text-xs">
+                        Retained/recovered revenue
+                        <InfoTooltip text="Cleared renewal or reactivation revenue this week, in the reporting currency." />
+                    </Label>
                     <Input className="h-8" value={retainedRevenue} onChange={(e) => setRetainedRevenue(e.target.value)} />
                 </div>
                 <div>
@@ -534,9 +547,12 @@ function NewWeeklyPlanRow({ employee, templates, reportingCurrency }: { employee
                     <ChevronRight className={`text-muted-foreground size-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
                     {employee.full_name}
                 </span>
-                <Badge className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                    needs assignment
-                </Badge>
+                <span className="flex items-center">
+                    <Badge className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                        needs assignment
+                    </Badge>
+                    <InfoTooltip text="No weekly plan or targets exist yet for this person. Expand their row to set targets and build the plan." />
+                </span>
             </button>
             {open && (
                 <div className="flex flex-col gap-3 px-3 pb-4">
@@ -565,9 +581,12 @@ function WeeklyRowView({ row, templates, reportingCurrency }: { row: WeeklyRow; 
                 </span>
                 <span className="flex gap-2">
                     {row.status === 'draft' && (
-                        <Badge className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                            needs approval
-                        </Badge>
+                        <span className="flex items-center">
+                            <Badge className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                                needs approval
+                            </Badge>
+                            <InfoTooltip text="The plan is built but not approved yet. Until it is, none of this week's items can be decided." />
+                        </span>
                     )}
                     <Badge variant="outline">{row.status}</Badge>
                     <Badge>{row.approved_points ?? '—'}</Badge>
@@ -649,11 +668,13 @@ function PendingSaleRow({ sale }: { sale: PendingSale }) {
             )}
             <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" disabled={processing} onClick={clear}>
-                    Clear — counts toward target
+                    Clear
                 </Button>
+                <InfoTooltip text="Confirms the payment cleared and the attribution is correct. This is the only action that makes a sale count toward the employee's weekly target." />
                 <Button size="sm" variant="outline" disabled={processing} onClick={() => setFlagging((v) => !v)}>
                     Flag
                 </Button>
+                <InfoTooltip text="Marks the sale as reversed, refunded, or fraudulent so it stops counting as collected revenue, even if it was already cleared." />
                 {flagging && (
                     <>
                         <select
@@ -714,9 +735,11 @@ function ComplaintRow({ complaint }: { complaint: OpenComplaint }) {
                 <Button size="sm" variant="destructive" disabled={processing || !decision} onClick={() => decide('substantiated')}>
                     Substantiated
                 </Button>
+                <InfoTooltip text="Confirms the complaint is valid. It counts against this employee's weekly customer-service quality score." />
                 <Button size="sm" variant="outline" disabled={processing || !decision} onClick={() => decide('unsubstantiated')}>
                     Unsubstantiated
                 </Button>
+                <InfoTooltip text="The complaint does not hold up. It is recorded but does not affect the employee's score." />
             </div>
         </div>
     );
@@ -878,7 +901,10 @@ function AssignmentForm({ employees }: { employees: EmployeeRef[] }) {
                     <Input type="date" className="h-9" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
                 </div>
                 <div>
-                    <Label className="text-xs">Backup employee (optional)</Label>
+                    <Label className="text-xs">
+                        Backup employee (optional)
+                        <InfoTooltip text="Who covers this platform or country when the assigned employee is away, for continuity purposes only. It does not affect scoring." />
+                    </Label>
                     <Combobox value={backupEmployeeId} onChange={setBackupEmployeeId} options={backupOptions} placeholder="Select backup…" />
                 </div>
             </div>

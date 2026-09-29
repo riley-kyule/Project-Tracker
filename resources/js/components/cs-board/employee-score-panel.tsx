@@ -1,3 +1,4 @@
+import { InfoTooltip } from '@/components/cs-board/info-tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -322,7 +323,10 @@ function SalesForm({ employeeId, weekStart }: { employeeId: number; weekStart: s
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
                 <div>
-                    <Label className="text-xs">Category</Label>
+                    <Label className="text-xs">
+                        Category
+                        <InfoTooltip text="New: a customer who has never paid before. Once logged as new and cleared, this customer can never be new again. Log any later payment as a renewal or reactivation instead." />
+                    </Label>
                     <select
                         className="border-input h-8 w-full rounded-md border bg-transparent px-2 text-sm"
                         value={category}
@@ -349,7 +353,10 @@ function SalesForm({ employeeId, weekStart }: { employeeId: number; weekStart: s
                     />
                 </div>
                 <div>
-                    <Label className="text-xs">Payment reference</Label>
+                    <Label className="text-xs">
+                        Payment reference
+                        <InfoTooltip text="The unique reference from the payment provider or receipt. It can only be used once across the whole board, so the same payment can never be counted twice." />
+                    </Label>
                     <Input className="h-8" value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} />
                 </div>
                 <div>
