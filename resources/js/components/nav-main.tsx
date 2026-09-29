@@ -65,7 +65,7 @@ export function NavMain({ groups = [] }: { groups: NavGroup[] }) {
             {groups
                 .filter((group) => group.items.length > 0)
                 .map((group) => (
-                    <SidebarGroup key={group.label} className="px-2 py-0">
+                    <SidebarGroup key={group.label} className="px-2 py-0" data-tour={`nav-${group.label.toLowerCase()}`}>
                         <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                         <SidebarMenu>
                             {group.items.map((item) => (

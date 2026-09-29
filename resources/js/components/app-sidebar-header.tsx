@@ -1,5 +1,6 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { NotificationBell } from '@/components/notification-bell';
+import { HelpButton } from '@/components/tour/help-button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
@@ -20,6 +21,7 @@ function GlobalSearch() {
                 }
             }}
             className="relative hidden sm:block"
+            data-tour="global-search"
         >
             <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
             <Input
@@ -37,7 +39,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
     return (
         <header className="border-sidebar-border/50 flex h-16 shrink-0 items-center gap-2 border-b px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex w-full items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
+                <SidebarTrigger className="-ml-1" data-tour="sidebar-trigger" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
                 <div className="ml-auto flex items-center gap-2">
                     <GlobalSearch />
@@ -48,6 +50,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                     >
                         <Search className="size-5" />
                     </Link>
+                    <HelpButton />
                     <NotificationBell />
                 </div>
             </div>

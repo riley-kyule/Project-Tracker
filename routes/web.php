@@ -9,6 +9,9 @@ Route::get('/', function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'employee'])->name('dashboard');
+    // Guided-tour index. Tour content is static and role-filtered client-side,
+    // so there's nothing to load here beyond the shared auth props.
+    Route::inertia('help', 'help/index')->name('help');
 });
 
 require __DIR__.'/settings.php';
