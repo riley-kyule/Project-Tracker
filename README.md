@@ -11,6 +11,7 @@ EWMS is a single-company employee work management system for operational work, p
 - IT service desk with SLA due dates, assignment, lifecycle history, resolution reporting, and ticket-to-task conversion
 - Projects, country and website registries, dashboards, reports, CSV export, and global search
 - Responsive light/dark UI with keyboard navigation and reduced-motion support
+- Role-scoped guided tours on every page, plus a Help Center (`/help`) listing every guide a person's role can use
 
 ## Requirements
 
@@ -54,6 +55,18 @@ npm audit --omit=dev --package-lock-only
 ```
 
 Feature tests use an in-memory SQLite database for speed. Before release, also run migrations and representative tests against the supported PostgreSQL version.
+
+## Guided tours
+
+Each page plays a short tooltip tour the first time someone opens it; the header's help button replays it, and `/help` lists every tour for the viewer's role. Steps are filtered by role and permission, and any step whose target isn't rendered for that person is skipped.
+
+To cover a new feature:
+
+1. Add `data-tour="<name>"` to the element to point at.
+2. Add or extend a tour in `resources/js/components/tour/tours/` (keep it under about six steps; use `when` to scope a step to a role, `reveal` to open the tab it lives on).
+3. Render `<PageTour id="<tour-id>" />` on the page (or `<TourButton>` for a visible "Take the tour" button).
+
+`resources/js/components/tour/registry.test.ts` fails if a step points at an anchor that doesn't exist or a tour is never rendered.
 
 ## Production operations
 
