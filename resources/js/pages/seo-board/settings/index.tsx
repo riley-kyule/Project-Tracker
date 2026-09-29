@@ -1,4 +1,4 @@
-import { SeoBoardTour, type TourStep } from '@/components/seo-board/tour';
+import { TourButton } from '@/components/tour/tour-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -421,46 +421,13 @@ function NotificationsTab({ department, hod, recipients }: { department: Departm
 export default function SeoSettingsIndex({ department, templates, hod, recipients, can }: PageProps) {
     const [tab, setTab] = useState<'templates' | 'notifications'>(can.templates ? 'templates' : 'notifications');
 
-    const tourSteps: TourStep[] = [
-        ...(can.templates && can.notifications
-            ? [
-                  {
-                      target: 'settings-tabs',
-                      onShow: () => setTab(can.templates ? 'templates' : 'notifications'),
-                      title: 'Two things live here',
-                      text: 'The task library your HOD assigns from, and who gets the automatic nightly close-of-day report.',
-                  } satisfies TourStep,
-              ]
-            : []),
-        ...(can.templates
-            ? [
-                  {
-                      target: 'settings-templates',
-                      onShow: () => setTab('templates'),
-                      title: 'The task library',
-                      text: "Mandatory items are fixed and can't be reweighted here. Production items have a flexible weight range — your HOD picks the exact weight when assigning one to a day.",
-                  } satisfies TourStep,
-              ]
-            : []),
-        ...(can.notifications
-            ? [
-                  {
-                      target: 'settings-notifications',
-                      onShow: () => setTab('notifications'),
-                      title: 'Where the nightly report goes',
-                      text: 'The HOD is included automatically. Add anyone else — like the CEO or a deputy — who should also get the close-of-day email.',
-                  } satisfies TourStep,
-              ]
-            : []),
-    ];
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="SEO Board Settings" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h1 className="text-xl font-semibold">SEO Board Settings — {department.name}</h1>
-                    <SeoBoardTour tourKey="settings" steps={tourSteps} />
+                    <TourButton id="seo-settings" />
                 </div>
 
                 {can.templates && can.notifications && (
@@ -469,6 +436,7 @@ export default function SeoSettingsIndex({ department, templates, hod, recipient
                             <button
                                 key={t}
                                 onClick={() => setTab(t)}
+                                data-tour={`seo-settings-tab-${t}`}
                                 className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
                             >
                                 {t === 'templates' ? 'Templates' : 'Notifications'}

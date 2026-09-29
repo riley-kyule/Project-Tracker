@@ -1,4 +1,5 @@
 import { InfoTooltip } from '@/components/cs-board/info-tooltip';
+import { TourButton } from '@/components/tour/tour-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -563,7 +564,12 @@ export default function CsSettingsIndex({ department, templates, hod, recipients
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Customer Service Board Settings" />
             <div className="flex flex-col gap-4 p-4">
-                <h1 className="text-xl font-semibold">Customer Service Board Settings — {department.name}</h1>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h1 className="text-xl font-semibold" data-tour="cs-settings-title">
+                        Customer Service Board Settings — {department.name}
+                    </h1>
+                    <TourButton id="cs-settings" />
+                </div>
 
                 {(can.templates ? 1 : 0) + (can.notifications ? 2 : 0) > 1 && (
                     <div className="flex gap-1 border-b">
@@ -574,6 +580,7 @@ export default function CsSettingsIndex({ department, templates, hod, recipients
                             <button
                                 key={t}
                                 onClick={() => setTab(t)}
+                                data-tour={`cs-settings-tab-${t}`}
                                 className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
                             >
                                 {t === 'templates' ? 'Templates' : t === 'notifications' ? 'Notifications' : 'Board settings'}

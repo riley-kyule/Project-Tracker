@@ -1,4 +1,4 @@
-import { SeoBoardTour, type TourStep } from '@/components/seo-board/tour';
+import { TourButton } from '@/components/tour/tour-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -524,52 +524,6 @@ function WeeklyRowView({ row, templates }: { row: WeeklyRow; templates: Template
 
 type HodTab = 'today' | 'week' | 'exceptions' | 'trends' | 'history';
 
-function hodTourSteps(setTab: (t: HodTab) => void): TourStep[] {
-    return [
-        {
-            target: 'hod-tabs',
-            onShow: () => setTab('today'),
-            title: 'Five views for your team',
-            text: 'Today for daily decisions, This Week for plans, Exceptions for anything blocked or rejected, Trends for scores over time, and History for the full record.',
-        },
-        {
-            target: 'hod-today-list',
-            onShow: () => setTab('today'),
-            title: 'Assign and decide, right here',
-            text: "Click any team member to expand their card — assign that day's extra tasks until it totals 100 points, then approve, mark late, request a fix, or reject each item they submit.",
-        },
-        {
-            target: 'hod-week-list',
-            onShow: () => setTab('week'),
-            title: 'Plan the week ahead',
-            text: "Build each person's weekly tasks and approve the plan before the week starts — it also has to total 100 points.",
-        },
-        {
-            target: 'hod-exceptions',
-            onShow: () => setTab('exceptions'),
-            title: 'Catch problems early',
-            text: 'Anyone with incomplete, late, rejected, or blocked items shows up here automatically — no need to open every card.',
-        },
-        {
-            target: 'hod-trends',
-            onShow: () => setTab('trends'),
-            title: 'See the trend',
-            text: 'Compare final weekly scores across your team over 4 or 12 weeks.',
-        },
-        {
-            target: 'hod-history',
-            onShow: () => setTab('history'),
-            title: 'Look back on anyone, anytime',
-            text: 'Pick a team member and a time range to see their full history, including evidence and your past decisions.',
-        },
-        {
-            target: 'hod-settings-link',
-            title: 'Manage templates & recipients',
-            text: 'Settings is where the task library and who gets the nightly close-of-day report are managed.',
-        },
-    ];
-}
-
 /** The SEO Board section on "My Department" — not a standalone page, per the ease-of-use request: an HOD already has one department home. */
 export function SeoHodPanel({
     department,
@@ -587,7 +541,7 @@ export function SeoHodPanel({
     weeklyTemplates,
     calibrationEndsAt,
 }: SeoHodPanelProps) {
-    const [tab, setTab] = useState<'today' | 'week' | 'exceptions' | 'trends' | 'history'>('today');
+    const [tab, setTab] = useState<HodTab>('today');
     const inCalibration = calibrationEndsAt !== null && calibrationEndsAt >= today();
     const setTeamWeeks = (weeks: number) => reloadSeoBoard({ seo_team_weeks: weeks });
 
@@ -606,7 +560,7 @@ export function SeoHodPanel({
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">SEO Board — {department.name}</h2>
                 <div className="flex items-center gap-3">
-                    <SeoBoardTour tourKey="hod" steps={hodTourSteps(setTab)} />
+                    <TourButton id="seo-hod" />
                     <Link href="/seo-board/settings" className="text-sm underline" data-tour="hod-settings-link">
                         Settings
                     </Link>
@@ -618,6 +572,7 @@ export function SeoHodPanel({
                     <button
                         key={t}
                         onClick={() => setTab(t)}
+                        data-tour={`seo-hod-tab-${t}`}
                         className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
                     >
                         {t === 'today'

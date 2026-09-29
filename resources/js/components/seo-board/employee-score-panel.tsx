@@ -1,4 +1,4 @@
-import { SeoBoardTour, type TourStep } from '@/components/seo-board/tour';
+import { TourButton } from '@/components/tour/tour-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -335,49 +335,10 @@ function HistoryPanel({ history, range }: { history: ScoreHistory; range: Employ
 export function SeoEmployeeScorePanel({ dailyCard, weeklyCard, history, range }: EmployeeScoreBoardPayload) {
     const [tab, setTab] = useState<'today' | 'week' | 'history'>('today');
 
-    const tourSteps: TourStep[] = [
-        {
-            target: 'emp-tabs',
-            onShow: () => setTab('today'),
-            title: 'Three tabs, one page',
-            text: 'Today is your daily checklist, This Week is your weekly plan, and History has scores your manager has already approved.',
-        },
-        {
-            target: 'emp-points',
-            onShow: () => setTab('today'),
-            title: 'Your points at a glance',
-            text: "Planned is always 100. Submitted is what you've marked done. Approved only appears once your manager reviews it — submitting isn't scoring.",
-        },
-        {
-            target: 'emp-items',
-            onShow: () => setTab('today'),
-            title: "Today's checklist",
-            text: 'Grouped by section. Monitoring, implementation and documentation are added automatically every day — your manager fills in the rest each morning.',
-        },
-        {
-            target: 'emp-status',
-            onShow: () => setTab('today'),
-            title: 'Update as you work',
-            text: 'Move a task to In progress, then Submitted when it’s ready — or Blocked with a reason if something outside your control is stopping you.',
-        },
-        {
-            target: 'emp-evidence',
-            onShow: () => setTab('today'),
-            title: 'Attach your proof',
-            text: 'Some tasks need a screenshot, document, or link attached before you can submit them.',
-        },
-        {
-            target: 'emp-history-range',
-            onShow: () => setTab('history'),
-            title: 'Check your history anytime',
-            text: 'Switch here to see approved scores from past days and weeks — click any day to see exactly what was recorded.',
-        },
-    ];
-
     return (
         <div className="flex flex-col gap-4 pb-2">
             <div className="flex justify-end">
-                <SeoBoardTour tourKey="employee" steps={tourSteps} />
+                <TourButton id="seo-employee" />
             </div>
 
             <div className="flex gap-1 border-b" data-tour="emp-tabs">
@@ -385,6 +346,7 @@ export function SeoEmployeeScorePanel({ dailyCard, weeklyCard, history, range }:
                     <button
                         key={t}
                         onClick={() => setTab(t)}
+                        data-tour={`seo-emp-tab-${t}`}
                         className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
                     >
                         {t === 'today' ? 'Today' : t === 'week' ? 'This Week' : 'History'}

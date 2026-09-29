@@ -1,4 +1,5 @@
 import { InfoTooltip } from '@/components/cs-board/info-tooltip';
+import { TourButton } from '@/components/tour/tour-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -204,7 +205,7 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
             </div>
 
             {canUpdate && (
-                <div className="flex flex-wrap items-end gap-2">
+                <div className="flex flex-wrap items-end gap-2" data-tour="cs-emp-status">
                     <div>
                         <Label className="text-xs">
                             Status
@@ -246,7 +247,7 @@ function ItemRow({ item, canUpdate }: { item: Item; canUpdate: boolean }) {
                 </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2" data-tour="cs-emp-evidence">
                 {item.evidence.map((e) => (
                     <a key={e.id} href={`/attachments/${e.id}`} className="text-xs underline">
                         {e.original_name}
@@ -276,7 +277,7 @@ function CardPanel({ card, emptyMessage }: { card: Card_ | null; emptyMessage: s
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2" data-tour="cs-emp-points">
                 <Badge variant="outline">{card.status}</Badge>
                 <Badge variant="outline">planned {card.planned_points}</Badge>
                 {card.employee_submitted_points !== undefined && <Badge variant="outline">submitted {card.employee_submitted_points ?? '—'}</Badge>}
@@ -317,7 +318,7 @@ function CommercialCard({ commercial }: { commercial: Commercial }) {
     ];
 
     return (
-        <Card className="p-4">
+        <Card className="p-4" data-tour="cs-emp-commercial">
             <h3 className="mb-1 font-semibold">This week's commercial targets</h3>
             <p className="text-muted-foreground mb-3 text-xs">Week of {fmtDate(commercial.week_start_date)} · set by your HOD</p>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -448,7 +449,7 @@ function ActivityForm({ employeeId }: { employeeId: number }) {
     };
 
     return (
-        <Card className="flex flex-col gap-3 p-4">
+        <Card className="flex flex-col gap-3 p-4" data-tour="cs-emp-activity">
             <h3 className="flex items-center font-semibold">
                 Log a contact attempt
                 <InfoTooltip text="Every attempt counts as evidence of work, whether or not it leads anywhere. Sending one message isn't enough on its own — update the stage as the conversation actually progresses." />
@@ -569,7 +570,7 @@ function SalesForm({ employeeId, weekStart }: { employeeId: number; weekStart: s
     };
 
     return (
-        <Card className="flex flex-col gap-3 p-4">
+        <Card className="flex flex-col gap-3 p-4" data-tour="cs-emp-sale">
             <h3 className="font-semibold">Record a sale</h3>
             <p className="text-muted-foreground text-xs">
                 Logging a sale does not score it. Your HOD reviews the payment reference and evidence, then clears it before it counts toward your
@@ -715,7 +716,7 @@ function LogInteractionForm({ employeeId }: { employeeId: number }) {
     };
 
     return (
-        <Card className="flex flex-wrap items-end gap-2 p-3">
+        <Card className="flex flex-wrap items-end gap-2 p-3" data-tour="cs-emp-service-log">
             <div>
                 <Label className="text-xs">Customer</Label>
                 <Input className="h-8 w-48" value={customerIdentifier} onChange={(e) => setCustomerIdentifier(e.target.value)} />
@@ -877,7 +878,7 @@ function ReportIssueForm({ employeeId, platformAssignments }: { employeeId: numb
     };
 
     return (
-        <Card className="flex flex-col gap-3 p-4">
+        <Card className="flex flex-col gap-3 p-4" data-tour="cs-emp-report-issue">
             <h3 className="flex items-center font-semibold">
                 Report an issue
                 <InfoTooltip text="Reporting a fault isn't closure on its own — it stays open, with an owner and severity, until someone confirms it's actually fixed, accepted as a known exception, or reassigned." />
@@ -1015,7 +1016,7 @@ function ContinuityTab({
                 Run through these five checks once a day for your assigned platform. Reporting a fault isn't closure by itself — it stays open below
                 until someone confirms it's actually fixed.
             </p>
-            <Card>
+            <Card data-tour="cs-emp-continuity-checks">
                 {CONTINUITY_CHECK_TYPES.map((ct) => (
                     <ContinuityCheckRow
                         key={ct.value}
@@ -1189,11 +1190,15 @@ export function CsEmployeeScorePanel({
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap gap-1 border-b">
+            <div className="flex justify-end">
+                <TourButton id="cs-employee" />
+            </div>
+            <div className="flex flex-wrap gap-1 border-b" data-tour="cs-emp-tabs">
                 {(['today', 'week', 'service', 'sales', 'continuity', 'history'] as const).map((t) => (
                     <button
                         key={t}
                         onClick={() => setTab(t)}
+                        data-tour={`cs-emp-tab-${t}`}
                         className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
                     >
                         {t === 'today'

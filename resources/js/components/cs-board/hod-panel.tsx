@@ -1,4 +1,5 @@
 import { InfoTooltip } from '@/components/cs-board/info-tooltip';
+import { TourButton } from '@/components/tour/tour-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -1077,9 +1078,12 @@ export function CsHodPanel({
             )}
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">Customer Service Board — {department.name}</h2>
-                <Link href="/cs-board/settings" className="text-sm underline">
-                    Settings
-                </Link>
+                <div className="flex items-center gap-3">
+                    <TourButton id="cs-hod" />
+                    <Link href="/cs-board/settings" className="text-sm underline" data-tour="cs-hod-settings">
+                        Settings
+                    </Link>
+                </div>
             </div>
 
             <div className="flex flex-wrap gap-1 border-b">
@@ -1087,6 +1091,7 @@ export function CsHodPanel({
                     <button
                         key={t}
                         onClick={() => setTab(t)}
+                        data-tour={`cs-hod-tab-${t}`}
                         className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
                     >
                         {t === 'today'
