@@ -1,4 +1,5 @@
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
@@ -74,6 +75,7 @@ export default function QueueHealth({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Queue Health" />
+            <PageTour id="admin-queue" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center gap-2">
                     <h1 className="text-xl font-semibold">Queue Health</h1>
@@ -82,7 +84,7 @@ export default function QueueHealth({
                     </Button>
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="queue-pending">
                     <h2 className="mb-2 text-sm font-semibold">Pending jobs by queue</h2>
                     {pendingByQueue.length === 0 ? (
                         <p className="text-muted-foreground text-sm">Nothing waiting — the queue is empty.</p>
@@ -116,7 +118,7 @@ export default function QueueHealth({
                     )}
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="queue-failed">
                     <div className="mb-2 flex items-center gap-2">
                         <h2 className="text-sm font-semibold">Failed jobs</h2>
                         <Badge variant={failedJobsTotal > 0 ? 'destructive' : 'secondary'}>{failedJobsTotal} total</Badge>

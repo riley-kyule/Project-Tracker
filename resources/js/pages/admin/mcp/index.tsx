@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,7 +100,7 @@ function OAuthSetup({ urls, clients }: { urls: OAuthUrls; clients: OAuthClientRo
     };
 
     return (
-        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="mcp-oauth">
             <h2 className="mb-1 text-sm font-semibold">Connect via OAuth (e.g. ChatGPT, Claude)</h2>
             <p className="text-muted-foreground mb-3 text-sm">
                 For a connector UI that only offers "No Auth" or full OAuth — no plain API key field. Each person registers their own connector below:
@@ -235,6 +236,7 @@ export default function McpIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="MCP Connector" />
+            <PageTour id="admin-mcp" />
             <div className="flex max-w-3xl flex-col gap-4 p-4">
                 <div>
                     <h1 className="text-xl font-semibold">MCP Connector</h1>
@@ -248,7 +250,7 @@ export default function McpIndex({
                 {flash.newToken && <NewTokenAlert token={flash.newToken} />}
                 {flash.newOAuthClient && <NewOAuthClientAlert client={flash.newOAuthClient} />}
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="mcp-token-setup">
                     <h2 className="mb-2 text-sm font-semibold">Setup with a plain token</h2>
                     <ol className="text-muted-foreground list-inside list-decimal space-y-1 text-sm">
                         <li>
@@ -262,7 +264,7 @@ export default function McpIndex({
 
                 <OAuthSetup urls={oauthUrls} clients={oauthClients} />
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="mcp-tokens">
                     <h2 className="mb-3 text-sm font-semibold">Tokens</h2>
                     <NewTokenForm />
                     <div className="mt-4 overflow-x-auto">

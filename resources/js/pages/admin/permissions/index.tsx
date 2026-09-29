@@ -1,3 +1,4 @@
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -82,6 +83,7 @@ export default function PermissionsIndex({ permissions, roles }: { permissions: 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Permissions" />
+            <PageTour id="admin-permissions" />
             <TooltipProvider>
                 <div className="flex flex-col gap-4 p-4">
                     <div>
@@ -92,7 +94,7 @@ export default function PermissionsIndex({ permissions, roles }: { permissions: 
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" data-tour="permissions-roles">
                         {roles.map((r) => (
                             <button
                                 key={r.id}
@@ -119,7 +121,7 @@ export default function PermissionsIndex({ permissions, roles }: { permissions: 
                         ))}
                     </div>
 
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="permissions-role">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -164,6 +166,7 @@ export default function PermissionsIndex({ permissions, roles }: { permissions: 
                     </div>
 
                     <Input
+                        data-tour="permissions-search"
                         placeholder="Search what this role can do…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}

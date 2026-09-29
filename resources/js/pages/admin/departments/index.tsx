@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { SortableHeader, toggleSort, type SortState } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -323,7 +324,11 @@ function CompanySummarySettings({ ceoSummaryTime, ceoWeeklySummaryTime }: { ceoS
     };
 
     return (
-        <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-end gap-3 rounded-xl border p-4">
+        <form
+            onSubmit={submit}
+            data-tour="departments-ceo-summary"
+            className="border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-end gap-3 rounded-xl border p-4"
+        >
             <div className="grid gap-2">
                 <Label htmlFor="ceo_summary_time">CEO daily summary email time</Label>
                 <Input
@@ -418,6 +423,7 @@ export default function DepartmentsIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Departments" />
+            <PageTour id="admin-departments" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Departments</h1>
@@ -426,7 +432,7 @@ export default function DepartmentsIndex({
                             managers={managers}
                             parentOptions={parentOptions}
                             trigger={
-                                <Button size="sm">
+                                <Button size="sm" data-tour="departments-new">
                                     <Plus className="mr-1 size-4" /> New department
                                 </Button>
                             }
@@ -439,7 +445,7 @@ export default function DepartmentsIndex({
                         ceoWeeklySummaryTime={companySettings.ceo_weekly_summary_time}
                     />
                 )}
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="departments-table">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-sidebar-border/70 text-muted-foreground dark:border-sidebar-border border-b text-left">

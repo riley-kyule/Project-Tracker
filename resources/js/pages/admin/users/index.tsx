@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { ListCappedNotice } from '@/components/list-capped-notice';
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
@@ -300,15 +301,20 @@ export default function UsersIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Users" />
+            <PageTour id="admin-users" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">Users</h1>
                         <ListCappedNotice capped={listCapped} />
                     </div>
-                    {canManage && <NewUserDialog departments={departments} roles={roles} />}
+                    {canManage && (
+                        <div data-tour="users-new">
+                            <NewUserDialog departments={departments} roles={roles} />
+                        </div>
+                    )}
                 </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="users-table">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-sidebar-border/70 text-muted-foreground dark:border-sidebar-border border-b text-left">

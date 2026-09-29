@@ -1,4 +1,5 @@
 import Heading from '@/components/heading';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
     return (
         <div className="px-4 py-6">
+            <PageTour id="settings" />
             <Heading title="Settings" description="Manage your profile and account settings" />
 
             <div className="flex flex-col space-y-8 lg:flex-row lg:space-y-0 lg:space-x-12">
@@ -45,6 +47,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                                 size="sm"
                                 variant="ghost"
                                 asChild
+                                data-tour={`settings-nav-${item.title.toLowerCase()}`}
                                 className={cn('w-full justify-start', {
                                     'bg-muted': currentPath === item.url,
                                 })}

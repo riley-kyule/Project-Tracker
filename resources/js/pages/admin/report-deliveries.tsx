@@ -1,6 +1,7 @@
 import { type ListSize } from '@/components/list-pagination';
 import { Pagination, sizeFromPerPage, type Paginated } from '@/components/pagination';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
@@ -94,12 +95,13 @@ export default function ReportDeliveries({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="System Report Log" />
+            <PageTour id="admin-report-log" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">System Report Log</h1>
                     <span className="text-muted-foreground text-sm">{deliveries.total} total</span>
                     <Select value={selected.status ?? ALL} onValueChange={applyStatus}>
-                        <SelectTrigger className="ml-auto w-40" aria-label="Filter by status">
+                        <SelectTrigger className="ml-auto w-40" aria-label="Filter by status" data-tour="report-log-filter">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -113,7 +115,7 @@ export default function ReportDeliveries({
                     </Select>
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="report-log-table">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">

@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -56,7 +57,7 @@ function BusinessHoursCard({ businessHours }: { businessHours: BusinessHours }) 
     };
 
     return (
-        <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border space-y-4 rounded-xl border p-4">
+        <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border space-y-4 rounded-xl border p-4" data-tour="sla-hours">
             <div>
                 <h2 className="text-sm font-semibold">Business hours</h2>
                 <p className="text-muted-foreground text-xs">What "business hours only" refers to on the SLA policies below.</p>
@@ -124,7 +125,11 @@ function SlaPolicyRow({ policy }: { policy: SlaPolicy }) {
     };
 
     return (
-        <form onSubmit={submit} className="border-sidebar-border/70 dark:border-sidebar-border space-y-4 rounded-xl border p-4">
+        <form
+            onSubmit={submit}
+            className="border-sidebar-border/70 dark:border-sidebar-border space-y-4 rounded-xl border p-4"
+            data-tour="sla-policy"
+        >
             <h2 className={`text-sm font-semibold capitalize ${priorityColors[policy.priority]}`}>{policy.priority}</h2>
             <div className="grid gap-4 sm:grid-cols-3">
                 <div className="grid gap-2">
@@ -197,6 +202,7 @@ export default function SlaPoliciesIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="SLA policies" />
+            <PageTour id="admin-sla" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>

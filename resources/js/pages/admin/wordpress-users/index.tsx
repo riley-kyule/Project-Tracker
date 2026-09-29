@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { type ListSize } from '@/components/list-pagination';
 import { Pagination, sizeFromPerPage, type Paginated } from '@/components/pagination';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -186,14 +187,14 @@ function SitesPanel({ sites }: { sites: Site[] }) {
                     <Input placeholder="Search sites…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-48 text-xs" />
                     <SiteDialog
                         trigger={
-                            <Button size="sm">
+                            <Button size="sm" data-tour="wp-connect">
                                 <Plus className="mr-1 size-4" /> Connect a website
                             </Button>
                         }
                     />
                 </div>
             </div>
-            <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+            <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="wp-sites-table">
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">
@@ -671,6 +672,7 @@ export default function WordPressUsersIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="WordPress Users" />
+            <PageTour id="admin-wordpress" />
             <div className="flex flex-col gap-6 p-4">
                 <div>
                     <h1 className="text-xl font-semibold">WordPress Users</h1>
@@ -684,7 +686,7 @@ export default function WordPressUsersIndex({
                 <div className="flex flex-wrap items-center gap-2 border-t pt-6">
                     <h2 className="text-sm font-semibold">Users</h2>
                     <span className="text-muted-foreground text-sm">{users.total} total</span>
-                    <div className="ml-auto flex flex-wrap gap-2">
+                    <div className="ml-auto flex flex-wrap gap-2" data-tour="wp-user-actions">
                         <Button size="sm" variant="outline" onClick={syncAll} disabled={syncing || connectedSites.length === 0}>
                             <RefreshCw className={`mr-1 size-4 ${syncing ? 'animate-spin' : ''}`} />
                             Sync all sites
@@ -760,7 +762,7 @@ export default function WordPressUsersIndex({
                     />
                 )}
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="wp-users-table">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">

@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -89,20 +90,21 @@ export default function LabelsIndex({ labels, canManage }: { labels: LabelRow[];
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Labels" />
+            <PageTour id="admin-labels" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Labels</h1>
                     {canManage && (
                         <LabelDialog
                             trigger={
-                                <Button size="sm">
+                                <Button size="sm" data-tour="labels-new">
                                     <Plus className="mr-1 size-4" /> New label
                                 </Button>
                             }
                         />
                     )}
                 </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="labels-table">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-sidebar-border/70 text-muted-foreground dark:border-sidebar-border border-b text-left">

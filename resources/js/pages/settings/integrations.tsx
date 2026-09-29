@@ -1,5 +1,6 @@
 import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,7 +116,8 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                         description="Configure email delivery, browser push, and backups without touching the server"
                     />
 
-                    <div className="space-y-4 border-b pb-6">
+                    <PageTour id="settings-integrations" />
+                    <div className="space-y-4 border-b pb-6" data-tour="integrations-backups">
                         <h3 className="text-sm font-semibold">Backups</h3>
                         {settings.google_drive_connected_email ? (
                             <div className="flex flex-wrap items-center gap-3">
@@ -189,7 +191,7 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                     </div>
 
                     <form onSubmit={submit} className="space-y-8">
-                        <div className="space-y-4">
+                        <div className="space-y-4" data-tour="integrations-email">
                             <h3 className="text-sm font-semibold">Email</h3>
                             <p className="text-muted-foreground text-sm">
                                 Leave on Log to keep writing emails to the server log instead of actually sending them.
@@ -289,7 +291,7 @@ export default function IntegrationSettingsPage({ settings, lastBackupRun }: { s
                             )}
                         </div>
 
-                        <div className="space-y-4 border-t pt-6">
+                        <div className="space-y-4 border-t pt-6" data-tour="integrations-push">
                             <h3 className="text-sm font-semibold">Browser push (Exotic Push Engine)</h3>
                             <p className="text-muted-foreground text-sm">Leave blank to disable push notifications entirely.</p>
                             <div className="grid gap-4 sm:grid-cols-2">
