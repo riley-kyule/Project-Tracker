@@ -3,7 +3,10 @@
 namespace App\Services\Cs;
 
 use App\Models\CompanySetting;
+use App\Models\CsActivityRecord;
 use App\Models\CsCardItem;
+use App\Models\CsContinuityCheck;
+use App\Models\CsContinuityIssue;
 use App\Models\CsDailyCard;
 use App\Models\CsFinalScore;
 use App\Models\CsSalesRecord;
@@ -88,6 +91,38 @@ class CsPerformanceQuery
                 'final_score' => $s->final_score !== null ? (float) $s->final_score : null,
                 'is_final' => $s->is_final,
             ])->all(),
+            'activity_summary' => $this->activitySummary($employee, $from, $to),
+            'continuity_summary' => $this->continuitySummary($employee, $from, $to),
+        ];
+    }
+
+    /** §5.1 activity counts by workstream, over the range — evidence that contact happened, not just that a sale closed. */
+    private function activitySummary(Employee $employee, Carbon $from, Carbon $to): array
+    {
+        $records = CsActivityRecord::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get();
+
+        return collect(CsActivityRecord::WORKSTREAMS)
+            ->mapWithKeys(fn (string $w) => [$w => $records->where('workstream', $w)->count()])
+            ->all();
+    }
+
+    /** §5.2 continuity checks completed and issues open/closed over the range. */
+    private function continuitySummary(Employee $employee, Carbon $from, Carbon $to): array
+    {
+        $checks = CsContinuityCheck::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('check_date', '>=', $from->toDateString())
+            ->whereDate('check_date', '<=', $to->toDateString())
+            ->get();
+
+        return [
+            'checks_completed' => $checks->count(),
+            'issues_found' => $checks->where('status', CsContinuityCheck::STATUS_ISSUE_FOUND)->count(),
+            'open_issues' => CsContinuityIssue::query()->where('employee_id', $employee->id)->open()->count(),
         ];
     }
 
@@ -101,25 +136,29 @@ class CsPerformanceQuery
             ->whereDate('week_start_date', $weekStart->toDateString())
             ->first();
 
-        $records = CsSalesRecord::query()
-            ->where('employee_id', $employee->id)
-            ->whereDate('week_start_date', $weekStart->toDateString())
-            ->cleared()
-            ->get();
+        $newCustomersTarget = (int) ($target?->new_customers_target ?? 0);
+        $newRevenueTarget = (float) ($target?->new_customer_revenue_target ?? 0);
+        $renewedCustomersTarget = (int) ($target?->renewed_customers_target ?? 0);
+        $retainedRevenueTarget = (float) ($target?->retained_revenue_target ?? 0);
 
-        $newRecords = $records->where('category', CsSalesRecord::CATEGORY_NEW);
-        $renewalRecords = $records->whereIn('category', [CsSalesRecord::CATEGORY_RENEWAL, CsSalesRecord::CATEGORY_REACTIVATION]);
+        $commercialTotals = app(CsCommercialTotals::class);
+        $new = $commercialTotals->forEmployee($employee->id, $weekStart, [CsSalesRecord::CATEGORY_NEW], $newCustomersTarget, $newRevenueTarget);
+        $renewals = $commercialTotals->forEmployee($employee->id, $weekStart, [CsSalesRecord::CATEGORY_RENEWAL, CsSalesRecord::CATEGORY_REACTIVATION], $renewedCustomersTarget, $retainedRevenueTarget);
 
         return [
             'week_start_date' => $weekStart->toDateString(),
-            'new_customers' => $newRecords->pluck('customer_identifier')->unique()->count(),
-            'new_customers_target' => $target?->new_customers_target ?? 0,
-            'new_customer_revenue' => (float) $newRecords->sum(fn (CsSalesRecord $r) => $r->reporting_currency_amount ?? $r->amount),
-            'new_customer_revenue_target' => $target !== null ? (float) $target->new_customer_revenue_target : 0.0,
-            'renewed_customers' => $renewalRecords->pluck('customer_identifier')->unique()->count(),
-            'renewed_customers_target' => $target?->renewed_customers_target ?? 0,
-            'retained_revenue' => (float) $renewalRecords->sum(fn (CsSalesRecord $r) => $r->reporting_currency_amount ?? $r->amount),
-            'retained_revenue_target' => $target !== null ? (float) $target->retained_revenue_target : 0.0,
+            'new_customers' => $new['customers'],
+            'new_customers_target' => $newCustomersTarget,
+            'new_customers_additional' => $new['additional_customers'],
+            'new_customer_revenue' => $new['revenue'],
+            'new_customer_revenue_target' => $newRevenueTarget,
+            'new_customer_revenue_additional' => $new['additional_revenue'],
+            'renewed_customers' => $renewals['customers'],
+            'renewed_customers_target' => $renewedCustomersTarget,
+            'renewed_customers_additional' => $renewals['additional_customers'],
+            'retained_revenue' => $renewals['revenue'],
+            'retained_revenue_target' => $retainedRevenueTarget,
+            'retained_revenue_additional' => $renewals['additional_revenue'],
             'currency' => $target?->currency ?? 'KES',
         ];
     }

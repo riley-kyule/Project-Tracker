@@ -33,6 +33,7 @@ class CsScoringService
     public function __construct(
         private readonly WorkCalendarService $calendar,
         private readonly CsServiceQualityService $serviceQuality,
+        private readonly CsCommercialTotals $commercialTotals,
     ) {}
 
     /** §7 credit table. Null for the three "excluded from denominator" treatments — those carry no factor at all. */
@@ -94,16 +95,6 @@ class CsScoringService
             ? [CsSalesRecord::CATEGORY_NEW]
             : [CsSalesRecord::CATEGORY_RENEWAL, CsSalesRecord::CATEGORY_REACTIVATION];
 
-        $records = CsSalesRecord::query()
-            ->where('employee_id', $card->employee_id)
-            ->whereDate('week_start_date', $card->week_start_date->toDateString())
-            ->whereIn('category', $categories)
-            ->cleared()
-            ->get();
-
-        $customerCount = $records->pluck('customer_identifier')->unique()->count();
-        $revenue = (float) $records->sum(fn (CsSalesRecord $r) => $r->reporting_currency_amount ?? $r->amount);
-
         $countTarget = $item->metric_type === CsTaskTemplate::METRIC_NEW_SALES
             ? (int) $target->new_customers_target
             : (int) $target->renewed_customers_target;
@@ -111,8 +102,10 @@ class CsScoringService
             ? (float) $target->new_customer_revenue_target
             : (float) $target->retained_revenue_target;
 
-        $countAttainment = $countTarget > 0 ? min(100.0, ($customerCount / $countTarget) * 100) : ($customerCount > 0 ? 100.0 : 0.0);
-        $revenueAttainment = $revenueTarget > 0 ? min(100.0, ($revenue / $revenueTarget) * 100) : ($revenue > 0 ? 100.0 : 0.0);
+        $totals = $this->commercialTotals->forEmployee($card->employee_id, $card->week_start_date, $categories, $countTarget, $revenueTarget);
+
+        $countAttainment = $countTarget > 0 ? min(100.0, ($totals['customers'] / $countTarget) * 100) : ($totals['customers'] > 0 ? 100.0 : 0.0);
+        $revenueAttainment = $revenueTarget > 0 ? min(100.0, ($totals['revenue'] / $revenueTarget) * 100) : ($totals['revenue'] > 0 ? 100.0 : 0.0);
 
         $blended = round(($countAttainment * 0.5) + ($revenueAttainment * 0.5), 2);
 

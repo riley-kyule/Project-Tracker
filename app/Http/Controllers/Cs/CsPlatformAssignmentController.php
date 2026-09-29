@@ -40,10 +40,13 @@ class CsPlatformAssignmentController extends Controller
     {
         Gate::authorize('delete', $assignment);
 
-        $old = $assignment->only(['is_active']);
-        $assignment->update(['is_active' => false]);
+        // effective_to (not just is_active=false) so a past date can still be
+        // checked against whatever was actually assigned then, per §12
+        // "retain the ... platform assignment effective at the time".
+        $old = $assignment->only(['is_active', 'effective_to']);
+        $assignment->update(['is_active' => false, 'effective_to' => now()->toDateString()]);
 
-        AuditLogger::log($assignment, 'cs_platform_assignment.deactivated', $old, ['is_active' => false]);
+        AuditLogger::log($assignment, 'cs_platform_assignment.deactivated', $old, $assignment->only(['is_active', 'effective_to']));
 
         return back()->with('success', 'Assignment removed.');
     }

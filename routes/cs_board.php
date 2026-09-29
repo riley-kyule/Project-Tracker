@@ -1,11 +1,14 @@
 <?php
 
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\Cs\CsActivityRecordController;
 use App\Http\Controllers\Cs\CsBoardController;
 use App\Http\Controllers\Cs\CsBoardSettingsController;
 use App\Http\Controllers\Cs\CsCardItemController;
 use App\Http\Controllers\Cs\CsComplaintController;
 use App\Http\Controllers\Cs\CsContactQualityReviewController;
+use App\Http\Controllers\Cs\CsContinuityCheckController;
+use App\Http\Controllers\Cs\CsContinuityIssueController;
 use App\Http\Controllers\Cs\CsDailyCardController;
 use App\Http\Controllers\Cs\CsNotificationSettingsController;
 use App\Http\Controllers\Cs\CsPlatformAssignmentController;
@@ -65,6 +68,19 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('cs-board')->name('cs
     Route::post('employees/{employee}/complaints', [CsComplaintController::class, 'store'])->name('complaints.store');
     Route::post('complaints/{complaint}/decide', [CsComplaintController::class, 'decide'])->name('complaints.decide');
     Route::post('employees/{employee}/contact-quality-reviews', [CsContactQualityReviewController::class, 'store'])->name('contact-quality-reviews.store');
+
+    // §5.1 daily sales activity records (employee-logged, amendable as a conversation progresses)
+    Route::post('employees/{employee}/activities', [CsActivityRecordController::class, 'store'])->name('activities.store');
+    Route::patch('activities/{record}', [CsActivityRecordController::class, 'update'])->name('activities.update');
+    Route::post('activities/{record}/evidence', [AttachmentController::class, 'storeForCsActivity'])->middleware('throttle:uploads')->name('activities.evidence.store');
+
+    // §5.2 assigned platform continuity: daily checks + the issue tracker
+    Route::post('employees/{employee}/continuity-checks', [CsContinuityCheckController::class, 'store'])->name('continuity-checks.store');
+    Route::post('continuity-checks/{check}/evidence', [AttachmentController::class, 'storeForCsContinuityCheck'])->middleware('throttle:uploads')->name('continuity-checks.evidence.store');
+    Route::post('employees/{employee}/continuity-issues', [CsContinuityIssueController::class, 'store'])->name('continuity-issues.store');
+    Route::post('continuity-issues/{issue}/evidence', [AttachmentController::class, 'storeForCsContinuityIssue'])->middleware('throttle:uploads')->name('continuity-issues.evidence.store');
+    Route::post('continuity-issues/{issue}/close', [CsContinuityIssueController::class, 'close'])->name('continuity-issues.close');
+    Route::post('continuity-issues/{issue}/reopen', [CsContinuityIssueController::class, 'reopen'])->name('continuity-issues.reopen');
 
     // Settings hub + its actions
     Route::get('settings', [CsSettingsController::class, 'index'])->name('settings.index');

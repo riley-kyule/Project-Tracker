@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attachment;
+use App\Models\CsActivityRecord;
 use App\Models\CsCardItem;
+use App\Models\CsContinuityCheck;
+use App\Models\CsContinuityIssue;
 use App\Models\CsSalesRecord;
 use App\Models\SeoCardItem;
 use App\Models\Task;
@@ -94,6 +97,30 @@ class AttachmentController extends Controller
         return $this->attach($request, $record, 'cs-sales-records');
     }
 
+    /** Evidence on a §5.1 daily sales activity record (a contact attempt). */
+    public function storeForCsActivity(Request $request, CsActivityRecord $record): RedirectResponse
+    {
+        abort_unless($record->employee_id === $request->user()->employee?->id || $request->user()->can('cs.cards.approve'), 403);
+
+        return $this->attach($request, $record, 'cs-activities');
+    }
+
+    /** Evidence on a §5.2 continuity check (e.g. a screenshot showing registration/login working). */
+    public function storeForCsContinuityCheck(Request $request, CsContinuityCheck $check): RedirectResponse
+    {
+        abort_unless($check->employee_id === $request->user()->employee?->id || $request->user()->can('cs.cards.approve'), 403);
+
+        return $this->attach($request, $check, 'cs-continuity-checks');
+    }
+
+    /** Evidence on a §5.2 continuity issue (screenshots, tickets, correspondence). */
+    public function storeForCsContinuityIssue(Request $request, CsContinuityIssue $issue): RedirectResponse
+    {
+        abort_unless($issue->employee_id === $request->user()->employee?->id || $request->user()->can('cs.cards.approve'), 403);
+
+        return $this->attach($request, $issue, 'cs-continuity-issues');
+    }
+
     /** File access inherits the parent record's authorization (PERMISSIONS_MATRIX). */
     public function download(Request $request, Attachment $attachment): StreamedResponse
     {
@@ -110,7 +137,8 @@ class AttachmentController extends Controller
 
         $canManage = match (true) {
             $parent instanceof SeoCardItem => $request->user()->can('seo.cards.approve'),
-            $parent instanceof CsCardItem, $parent instanceof CsSalesRecord => $request->user()->can('cs.cards.approve'),
+            $parent instanceof CsCardItem, $parent instanceof CsSalesRecord, $parent instanceof CsActivityRecord,
+            $parent instanceof CsContinuityCheck, $parent instanceof CsContinuityIssue => $request->user()->can('cs.cards.approve'),
             default => $request->user()->can('boards.manage'),
         };
 
@@ -182,13 +210,14 @@ class AttachmentController extends Controller
         return $name !== '' ? $name : 'file';
     }
 
-    private function parentOf(Attachment $attachment): Task|Ticket|SeoCardItem|CsCardItem|CsSalesRecord
+    private function parentOf(Attachment $attachment): Task|Ticket|SeoCardItem|CsCardItem|CsSalesRecord|CsActivityRecord|CsContinuityCheck|CsContinuityIssue
     {
         $parent = $attachment->attachable;
 
         abort_unless(
             $parent instanceof Task || $parent instanceof Ticket || $parent instanceof SeoCardItem
-                || $parent instanceof CsCardItem || $parent instanceof CsSalesRecord,
+                || $parent instanceof CsCardItem || $parent instanceof CsSalesRecord || $parent instanceof CsActivityRecord
+                || $parent instanceof CsContinuityCheck || $parent instanceof CsContinuityIssue,
             404,
         );
 
