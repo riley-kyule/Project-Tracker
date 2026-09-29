@@ -46,12 +46,16 @@ type Commercial = {
     week_start_date: string;
     new_customers: number;
     new_customers_target: number;
+    new_customers_additional: number;
     new_customer_revenue: number;
     new_customer_revenue_target: number;
+    new_customer_revenue_additional: number;
     renewed_customers: number;
     renewed_customers_target: number;
+    renewed_customers_additional: number;
     retained_revenue: number;
     retained_revenue_target: number;
+    retained_revenue_additional: number;
     currency: string;
 };
 
@@ -94,12 +98,48 @@ type Interaction = {
     resolution_status: string;
 };
 
+type Workstream = 'new_customer' | 'renewal' | 'reactivation' | 'payment_support';
+
+type Activity = {
+    id: number;
+    workstream: Workstream;
+    customer_identifier: string;
+    channel: string | null;
+    stage: string | null;
+    next_action: string | null;
+    renewal_status: string | null;
+    created_at: string;
+};
+
+type PlatformAssignmentRef = { id: number; label: string };
+
+type ContinuityCheck = {
+    id: number;
+    check_type: string;
+    status: string;
+    notes: string | null;
+};
+
+type OpenIssue = {
+    id: number;
+    title: string;
+    description: string | null;
+    owner: string;
+    severity: string;
+    first_reported_at: string;
+    expected_resolution: string | null;
+};
+
 export type CsEmployeeScoreBoardPayload = {
     dailyCard: Card_ | null;
     weeklyCard: Card_ | null;
     commercial: Commercial;
     employeeId: number;
     interactions: Interaction[];
+    activities: Activity[];
+    platformAssignments: PlatformAssignmentRef[];
+    continuityChecks: ContinuityCheck[];
+    openIssues: OpenIssue[];
     history: HistorySummary;
     range: { from: string; to: string; period: string };
 };
@@ -260,15 +300,19 @@ function CommercialCard({ commercial }: { commercial: Commercial }) {
             label: 'New paying customers',
             count: commercial.new_customers,
             countTarget: commercial.new_customers_target,
+            additionalCount: commercial.new_customers_additional,
             revenue: commercial.new_customer_revenue,
             revenueTarget: commercial.new_customer_revenue_target,
+            additionalRevenue: commercial.new_customer_revenue_additional,
         },
         {
             label: 'Renewed / reactivated customers',
             count: commercial.renewed_customers,
             countTarget: commercial.renewed_customers_target,
+            additionalCount: commercial.renewed_customers_additional,
             revenue: commercial.retained_revenue,
             revenueTarget: commercial.retained_revenue_target,
+            additionalRevenue: commercial.retained_revenue_additional,
         },
     ];
 
@@ -283,15 +327,210 @@ function CommercialCard({ commercial }: { commercial: Commercial }) {
                         <div className="mt-1 flex justify-between text-sm">
                             <span>
                                 {r.count} / {r.countTarget} customers
+                                {r.additionalCount > 0 && <span className="text-muted-foreground"> (+{r.additionalCount} above target)</span>}
                             </span>
                             <span>
                                 {commercial.currency} {r.revenue.toLocaleString()} / {r.revenueTarget.toLocaleString()}
+                                {r.additionalRevenue > 0 && (
+                                    <span className="text-muted-foreground"> (+{r.additionalRevenue.toLocaleString()} above target)</span>
+                                )}
                             </span>
                         </div>
                     </div>
                 ))}
             </div>
         </Card>
+    );
+}
+
+const WORKSTREAMS: { value: Workstream; label: string }[] = [
+    { value: 'new_customer', label: 'New customer' },
+    { value: 'renewal', label: 'Renewal' },
+    { value: 'reactivation', label: 'Reactivation' },
+    { value: 'payment_support', label: 'Payment support' },
+];
+
+const ACTIVITY_STAGES = [
+    { value: 'attempted_contact', label: 'Attempted contact' },
+    { value: 'delivered_contact', label: 'Delivered contact' },
+    { value: 'customer_response', label: 'Customer responded' },
+    { value: 'qualified_interest', label: 'Qualified interest' },
+    { value: 'registration', label: 'Registered' },
+    { value: 'cleared_payment', label: 'Payment cleared' },
+    { value: 'completed_activation', label: 'Activation completed' },
+];
+
+function ActivityRow({ activity }: { activity: Activity }) {
+    const [stage, setStage] = useState(activity.stage ?? 'attempted_contact');
+    const [nextAction, setNextAction] = useState(activity.next_action ?? '');
+    const [processing, setProcessing] = useState(false);
+
+    const save = () => {
+        setProcessing(true);
+        router.patch(
+            `/cs-board/activities/${activity.id}`,
+            { stage, next_action: nextAction || undefined },
+            { preserveScroll: true, onFinish: () => setProcessing(false) },
+        );
+    };
+
+    return (
+        <div className="flex flex-wrap items-end gap-2 border-b p-2 text-sm last:border-b-0">
+            <div className="grow">
+                <span className="font-medium">{activity.customer_identifier}</span>
+                <span className="text-muted-foreground"> · {WORKSTREAMS.find((w) => w.value === activity.workstream)?.label}</span>
+                {activity.channel && <span className="text-muted-foreground"> · {activity.channel}</span>}
+                <div className="text-muted-foreground text-xs">logged {fmtDate(activity.created_at)}</div>
+            </div>
+            {activity.workstream !== 'payment_support' && (
+                <div>
+                    <Label className="text-xs">Stage</Label>
+                    <select
+                        className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
+                        value={stage}
+                        onChange={(e) => setStage(e.target.value)}
+                    >
+                        {ACTIVITY_STAGES.map((s) => (
+                            <option key={s.value} value={s.value}>
+                                {s.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+            <div className="w-40">
+                <Label className="text-xs">Next action</Label>
+                <Input className="h-8" value={nextAction} onChange={(e) => setNextAction(e.target.value)} />
+            </div>
+            <Button size="sm" disabled={processing} onClick={save}>
+                Save
+            </Button>
+        </div>
+    );
+}
+
+function ActivityForm({ employeeId }: { employeeId: number }) {
+    const [workstream, setWorkstream] = useState<Workstream>('new_customer');
+    const [customerIdentifier, setCustomerIdentifier] = useState('');
+    const [channel, setChannel] = useState('chat');
+    const [source, setSource] = useState('');
+    const [expiryDate, setExpiryDate] = useState('');
+    const [inactivePeriodDays, setInactivePeriodDays] = useState('');
+    const [issue, setIssue] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    const submit = () => {
+        setProcessing(true);
+        router.post(
+            `/cs-board/employees/${employeeId}/activities`,
+            {
+                workstream,
+                customer_identifier: customerIdentifier,
+                channel: workstream === 'payment_support' ? undefined : channel,
+                source: workstream === 'new_customer' ? source || undefined : undefined,
+                expiry_date: workstream === 'renewal' ? expiryDate || undefined : undefined,
+                inactive_period_days: workstream === 'reactivation' ? inactivePeriodDays || undefined : undefined,
+                issue: workstream === 'payment_support' ? issue || undefined : undefined,
+                stage: workstream === 'payment_support' ? undefined : 'attempted_contact',
+            },
+            {
+                preserveScroll: true,
+                onFinish: () => setProcessing(false),
+                onSuccess: () => {
+                    setCustomerIdentifier('');
+                    setSource('');
+                    setExpiryDate('');
+                    setInactivePeriodDays('');
+                    setIssue('');
+                },
+            },
+        );
+    };
+
+    return (
+        <Card className="flex flex-col gap-3 p-4">
+            <h3 className="flex items-center font-semibold">
+                Log a contact attempt
+                <InfoTooltip text="Every attempt counts as evidence of work, whether or not it leads anywhere. Sending one message isn't enough on its own — update the stage as the conversation actually progresses." />
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                    <Label className="text-xs">Workstream</Label>
+                    <select
+                        className="border-input h-8 w-full rounded-md border bg-transparent px-2 text-sm"
+                        value={workstream}
+                        onChange={(e) => setWorkstream(e.target.value as Workstream)}
+                    >
+                        {WORKSTREAMS.map((w) => (
+                            <option key={w.value} value={w.value}>
+                                {w.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <Label className="text-xs">Customer identifier</Label>
+                    <Input className="h-8" value={customerIdentifier} onChange={(e) => setCustomerIdentifier(e.target.value)} />
+                </div>
+                {workstream !== 'payment_support' && (
+                    <div>
+                        <Label className="text-xs">Channel</Label>
+                        <select
+                            className="border-input h-8 w-full rounded-md border bg-transparent px-2 text-sm"
+                            value={channel}
+                            onChange={(e) => setChannel(e.target.value)}
+                        >
+                            {['chat', 'call', 'email', 'other'].map((c) => (
+                                <option key={c} value={c}>
+                                    {c}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+                {workstream === 'new_customer' && (
+                    <div>
+                        <Label className="text-xs">Source</Label>
+                        <Input className="h-8" placeholder="referral, ad, organic…" value={source} onChange={(e) => setSource(e.target.value)} />
+                    </div>
+                )}
+                {workstream === 'renewal' && (
+                    <div>
+                        <Label className="text-xs">Expiry date</Label>
+                        <Input type="date" className="h-8" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+                    </div>
+                )}
+                {workstream === 'reactivation' && (
+                    <div>
+                        <Label className="text-xs">Inactive for (days)</Label>
+                        <Input type="number" className="h-8" value={inactivePeriodDays} onChange={(e) => setInactivePeriodDays(e.target.value)} />
+                    </div>
+                )}
+                {workstream === 'payment_support' && (
+                    <div className="sm:col-span-2">
+                        <Label className="text-xs">Issue</Label>
+                        <Input className="h-8" value={issue} onChange={(e) => setIssue(e.target.value)} />
+                    </div>
+                )}
+            </div>
+            <Button size="sm" disabled={processing || !customerIdentifier} onClick={submit} className="self-start">
+                Log activity
+            </Button>
+        </Card>
+    );
+}
+
+function ActivityTab({ employeeId, activities }: { employeeId: number; activities: Activity[] }) {
+    return (
+        <div className="flex flex-col gap-4">
+            <ActivityForm employeeId={employeeId} />
+            <Card>
+                {activities.length === 0 && <p className="text-muted-foreground p-4 text-sm">No activity logged today yet.</p>}
+                {activities.map((a) => (
+                    <ActivityRow key={a.id} activity={a} />
+                ))}
+            </Card>
+        </div>
     );
 }
 
@@ -520,6 +759,287 @@ function ServiceTab({ employeeId, interactions }: { employeeId: number; interact
     );
 }
 
+const CONTINUITY_CHECK_TYPES: { value: string; label: string; hint: string }[] = [
+    {
+        value: 'registration_login',
+        label: 'Registration and login',
+        hint: 'Test or verify a customer record showing whether registration and login work.',
+    },
+    {
+        value: 'payments_activation',
+        label: 'Payments and activation',
+        hint: 'Check the payment route and profile activation; escalate failures with references.',
+    },
+    {
+        value: 'listings_contact_access',
+        label: 'Listings and contact access',
+        hint: 'Check active/expired listing behaviour, contact details and communication functions.',
+    },
+    {
+        value: 'complaints_service_desk',
+        label: 'Complaints and service desk',
+        hint: 'Review outstanding complaints and assigned tickets, with owner and due date.',
+    },
+    {
+        value: 'issue_follow_through',
+        label: 'Issue follow-through',
+        hint: 'Check previously reported issues until confirmed resolved, a known exception, or reassigned.',
+    },
+];
+
+function ContinuityCheckRow({
+    checkType,
+    existing,
+    employeeId,
+    platformAssignmentId,
+}: {
+    checkType: (typeof CONTINUITY_CHECK_TYPES)[number];
+    existing: ContinuityCheck | undefined;
+    employeeId: number;
+    platformAssignmentId: number | null;
+}) {
+    const [status, setStatus] = useState(existing?.status ?? 'ok');
+    const [notes, setNotes] = useState(existing?.notes ?? '');
+    const [processing, setProcessing] = useState(false);
+
+    const submit = () => {
+        setProcessing(true);
+        router.post(
+            `/cs-board/employees/${employeeId}/continuity-checks`,
+            { platform_assignment_id: platformAssignmentId ?? undefined, check_type: checkType.value, status, notes: notes || undefined },
+            { preserveScroll: true, onFinish: () => setProcessing(false) },
+        );
+    };
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b p-2 text-sm last:border-b-0">
+            <div className="flex items-center">
+                <span className={existing ? 'text-muted-foreground' : 'font-medium'}>{checkType.label}</span>
+                <InfoTooltip text={checkType.hint} />
+                {existing && (
+                    <Badge variant={existing.status === 'ok' ? 'outline' : 'destructive'} className="ml-2">
+                        done today: {existing.status === 'ok' ? 'ok' : 'issue found'}
+                    </Badge>
+                )}
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+                <select
+                    className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                >
+                    <option value="ok">Ok</option>
+                    <option value="issue_found">Issue found</option>
+                </select>
+                {status === 'issue_found' && (
+                    <Input className="h-8 w-48" placeholder="Describe the issue" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                )}
+                <Button size="sm" disabled={processing || (status === 'issue_found' && !notes)} onClick={submit}>
+                    {existing ? 'Re-check' : 'Submit'}
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+function ReportIssueForm({ employeeId, platformAssignments }: { employeeId: number; platformAssignments: PlatformAssignmentRef[] }) {
+    const [platformAssignmentId, setPlatformAssignmentId] = useState('');
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [owner, setOwner] = useState('');
+    const [severity, setSeverity] = useState('medium');
+    const [expectedResolution, setExpectedResolution] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    const submit = () => {
+        setProcessing(true);
+        router.post(
+            `/cs-board/employees/${employeeId}/continuity-issues`,
+            {
+                platform_assignment_id: platformAssignmentId || undefined,
+                title,
+                description: description || undefined,
+                owner,
+                severity,
+                expected_resolution: expectedResolution || undefined,
+            },
+            {
+                preserveScroll: true,
+                onFinish: () => setProcessing(false),
+                onSuccess: () => {
+                    setTitle('');
+                    setDescription('');
+                    setOwner('');
+                    setExpectedResolution('');
+                },
+            },
+        );
+    };
+
+    return (
+        <Card className="flex flex-col gap-3 p-4">
+            <h3 className="flex items-center font-semibold">
+                Report an issue
+                <InfoTooltip text="Reporting a fault isn't closure on its own — it stays open, with an owner and severity, until someone confirms it's actually fixed, accepted as a known exception, or reassigned." />
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+                {platformAssignments.length > 0 && (
+                    <div>
+                        <Label className="text-xs">Platform (optional)</Label>
+                        <select
+                            className="border-input h-9 w-full rounded-md border bg-transparent px-2 text-sm"
+                            value={platformAssignmentId}
+                            onChange={(e) => setPlatformAssignmentId(e.target.value)}
+                        >
+                            <option value="">Not platform-specific</option>
+                            {platformAssignments.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                    {p.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+                <div>
+                    <Label className="text-xs">Title</Label>
+                    <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+                </div>
+                <div>
+                    <Label className="text-xs">Owner</Label>
+                    <Input placeholder="who owns fixing this" value={owner} onChange={(e) => setOwner(e.target.value)} />
+                </div>
+                <div>
+                    <Label className="text-xs">Severity</Label>
+                    <select
+                        className="border-input h-9 w-full rounded-md border bg-transparent px-2 text-sm"
+                        value={severity}
+                        onChange={(e) => setSeverity(e.target.value)}
+                    >
+                        {['low', 'medium', 'high', 'critical'].map((s) => (
+                            <option key={s} value={s}>
+                                {s}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <Label className="text-xs">Expected resolution (optional)</Label>
+                    <Input type="date" value={expectedResolution} onChange={(e) => setExpectedResolution(e.target.value)} />
+                </div>
+                <div className="sm:col-span-2">
+                    <Label className="text-xs">Description (optional)</Label>
+                    <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+                </div>
+            </div>
+            <Button size="sm" disabled={processing || !title || !owner} onClick={submit} className="self-start">
+                Report issue
+            </Button>
+        </Card>
+    );
+}
+
+function OpenIssueRow({ issue }: { issue: OpenIssue }) {
+    const [closing, setClosing] = useState(false);
+    const [status, setStatus] = useState('resolved');
+    const [finalOutcome, setFinalOutcome] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    const close = () => {
+        if (!finalOutcome) return;
+        setProcessing(true);
+        router.post(
+            `/cs-board/continuity-issues/${issue.id}/close`,
+            { status, final_outcome: finalOutcome },
+            { preserveScroll: true, onFinish: () => setProcessing(false) },
+        );
+    };
+
+    return (
+        <div className="flex flex-col gap-2 border-b p-3 text-sm last:border-b-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{issue.title}</span>
+                <Badge variant={issue.severity === 'critical' || issue.severity === 'high' ? 'destructive' : 'outline'}>{issue.severity}</Badge>
+            </div>
+            {issue.description && <p className="text-muted-foreground text-xs">{issue.description}</p>}
+            <div className="text-muted-foreground text-xs">
+                owner: {issue.owner} · reported {fmtDate(issue.first_reported_at)}
+                {issue.expected_resolution && <> · expected by {fmtDate(issue.expected_resolution)}</>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" disabled={processing} onClick={() => setClosing((v) => !v)}>
+                    Close
+                </Button>
+                {closing && (
+                    <>
+                        <select
+                            className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value)}
+                        >
+                            <option value="resolved">Resolved</option>
+                            <option value="known_exception">Known exception</option>
+                            <option value="reassigned">Reassigned</option>
+                        </select>
+                        <Input
+                            className="h-8 w-56"
+                            placeholder="Final outcome"
+                            value={finalOutcome}
+                            onChange={(e) => setFinalOutcome(e.target.value)}
+                        />
+                        <Button size="sm" disabled={processing || !finalOutcome} onClick={close}>
+                            Confirm
+                        </Button>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function ContinuityTab({
+    employeeId,
+    platformAssignments,
+    continuityChecks,
+    openIssues,
+}: {
+    employeeId: number;
+    platformAssignments: PlatformAssignmentRef[];
+    continuityChecks: ContinuityCheck[];
+    openIssues: OpenIssue[];
+}) {
+    const defaultPlatformId = platformAssignments[0]?.id ?? null;
+
+    return (
+        <div className="flex flex-col gap-4">
+            <p className="text-muted-foreground text-sm">
+                Run through these five checks once a day for your assigned platform. Reporting a fault isn't closure by itself — it stays open below
+                until someone confirms it's actually fixed.
+            </p>
+            <Card>
+                {CONTINUITY_CHECK_TYPES.map((ct) => (
+                    <ContinuityCheckRow
+                        key={ct.value}
+                        checkType={ct}
+                        existing={continuityChecks.find((c) => c.check_type === ct.value)}
+                        employeeId={employeeId}
+                        platformAssignmentId={defaultPlatformId}
+                    />
+                ))}
+            </Card>
+            <ReportIssueForm employeeId={employeeId} platformAssignments={platformAssignments} />
+            <Card>
+                <div className="border-b p-3">
+                    <h3 className="text-sm font-semibold">Open issues</h3>
+                </div>
+                {openIssues.length === 0 && <p className="text-muted-foreground p-4 text-sm">No open issues.</p>}
+                {openIssues.map((i) => (
+                    <OpenIssueRow key={i.id} issue={i} />
+                ))}
+            </Card>
+        </div>
+    );
+}
+
 /** A past day, expandable to see exactly what was recorded — read-only. */
 function HistoryCardRow({ card }: { card: HistorySummary['cards'][number] }) {
     const [open, setOpen] = useState(false);
@@ -652,19 +1172,41 @@ function HistoryPanel({ history, range }: { history: HistorySummary; range: CsEm
     );
 }
 
-export function CsEmployeeScorePanel({ dailyCard, weeklyCard, commercial, employeeId, interactions, history, range }: CsEmployeeScoreBoardPayload) {
-    const [tab, setTab] = useState<'today' | 'week' | 'service' | 'sales' | 'history'>('today');
+export function CsEmployeeScorePanel({
+    dailyCard,
+    weeklyCard,
+    commercial,
+    employeeId,
+    interactions,
+    activities,
+    platformAssignments,
+    continuityChecks,
+    openIssues,
+    history,
+    range,
+}: CsEmployeeScoreBoardPayload) {
+    const [tab, setTab] = useState<'today' | 'week' | 'service' | 'sales' | 'continuity' | 'history'>('today');
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex gap-1 border-b">
-                {(['today', 'week', 'service', 'sales', 'history'] as const).map((t) => (
+            <div className="flex flex-wrap gap-1 border-b">
+                {(['today', 'week', 'service', 'sales', 'continuity', 'history'] as const).map((t) => (
                     <button
                         key={t}
                         onClick={() => setTab(t)}
                         className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
                     >
-                        {t === 'today' ? 'Today' : t === 'week' ? 'This Week' : t === 'service' ? 'Service' : t === 'sales' ? 'Sales' : 'History'}
+                        {t === 'today'
+                            ? 'Today'
+                            : t === 'week'
+                              ? 'This Week'
+                              : t === 'service'
+                                ? 'Service'
+                                : t === 'sales'
+                                  ? 'Sales'
+                                  : t === 'continuity'
+                                    ? `Continuity${openIssues.length > 0 ? ` (${openIssues.length})` : ''}`
+                                    : 'History'}
                     </button>
                 ))}
             </div>
@@ -677,7 +1219,20 @@ export function CsEmployeeScorePanel({ dailyCard, weeklyCard, commercial, employ
                 </div>
             )}
             {tab === 'service' && <ServiceTab employeeId={employeeId} interactions={interactions} />}
-            {tab === 'sales' && <SalesForm employeeId={employeeId} weekStart={commercial.week_start_date} />}
+            {tab === 'sales' && (
+                <div className="flex flex-col gap-4">
+                    <ActivityTab employeeId={employeeId} activities={activities} />
+                    <SalesForm employeeId={employeeId} weekStart={commercial.week_start_date} />
+                </div>
+            )}
+            {tab === 'continuity' && (
+                <ContinuityTab
+                    employeeId={employeeId}
+                    platformAssignments={platformAssignments}
+                    continuityChecks={continuityChecks}
+                    openIssues={openIssues}
+                />
+            )}
             {tab === 'history' && <HistoryPanel history={history} range={range} />}
         </div>
     );

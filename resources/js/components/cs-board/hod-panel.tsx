@@ -92,12 +92,16 @@ type Commercial = {
     week_start_date: string;
     new_customers: number;
     new_customers_target: number;
+    new_customers_additional: number;
     new_customer_revenue: number;
     new_customer_revenue_target: number;
+    new_customer_revenue_additional: number;
     renewed_customers: number;
     renewed_customers_target: number;
+    renewed_customers_additional: number;
     retained_revenue: number;
     retained_revenue_target: number;
+    retained_revenue_additional: number;
     currency: string;
 };
 
@@ -149,6 +153,7 @@ type PlatformAssignment = {
     country: string | null;
     backup_employee_name: string | null;
     effective_from: string;
+    effective_to: string | null;
 };
 
 type OpenComplaint = {
@@ -158,6 +163,19 @@ type OpenComplaint = {
     description: string;
     reported_at: string;
     service_interaction_channel: string | null;
+    evidence: Evidence[];
+};
+
+type OpenContinuityIssue = {
+    id: number;
+    employee_id: number;
+    employee_name: string;
+    title: string;
+    description: string | null;
+    owner: string;
+    severity: string;
+    first_reported_at: string;
+    expected_resolution: string | null;
     evidence: Evidence[];
 };
 
@@ -173,7 +191,9 @@ export type CsHodPanelProps = {
     history: { summary: HistorySummary; range: { from: string; to: string; period: string } } | null;
     pendingSales: PendingSale[];
     platformAssignments: PlatformAssignment[];
+    pastPlatformAssignments: PlatformAssignment[];
     openComplaints: OpenComplaint[];
+    openContinuityIssues: OpenContinuityIssue[];
     dailyTemplates: Template[];
     weeklyTemplates: Template[];
     notifications: unknown | null;
@@ -621,15 +641,24 @@ function WeeklyRowView({ row, templates, reportingCurrency }: { row: WeeklyRow; 
     );
 }
 
-function PendingSaleRow({ sale }: { sale: PendingSale }) {
+function PendingSaleRow({ sale, employees }: { sale: PendingSale; employees: EmployeeRef[] }) {
     const [flagging, setFlagging] = useState(false);
     const [flagStatus, setFlagStatus] = useState('reversed');
     const [flagReason, setFlagReason] = useState('');
+    const [sharing, setSharing] = useState(false);
+    const [sharedWithId, setSharedWithId] = useState('');
+    const [splitPercentage, setSplitPercentage] = useState('50');
     const [processing, setProcessing] = useState(false);
+
+    const shareOptions = employees.filter((e) => e.id !== sale.employee_id).map((e) => ({ value: String(e.id), label: e.full_name }));
 
     const clear = () => {
         setProcessing(true);
-        router.post(`/cs-board/sales/${sale.id}/clear`, {}, { preserveScroll: true, onFinish: () => setProcessing(false) });
+        router.post(
+            `/cs-board/sales/${sale.id}/clear`,
+            sharing && sharedWithId ? { attribution_type: 'shared', shared_with_employee_id: sharedWithId, split_percentage: splitPercentage } : {},
+            { preserveScroll: true, onFinish: () => setProcessing(false) },
+        );
     };
 
     const flag = () => {
@@ -669,8 +698,32 @@ function PendingSaleRow({ sale }: { sale: PendingSale }) {
                     no evidence attached
                 </Badge>
             )}
+            <label className="flex items-center gap-1.5 text-xs">
+                <input type="checkbox" checked={sharing} onChange={(e) => setSharing(e.target.checked)} />
+                This sale is shared with another employee
+                <InfoTooltip text="Only when two employees materially worked this sale together. The percentage you set here goes to the other employee; this employee keeps the rest. The customer-count credit itself always stays with this employee." />
+            </label>
+            {sharing && (
+                <div className="flex flex-wrap items-end gap-2">
+                    <div className="w-48">
+                        <Label className="text-xs">Shared with</Label>
+                        <Combobox value={sharedWithId} onChange={setSharedWithId} options={shareOptions} placeholder="Select employee…" />
+                    </div>
+                    <div className="w-24">
+                        <Label className="text-xs">Their share %</Label>
+                        <Input
+                            type="number"
+                            min={1}
+                            max={99}
+                            className="h-8"
+                            value={splitPercentage}
+                            onChange={(e) => setSplitPercentage(e.target.value)}
+                        />
+                    </div>
+                </div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" disabled={processing} onClick={clear}>
+                <Button size="sm" disabled={processing || (sharing && !sharedWithId)} onClick={clear}>
                     Clear
                 </Button>
                 <InfoTooltip text="Confirms the payment cleared and the attribution is correct. This is the only action that makes a sale count toward the employee's weekly target." />
@@ -743,6 +796,72 @@ function ComplaintRow({ complaint }: { complaint: OpenComplaint }) {
                     Unsubstantiated
                 </Button>
                 <InfoTooltip text="The complaint does not hold up. It is recorded but does not affect the employee's score." />
+            </div>
+        </div>
+    );
+}
+
+const SEVERITY_BADGE: Record<string, 'default' | 'destructive' | 'outline' | 'secondary'> = {
+    low: 'secondary',
+    medium: 'outline',
+    high: 'default',
+    critical: 'destructive',
+};
+
+function ContinuityIssueRow({ issue }: { issue: OpenContinuityIssue }) {
+    const [status, setStatus] = useState('resolved');
+    const [finalOutcome, setFinalOutcome] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    const close = () => {
+        if (!finalOutcome) return;
+        setProcessing(true);
+        router.post(
+            `/cs-board/continuity-issues/${issue.id}/close`,
+            { status, final_outcome: finalOutcome },
+            { preserveScroll: true, onFinish: () => setProcessing(false) },
+        );
+    };
+
+    return (
+        <div className="flex flex-col gap-2 border-b p-3 text-sm last:border-b-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-2">
+                    <span className="font-medium">{issue.employee_name}</span>
+                    <Badge variant={SEVERITY_BADGE[issue.severity] ?? 'outline'}>{issue.severity}</Badge>
+                </span>
+                <span className="text-muted-foreground text-xs">
+                    reported {fmtDate(issue.first_reported_at)}
+                    {issue.expected_resolution ? ` · expected by ${fmtDate(issue.expected_resolution)}` : ''}
+                </span>
+            </div>
+            <div className="font-medium">{issue.title}</div>
+            {issue.description && <p className="text-muted-foreground">{issue.description}</p>}
+            <p className="text-muted-foreground text-xs">Owner: {issue.owner}</p>
+            {issue.evidence.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                    {issue.evidence.map((e) => (
+                        <a key={e.id} href={`/attachments/${e.id}`} className="text-xs underline">
+                            {e.original_name}
+                        </a>
+                    ))}
+                </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+                <select
+                    className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                >
+                    <option value="resolved">Resolved</option>
+                    <option value="known_exception">Known exception</option>
+                    <option value="reassigned">Reassigned</option>
+                </select>
+                <Input className="h-8 w-64" placeholder="Final outcome" value={finalOutcome} onChange={(e) => setFinalOutcome(e.target.value)} />
+                <Button size="sm" disabled={processing || !finalOutcome} onClick={close}>
+                    Close
+                </Button>
+                <InfoTooltip text="Resolved: the issue was fixed. Known exception: it isn't going to be fixed and that is accepted. Reassigned: ownership moved elsewhere. Any of the three closes it; leaving it open keeps it counted as unresolved." />
             </div>
         </div>
     );
@@ -918,7 +1037,7 @@ function AssignmentForm({ employees }: { employees: EmployeeRef[] }) {
     );
 }
 
-type HodTab = 'today' | 'week' | 'sales' | 'quality' | 'assignments' | 'exceptions' | 'trends' | 'history';
+type HodTab = 'today' | 'week' | 'sales' | 'quality' | 'assignments' | 'continuity' | 'exceptions' | 'trends' | 'history';
 
 export function CsHodPanel({
     department,
@@ -932,7 +1051,9 @@ export function CsHodPanel({
     history,
     pendingSales,
     platformAssignments,
+    pastPlatformAssignments,
     openComplaints,
+    openContinuityIssues,
     weeklyTemplates,
     calibrationEndsAt,
     reportingCurrency,
@@ -962,7 +1083,7 @@ export function CsHodPanel({
             </div>
 
             <div className="flex flex-wrap gap-1 border-b">
-                {(['today', 'week', 'sales', 'quality', 'assignments', 'exceptions', 'trends', 'history'] as const).map((t) => (
+                {(['today', 'week', 'sales', 'quality', 'assignments', 'continuity', 'exceptions', 'trends', 'history'] as const).map((t) => (
                     <button
                         key={t}
                         onClick={() => setTab(t)}
@@ -978,11 +1099,13 @@ export function CsHodPanel({
                                   ? `Quality${openComplaints.length > 0 ? ` (${openComplaints.length})` : ''}`
                                   : t === 'assignments'
                                     ? 'Assignments'
-                                    : t === 'exceptions'
-                                      ? 'Exceptions'
-                                      : t === 'trends'
-                                        ? 'Trends'
-                                        : 'History'}
+                                    : t === 'continuity'
+                                      ? `Continuity${openContinuityIssues.length > 0 ? ` (${openContinuityIssues.length})` : ''}`
+                                      : t === 'exceptions'
+                                        ? 'Exceptions'
+                                        : t === 'trends'
+                                          ? 'Trends'
+                                          : 'History'}
                     </button>
                 ))}
             </div>
@@ -1029,7 +1152,7 @@ export function CsHodPanel({
                 <Card>
                     {pendingSales.length === 0 && <p className="text-muted-foreground p-4 text-sm">No sales awaiting clearance.</p>}
                     {pendingSales.map((sale) => (
-                        <PendingSaleRow key={sale.id} sale={sale} />
+                        <PendingSaleRow key={sale.id} sale={sale} employees={employees} />
                     ))}
                 </Card>
             )}
@@ -1074,6 +1197,47 @@ export function CsHodPanel({
                             ))}
                             {platformAssignments.length === 0 && <p className="text-muted-foreground text-sm">No assignments yet.</p>}
                         </div>
+                    </Card>
+                    {pastPlatformAssignments.length > 0 && (
+                        <Card className="p-4">
+                            <h3 className="mb-2 flex items-center text-sm font-semibold">
+                                Past assignments
+                                <InfoTooltip text="Kept so a past card can still be checked against what that employee was actually assigned to at the time, even after a reassignment." />
+                            </h3>
+                            <div className="flex flex-col gap-2">
+                                {pastPlatformAssignments.map((a) => (
+                                    <div
+                                        key={a.id}
+                                        className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 text-sm"
+                                    >
+                                        <span>
+                                            <span className="font-medium">{a.employee_name}</span> — {a.website_domain ?? a.country ?? 'unspecified'}
+                                        </span>
+                                        <span className="text-xs">
+                                            {fmtDate(a.effective_from)} to {a.effective_to ? fmtDate(a.effective_to) : 'unknown'}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+                    )}
+                </div>
+            )}
+
+            {tab === 'continuity' && (
+                <div className="flex flex-col gap-4">
+                    <p className="text-muted-foreground text-sm">
+                        Assigned-platform continuity checks are logged daily by each employee on their own board (§5.2). An issue stays open until it
+                        is confirmed resolved, a known exception, or reassigned — reporting it is not enough to close it.
+                    </p>
+                    <Card>
+                        <div className="border-b p-3">
+                            <h3 className="text-sm font-semibold">Open continuity issues</h3>
+                        </div>
+                        {openContinuityIssues.length === 0 && <p className="text-muted-foreground p-4 text-sm">No open continuity issues.</p>}
+                        {openContinuityIssues.map((i) => (
+                            <ContinuityIssueRow key={i.id} issue={i} />
+                        ))}
                     </Card>
                 </div>
             )}
@@ -1231,10 +1395,14 @@ export function CsHodPanel({
                                                 <span>
                                                     New: {c.new_customers}/{c.new_customers_target} · {c.currency}{' '}
                                                     {c.new_customer_revenue.toLocaleString()}/{c.new_customer_revenue_target.toLocaleString()}
+                                                    {(c.new_customers_additional > 0 || c.new_customer_revenue_additional > 0) &&
+                                                        ` (+${c.new_customers_additional} / +${c.new_customer_revenue_additional.toLocaleString()} above target)`}
                                                 </span>
                                                 <span>
                                                     Renewed: {c.renewed_customers}/{c.renewed_customers_target} · {c.currency}{' '}
                                                     {c.retained_revenue.toLocaleString()}/{c.retained_revenue_target.toLocaleString()}
+                                                    {(c.renewed_customers_additional > 0 || c.retained_revenue_additional > 0) &&
+                                                        ` (+${c.renewed_customers_additional} / +${c.retained_revenue_additional.toLocaleString()} above target)`}
                                                 </span>
                                             </div>
                                         </div>
