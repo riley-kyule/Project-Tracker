@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { toast } from 'sonner';
 import { TOURS_BY_ID, WELCOME_TOUR_ID } from './registry';
 import { isTargetPresent, playableSteps, tourAppliesTo } from './steps';
-import { readSeen, writeSeen } from './storage';
+import { autoplayDisabled, readSeen, writeSeen } from './storage';
 import { TourOverlay } from './tour-overlay';
 import { buildAudience, type TourAudience, type TourDefinition, type TourStep } from './types';
 
@@ -106,6 +106,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
             window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
             if (launch(requested, { quiet: false })) return;
         }
+
+        if (autoplayDisabled()) return;
 
         // The welcome tour goes first; after that, whatever registered first.
         const ordered = ids.includes(WELCOME_TOUR_ID) ? [WELCOME_TOUR_ID, ...ids.filter((id) => id !== WELCOME_TOUR_ID)] : ids;

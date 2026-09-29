@@ -1,5 +1,6 @@
 import { type Member } from '@/components/board/task-card';
 import { CommentThread } from '@/components/comments/comment-thread';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -434,7 +435,8 @@ export function TaskCollaboration({
     return (
         <div className="space-y-6">
             {/* Advanced — collapsed by default. */}
-            <section>
+            <PageTour id="task-collab" />
+            <section data-tour="task-advanced">
                 <Collapsible className="group/advanced">
                     <CollapsibleTrigger asChild>
                         <button
@@ -866,7 +868,7 @@ export function TaskCollaboration({
             </section>
 
             {/* Checklists */}
-            <section>
+            <section data-tour="task-checklists">
                 <h3 className="mb-2 text-sm font-semibold">Checklists</h3>
                 {detail.checklists.map((checklist, checklistIndex) => {
                     const done = checklist.items.filter((item) => item.is_completed).length;
@@ -1136,7 +1138,7 @@ export function TaskCollaboration({
             </section>
 
             {/* Comments */}
-            <section>
+            <section data-tour="task-comments">
                 <h3 className="mb-2 text-sm font-semibold">Comments</h3>
                 <CommentThread
                     comments={detail.comments}
@@ -1197,7 +1199,7 @@ export function TaskCollaboration({
             </section>
 
             {/* Dependencies */}
-            <section>
+            <section data-tour="task-dependencies">
                 <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
                     <Lock className="size-4" /> Dependencies
                 </h3>
@@ -1263,7 +1265,7 @@ export function TaskCollaboration({
             </section>
 
             {/* Time tracking */}
-            <section>
+            <section data-tour="task-time">
                 <h3 className="mb-2 text-sm font-semibold">Time tracking</h3>
                 <p className="text-muted-foreground mb-2 text-sm">
                     {formatMinutes(detail.actualMinutes)} logged
@@ -1377,7 +1379,7 @@ export function TaskCollaboration({
             </section>
 
             {/* Attachments */}
-            <section>
+            <section data-tour="task-attachments">
                 <h3 className="mb-2 text-sm font-semibold">Attachments</h3>
                 <ul className="space-y-1.5">
                     {detail.attachments.map((attachment) => (
@@ -1437,7 +1439,7 @@ export function TaskCollaboration({
             </section>
 
             {/* Links */}
-            <section>
+            <section data-tour="task-links">
                 <h3 className="mb-2 text-sm font-semibold">Links</h3>
                 <ul className="space-y-1.5">
                     {detail.links.map((link) => (
@@ -1499,7 +1501,7 @@ export function TaskCollaboration({
             </section>
 
             {/* Approval */}
-            <section>
+            <section data-tour="task-approval">
                 <h3 className="mb-2 text-sm font-semibold">Approval</h3>
                 {detail.approval.status === null && (
                     <div className="flex flex-wrap gap-2">
@@ -1597,7 +1599,7 @@ export function TaskCollaboration({
             </section>
 
             {/* Activity */}
-            <section>
+            <section data-tour="task-activity">
                 <h3 className="mb-2 text-sm font-semibold">Activity</h3>
                 <ul className="space-y-1.5">
                     {detail.activity.map((entry) => (
@@ -1612,7 +1614,7 @@ export function TaskCollaboration({
             </section>
 
             {canDuplicate && (
-                <section>
+                <section data-tour="task-duplicate">
                     <Button
                         type="button"
                         size="sm"
@@ -1632,7 +1634,7 @@ export function TaskCollaboration({
 
             {/* Danger zone */}
             {detail.canDelete && (
-                <section className="border-destructive/30 rounded-lg border p-3">
+                <section className="border-destructive/30 rounded-lg border p-3" data-tour="task-danger">
                     <h3 className="text-destructive mb-2 text-sm font-semibold">Danger zone</h3>
                     <Button
                         type="button"

@@ -1,3 +1,4 @@
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
@@ -132,6 +133,7 @@ export default function ProjectShow({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={project.name} />
+            <PageTour id="project" />
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{project.name}</h1>
@@ -155,7 +157,7 @@ export default function ProjectShow({
                 </div>
 
                 {canManage && (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2" data-tour="project-status">
                         <Select value={project.status} onValueChange={(value) => updateField('status', value)}>
                             <SelectTrigger className="w-40" aria-label="Project status">
                                 <SelectValue />
@@ -181,7 +183,10 @@ export default function ProjectShow({
                     </div>
                 )}
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2">
+                <div
+                    className="border-sidebar-border/70 dark:border-sidebar-border grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2"
+                    data-tour="project-summary"
+                >
                     <div>
                         <span className="text-muted-foreground">Owner:</span> {project.owner.name}
                     </div>
@@ -226,7 +231,7 @@ export default function ProjectShow({
                     </div>
                 )}
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="project-people">
                     <h2 className="mb-1 text-sm font-semibold">People</h2>
                     <p className="text-muted-foreground mb-2 text-xs">Beyond the owner above — anyone can be added here, regardless of department.</p>
                     <ul className="mb-2 space-y-1.5">
@@ -266,7 +271,7 @@ export default function ProjectShow({
                     )}
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="project-departments">
                     <h2 className="mb-1 text-sm font-semibold">Departments</h2>
                     <p className="text-muted-foreground mb-2 text-xs">Additional whole departments involved, beyond the home department above.</p>
                     <ul className="mb-2 space-y-1.5">
@@ -306,7 +311,7 @@ export default function ProjectShow({
                     )}
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="project-tasks">
                     <h2 className="mb-2 text-sm font-semibold">Tasks</h2>
                     <ul className="divide-sidebar-border/40 dark:divide-sidebar-border/40 divide-y">
                         {tasks.map((task) => (

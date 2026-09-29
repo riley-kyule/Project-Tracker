@@ -1,5 +1,6 @@
 import { TaskCollaboration } from '@/components/board/task-collaboration';
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
@@ -70,6 +71,7 @@ export function TaskCard({
     selected,
     onToggleSelect,
     pending,
+    tourAnchor,
 }: {
     task: BoardTask;
     onOpen?: (task: BoardTask) => void;
@@ -77,6 +79,8 @@ export function TaskCard({
     selected?: boolean;
     onToggleSelect?: (taskId: number, checked: boolean) => void;
     pending?: boolean;
+    /** `data-tour` name, so a guided tour can point at this card. */
+    tourAnchor?: string;
 }) {
     // The whole card is the drag surface — no separate grip handle. A plain
     // click still opens the task: PointerSensor in boards/show.tsx has a 6px
@@ -106,6 +110,7 @@ export function TaskCard({
             {...(overlay ? {} : attributes)}
             {...(overlay ? {} : listeners)}
             role="button"
+            data-tour={tourAnchor}
             tabIndex={overlay ? undefined : 0}
             aria-label={overlay ? undefined : `${task.title} — click to open, space to reorder`}
             onClick={open}
@@ -279,8 +284,9 @@ export function TaskDialog({
     return (
         <Dialog open onOpenChange={(open) => !open && close()}>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+                <PageTour id="task" />
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
+                    <DialogTitle className="flex items-center gap-2" data-tour="task-header">
                         <span className="text-muted-foreground text-sm">T-{task.task_number}</span>
                         <span>{form.title || task.title}</span>
                         <SaveIndicator status={status} onRetry={flush} />
@@ -307,7 +313,7 @@ export function TaskDialog({
                         />
                         <InputError message={errors.description} />
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-2" data-tour="task-fields">
                         <div className="grid gap-2">
                             <Label htmlFor="task-assignee">Assignee</Label>
                             {/* Not board-scoped, same reasoning as allMembers everywhere else — assigning
@@ -379,7 +385,7 @@ export function TaskDialog({
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="grid gap-2">
+                        <div className="grid gap-2" data-tour="task-progress">
                             <Label htmlFor="task-progress">Progress</Label>
                             {checklistCounts.total > 0 ? (
                                 <>
@@ -417,7 +423,7 @@ export function TaskDialog({
                             <InputError message={errors.progress_percentage} />
                         </div>
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-2" data-tour="task-labels">
                         <Label>Labels</Label>
                         <div className="flex flex-wrap gap-3">
                             {labels.map((label) => (
@@ -434,7 +440,7 @@ export function TaskDialog({
                         </div>
                     </div>
                     {can.flagCeoPriority && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" data-tour="task-ceo-priority">
                             <Checkbox
                                 id="ceo-priority"
                                 checked={form.ceo_priority}

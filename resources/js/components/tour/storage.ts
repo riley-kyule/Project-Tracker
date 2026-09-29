@@ -41,3 +41,15 @@ export function writeSeen(userId: number, seen: Set<string>) {
         // Private browsing — the tour just offers itself again next visit.
     }
 }
+
+/**
+ * Automated browser tests set this to keep tours from covering the page
+ * they're clicking through. Tours can still be started by hand.
+ */
+export function autoplayDisabled(): boolean {
+    try {
+        return window.localStorage.getItem('ewms-tours:autoplay') === 'off';
+    } catch {
+        return false;
+    }
+}

@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -53,7 +54,7 @@ function CreateBoardDialog({ departments }: { departments: DepartmentOption[] })
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" data-tour="boards-new">
                     <Plus className="mr-1 size-4" /> New board
                 </Button>
             </DialogTrigger>
@@ -132,12 +133,13 @@ export default function BoardsIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Boards" />
+            <PageTour id="boards" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Boards</h1>
                     {canCreate && <CreateBoardDialog departments={departments} />}
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-tour="boards-grid">
                     {boards.map((board) => (
                         <div
                             key={board.id}

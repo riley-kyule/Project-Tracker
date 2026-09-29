@@ -10,6 +10,7 @@ type Rect = { top: number; left: number; width: number; height: number };
 const PAD = 6; // spotlight padding around the target
 const GAP = 12; // space between spotlight and card
 const EDGE = 12; // minimum distance from the viewport edge
+const DIM: React.CSSProperties = { backgroundColor: 'rgb(0 0 0 / 0.55)' };
 
 function measure(el: Element): Rect {
     const r = el.getBoundingClientRect();
@@ -178,15 +179,15 @@ export function TourOverlay({ title, steps, onClose }: { title: string; steps: T
         >
             {rect && ready ? (
                 <>
-                    <div className="fixed inset-x-0 top-0 bg-black/55" style={{ height: Math.max(rect.top - PAD, 0) }} />
-                    <div className="fixed inset-x-0 bottom-0 bg-black/55" style={{ top: rect.top + rect.height + PAD }} />
+                    <div className="fixed inset-x-0 top-0" style={{ ...DIM, height: Math.max(rect.top - PAD, 0) }} />
+                    <div className="fixed inset-x-0 bottom-0" style={{ ...DIM, top: rect.top + rect.height + PAD }} />
                     <div
-                        className="fixed left-0 bg-black/55"
-                        style={{ top: rect.top - PAD, height: rect.height + PAD * 2, width: Math.max(rect.left - PAD, 0) }}
+                        className="fixed left-0"
+                        style={{ ...DIM, top: rect.top - PAD, height: rect.height + PAD * 2, width: Math.max(rect.left - PAD, 0) }}
                     />
                     <div
-                        className="fixed right-0 bg-black/55"
-                        style={{ top: rect.top - PAD, height: rect.height + PAD * 2, left: rect.left + rect.width + PAD }}
+                        className="fixed right-0"
+                        style={{ ...DIM, top: rect.top - PAD, height: rect.height + PAD * 2, left: rect.left + rect.width + PAD }}
                     />
                     <div
                         className="border-primary pointer-events-none fixed rounded-md border-2 transition-all duration-200"
@@ -194,7 +195,7 @@ export function TourOverlay({ title, steps, onClose }: { title: string; steps: T
                     />
                 </>
             ) : (
-                <div className="fixed inset-0 bg-black/55" />
+                <div className="fixed inset-0" style={DIM} />
             )}
 
             <div

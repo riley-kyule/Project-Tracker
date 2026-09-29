@@ -1,3 +1,4 @@
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ export default function SearchPage({ query, results }: { query: string; results:
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Search" />
+            <PageTour id="search" />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
                 <form
                     onSubmit={(e) => {
@@ -60,6 +62,7 @@ export default function SearchPage({ query, results }: { query: string; results:
                         router.get('/search', { q: term }, { preserveState: true });
                     }}
                     className="flex items-center gap-2"
+                    data-tour="search-box"
                 >
                     <label htmlFor="search-query" className="sr-only">
                         Search

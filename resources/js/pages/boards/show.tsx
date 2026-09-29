@@ -4,6 +4,7 @@ import { CsHodPanel, type CsHodPanelProps } from '@/components/cs-board/hod-pane
 import InputError from '@/components/input-error';
 import { SeoEmployeeScorePanel, type EmployeeScoreBoardPayload } from '@/components/seo-board/employee-score-panel';
 import { SeoHodPanel, type SeoHodPanelProps } from '@/components/seo-board/hod-panel';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -58,7 +59,7 @@ function SaveBoardFilterDialog({ boardId, currentFilters }: { boardId: number; c
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" data-tour="board-save-filter">
                     <Plus className="mr-1 size-4" /> Save filter
                 </Button>
             </DialogTrigger>
@@ -645,6 +646,7 @@ function BoardColumn({
     selectedIds,
     onToggleSelect,
     pendingTaskId,
+    tourTaskId,
 }: {
     column: Column;
     boardId: number;
@@ -659,6 +661,8 @@ function BoardColumn({
     selectedIds?: Set<number>;
     onToggleSelect?: (taskId: number, checked: boolean) => void;
     pendingTaskId?: number | null;
+    /** The one card on the board a guided tour points at. */
+    tourTaskId?: number;
 }) {
     const { setNodeRef } = useDroppable({ id: `column-${column.id}` });
     const overLimit = column.wip_limit !== null && column.tasks.length > column.wip_limit;
@@ -678,6 +682,7 @@ function BoardColumn({
         <div
             data-testid="board-column"
             data-column-name={column.name}
+            data-tour={isFirst ? 'board-column' : undefined}
             className="bg-sidebar dark:bg-sidebar border-sidebar-border/70 dark:border-sidebar-border flex w-[85vw] max-w-72 shrink-0 flex-col overflow-hidden rounded-xl border"
         >
             <div className="flex shrink-0 items-center justify-between gap-1 p-3 pb-1">
@@ -687,19 +692,27 @@ function BoardColumn({
                         behavior for mouse users, and the click handler layers a toggle on top. */}
                     <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen} delayDuration={300}>
                         <TooltipTrigger asChild>
-                            <button type="button" onClick={() => setTooltipOpen((open) => !open)} className="text-sm font-semibold">
+                            <button
+                                type="button"
+                                onClick={() => setTooltipOpen((open) => !open)}
+                                className="text-sm font-semibold"
+                                data-tour={isFirst ? 'board-column-name' : undefined}
+                            >
                                 {column.name}
                             </button>
                         </TooltipTrigger>
                         <TooltipContent>{SEMANTIC_STATUS_DESCRIPTIONS[column.semantic_status] ?? SEMANTIC_STATUS_DESCRIPTIONS.custom}</TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
-                <span className={`text-xs ${overLimit ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                <span
+                    className={`text-xs ${overLimit ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}
+                    data-tour={isFirst ? 'board-column-count' : undefined}
+                >
                     {column.tasks.length}
                     {column.wip_limit !== null && ` / ${column.wip_limit}`}
                 </span>
                 {canManage && (
-                    <div className="ml-auto flex items-center">
+                    <div className="ml-auto flex items-center" data-tour={isFirst ? 'board-column-menu' : undefined}>
                         <Button
                             variant="ghost"
                             size="sm"
@@ -748,12 +761,13 @@ function BoardColumn({
                             selected={selectedIds?.has(task.id)}
                             onToggleSelect={canManage && selectMode ? onToggleSelect : undefined}
                             pending={task.id === pendingTaskId}
+                            tourAnchor={task.id === tourTaskId ? 'board-task-card' : undefined}
                         />
                     ))}
                 </div>
             </SortableContext>
             {canCreate && (
-                <div className="shrink-0">
+                <div className="shrink-0" data-tour={isFirst ? 'board-add-task' : undefined}>
                     <QuickAdd boardId={boardId} columnId={column.id} />
                 </div>
             )}
@@ -886,6 +900,8 @@ export default function BoardShow({
             })),
         [columns, search, assigneeFilter, priorityFilter],
     );
+
+    const tourTaskId = visibleColumns.find((column) => column.tasks.length > 0)?.tasks[0]?.id;
 
     const columnOptions: ColumnOption[] = useMemo(() => columns.map((column) => ({ id: column.id, name: column.name })), [columns]);
 
@@ -1046,6 +1062,7 @@ export default function BoardShow({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={board.name} />
+            <PageTour id={can.manage ? ['board', 'board-manage'] : 'board'} />
             {/* The shared sidebar layout only guarantees a *minimum* height (min-h-svh),
                 so without an explicit bound here the board just grows the whole page
                 taller as tasks pile up, instead of fitting the viewport with each
@@ -1054,7 +1071,7 @@ export default function BoardShow({
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{board.name}</h1>
                     {(scoreBoard || hodBoard) && (
-                        <div className="bg-primary/5 border-primary/25 flex gap-1 rounded-lg border p-1">
+                        <div className="bg-primary/5 border-primary/25 flex gap-1 rounded-lg border p-1" data-tour="board-view-tabs">
                             <button
                                 type="button"
                                 onClick={() => setBoardTab('kanban')}
@@ -1072,12 +1089,12 @@ export default function BoardShow({
                         </div>
                     )}
                     {boardTab === 'kanban' && can.manage && (
-                        <Button variant={selectMode ? 'secondary' : 'outline'} size="sm" onClick={toggleSelectMode}>
+                        <Button variant={selectMode ? 'secondary' : 'outline'} size="sm" onClick={toggleSelectMode} data-tour="board-select">
                             {selectMode ? 'Done selecting' : 'Select'}
                         </Button>
                     )}
                     {boardTab === 'kanban' && (
-                        <div className="ml-auto flex flex-wrap items-center gap-2">
+                        <div className="ml-auto flex flex-wrap items-center gap-2" data-tour="board-filters">
                             <Input
                                 placeholder="Search tasks…"
                                 aria-label="Search tasks on this board"
@@ -1186,11 +1203,13 @@ export default function BoardShow({
                                         onEdit={setColumnDialog}
                                         onMove={moveColumn}
                                         pendingTaskId={pendingTaskId}
+                                        tourTaskId={tourTaskId}
                                     />
                                 ))}
                                 {can.manage && (
                                     <button
                                         type="button"
+                                        data-tour="board-add-column"
                                         onClick={() => setColumnDialog('new')}
                                         className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex w-24 shrink-0 flex-col items-center justify-center gap-1 self-start rounded-xl border border-dashed p-3 text-xs"
                                     >

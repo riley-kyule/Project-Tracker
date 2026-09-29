@@ -2,6 +2,8 @@ import { test as base, expect } from '@playwright/test';
 
 type Fixtures = {
     loginAs: (email: string) => Promise<void>;
+    /** Let guided tours auto-play (off by default so they never cover what a spec clicks). */
+    tourAutoplay: boolean;
 };
 
 /**
@@ -12,7 +14,11 @@ type Fixtures = {
  * webServer config here sets against a throwaway database only).
  */
 export const test = base.extend<Fixtures>({
-    loginAs: async ({ page, context }, use) => {
+    tourAutoplay: [false, { option: true }],
+    loginAs: async ({ page, context, tourAutoplay }, use) => {
+        if (!tourAutoplay) {
+            await context.addInitScript(() => window.localStorage.setItem('ewms-tours:autoplay', 'off'));
+        }
         await use(async (email: string) => {
             // page.request bypasses page JS entirely, so nothing mirrors the
             // XSRF-TOKEN cookie Laravel sets into the X-XSRF-TOKEN header the

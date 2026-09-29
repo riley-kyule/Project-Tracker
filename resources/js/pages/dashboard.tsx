@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
@@ -93,7 +94,7 @@ function QuickCaptureDialog({ boards, currentUserId }: { boards: QuickCaptureBoa
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button size="sm" className="ml-auto">
+                <Button size="sm" className="ml-auto" data-tour="dashboard-quick-add">
                     <Plus className="mr-1 size-4" /> Quick add task
                 </Button>
             </DialogTrigger>
@@ -182,13 +183,14 @@ export default function Dashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
+            <PageTour id="dashboard" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center gap-2">
                     <h1 className="text-xl font-semibold">Welcome back, {auth.user.name.split(' ')[0]}</h1>
                     <QuickCaptureDialog boards={quickCaptureBoards} currentUserId={auth.user.id} />
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7" data-tour="dashboard-stats">
                     <StatCard label="Open tasks" value={counts.open} />
                     <StatCard label="Due today" value={counts.due_today} alert />
                     <StatCard label="Overdue" value={counts.overdue} alert />
@@ -199,7 +201,10 @@ export default function Dashboard({
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-3">
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4 lg:col-span-2">
+                    <div
+                        className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4 lg:col-span-2"
+                        data-tour="dashboard-my-work"
+                    >
                         <h2 className="mb-2 text-sm font-semibold">My work</h2>
                         <ul className="divide-sidebar-border/40 dark:divide-sidebar-border/40 divide-y">
                             {myTasks.map((task) => {
@@ -234,7 +239,7 @@ export default function Dashboard({
                     </div>
 
                     <div className="flex flex-col gap-4">
-                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="dashboard-waiting">
                             <h2 className="mb-2 text-sm font-semibold">Waiting on me</h2>
                             <ul className="space-y-1.5">
                                 {waitingOnMe.map((task) => (
@@ -247,7 +252,7 @@ export default function Dashboard({
                                 {waitingOnMe.length === 0 && <li className="text-muted-foreground text-sm">Nothing waiting on your review.</li>}
                             </ul>
                         </div>
-                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="dashboard-mentions">
                             <h2 className="mb-2 text-sm font-semibold">Mentions</h2>
                             <ul className="space-y-1.5">
                                 {mentions.map((mention) => (
@@ -262,7 +267,7 @@ export default function Dashboard({
                             </ul>
                             {mentions.length >= 10 && <p className="text-muted-foreground mt-2 text-xs">Showing the 10 most recent mentions.</p>}
                         </div>
-                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="dashboard-recent">
                             <h2 className="mb-2 text-sm font-semibold">Recently assigned</h2>
                             <ul className="space-y-1.5">
                                 {recentlyAssigned.map((task) => (
@@ -280,7 +285,7 @@ export default function Dashboard({
                                 </Link>
                             )}
                         </div>
-                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="dashboard-tickets">
                             <h2 className="mb-2 text-sm font-semibold">My open tickets</h2>
                             <ul className="space-y-1.5">
                                 {myTickets.map((ticket) => (
