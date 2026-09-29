@@ -11,7 +11,8 @@ test('an employee can submit a support ticket and see it in the queue', async ({
     await page.getByText('What is this about?').click();
     await page.getByRole('option', { name: 'Other' }).click();
 
-    await page.getByLabel('Title').fill(ticketTitle);
+    // exact: the tickets table's "Sort by Title" header also matches a loose label query.
+    await page.getByLabel('Title', { exact: true }).fill(ticketTitle);
     await page.getByLabel('What happened?').fill('Screen flickers on startup — filed via the Playwright e2e suite.');
     await page.getByRole('button', { name: /submit ticket/i }).click();
 

@@ -47,7 +47,7 @@ test('quick-create a task, open it, and move it between columns by keyboard', as
     await expect(page.getByRole('heading', { name: new RegExp(taskTitle) })).not.toBeVisible();
 
     // Move it to the next column via dnd-kit's keyboard drag protocol: Tab
-    // to the card's dedicated drag handle, Space to pick up, ArrowRight to
+    // to the card, Space to pick up, ArrowRight to
     // move to the adjacent column, Space to drop.
     // Same accessible-name ambiguity as above — scope to a real <button>
     // inside the card rather than matching by name.
@@ -58,8 +58,9 @@ test('quick-create a task, open it, and move it between columns by keyboard', as
     // string, and this app's own closestCorners collision resolution doesn't
     // map cleanly onto dnd-kit's default announcement text) — a short,
     // explicit pause between steps is the honest fix, not a clever wait.
-    const handle = card.locator('button[aria-label^="Reorder"]');
-    await handle.focus();
+    // The whole card is the drag surface now (no separate handle): Space on
+    // the focused card hands off to dnd-kit's KeyboardSensor.
+    await card.focus();
     await page.keyboard.press('Space');
     await page.waitForTimeout(200);
     await page.keyboard.press('ArrowRight');
