@@ -35,15 +35,7 @@ export function usePagedList<T>(rows: T[], defaultSize: ListSize = 20) {
     return { size, setSize, page: currentPage, setPage, pageRows, totalPages, total: rows.length };
 }
 
-export function ListSizePicker({
-    value,
-    onChange,
-    className,
-}: {
-    value: ListSize;
-    onChange: (value: ListSize) => void;
-    className?: string;
-}) {
+export function ListSizePicker({ value, onChange, className }: { value: ListSize; onChange: (value: ListSize) => void; className?: string }) {
     return (
         <Select value={String(value)} onValueChange={(v) => onChange(v === 'All' ? 'All' : (Number(v) as ListSize))}>
             <SelectTrigger className={cn('h-8 w-[4.5rem] text-xs', className)} aria-label="Rows per page">

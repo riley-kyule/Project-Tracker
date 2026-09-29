@@ -76,70 +76,70 @@ export default function WebsiteComparison({
                 }
             >
                 <div className="flex flex-col gap-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-                    <h3 className="mb-3 text-sm font-semibold">GA4 users by website</h3>
-                    <CategoryBarChart data={chartRows} labelKey="name" valueKey="ga4_users" valueLabel="users" />
-                </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
-                    <h3 className="mb-3 text-sm font-semibold">GSC clicks by website</h3>
-                    <CategoryBarChart data={chartRows} labelKey="name" valueKey="gsc_clicks" valueLabel="clicks" />
-                </div>
-            </div>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                            <h3 className="mb-3 text-sm font-semibold">GA4 users by website</h3>
+                            <CategoryBarChart data={chartRows} labelKey="name" valueKey="ga4_users" valueLabel="users" />
+                        </div>
+                        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                            <h3 className="mb-3 text-sm font-semibold">GSC clicks by website</h3>
+                            <CategoryBarChart data={chartRows} labelKey="name" valueKey="gsc_clicks" valueLabel="clicks" />
+                        </div>
+                    </div>
 
-            <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="text-muted-foreground text-left">
-                            <SortableHeader column="name" sort={sort} onSort={onSort} className="py-1.5">
-                                Website
-                            </SortableHeader>
-                            <SortableHeader column="ga4_users" sort={sort} onSort={onSort} className="py-1.5 text-right">
-                                GA4 users
-                            </SortableHeader>
-                            <SortableHeader column="ga4_sessions" sort={sort} onSort={onSort} className="py-1.5 text-right">
-                                GA4 sessions
-                            </SortableHeader>
-                            <SortableHeader column="gsc_clicks" sort={sort} onSort={onSort} className="py-1.5 text-right">
-                                GSC clicks
-                            </SortableHeader>
-                            <SortableHeader column="gsc_impressions" sort={sort} onSort={onSort} className="py-1.5 text-right">
-                                GSC impressions
-                            </SortableHeader>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sorted.map((row) => (
-                            <tr key={row.website_id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
-                                <td className="py-1.5">
-                                    <Link
-                                        href={`/marketing-statistics${buildFilterQuery({ ...selected, website_id: row.website_id })}`}
-                                        className="text-brand-600 dark:text-brand-400 hover:underline"
-                                    >
-                                        {row.name}
-                                    </Link>
-                                </td>
-                                <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.users)}</td>
-                                <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.sessions)}</td>
-                                <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.clicks)}</td>
-                                <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.impressions)}</td>
-                            </tr>
-                        ))}
-                        {rows.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="text-muted-foreground py-3 text-center">
-                                    {/* rows is always one entry per `websites` (see
+                    <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="text-muted-foreground text-left">
+                                    <SortableHeader column="name" sort={sort} onSort={onSort} className="py-1.5">
+                                        Website
+                                    </SortableHeader>
+                                    <SortableHeader column="ga4_users" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                                        GA4 users
+                                    </SortableHeader>
+                                    <SortableHeader column="ga4_sessions" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                                        GA4 sessions
+                                    </SortableHeader>
+                                    <SortableHeader column="gsc_clicks" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                                        GSC clicks
+                                    </SortableHeader>
+                                    <SortableHeader column="gsc_impressions" sort={sort} onSort={onSort} className="py-1.5 text-right">
+                                        GSC impressions
+                                    </SortableHeader>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sorted.map((row) => (
+                                    <tr key={row.website_id} className="border-sidebar-border/40 dark:border-sidebar-border/40 border-t">
+                                        <td className="py-1.5">
+                                            <Link
+                                                href={`/marketing-statistics${buildFilterQuery({ ...selected, website_id: row.website_id })}`}
+                                                className="text-brand-600 dark:text-brand-400 hover:underline"
+                                            >
+                                                {row.name}
+                                            </Link>
+                                        </td>
+                                        <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.users)}</td>
+                                        <td className="py-1.5 text-right tabular-nums">{compact(row.ga4?.sessions)}</td>
+                                        <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.clicks)}</td>
+                                        <td className="py-1.5 text-right tabular-nums">{compact(row.gsc?.impressions)}</td>
+                                    </tr>
+                                ))}
+                                {rows.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="text-muted-foreground py-3 text-center">
+                                            {/* rows is always one entry per `websites` (see
                                         AnalyticsReportBuilder::websiteComparison) and registry() swallows its
                                         own fetch failures into the same empty array as "nothing configured" —
                                         no prop distinguishes the two cases here, so this copy stays generic
                                         until the backend surfaces the registry's own status. */}
-                                    No mapped websites found.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                                            No mapped websites found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </Deferred>
         </MarketingStatisticsShell>

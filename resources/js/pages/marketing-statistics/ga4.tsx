@@ -135,9 +135,7 @@ export default function Ga4Report({
                     label="Key events"
                     kpi={kpis?.key_events ?? null}
                     drilldownTitle="Key events breakdown"
-                    drilldown={
-                        <CategoryBarChart data={key_events ?? []} labelKey="key_event" valueKey="key_event_count" valueLabel="events" />
-                    }
+                    drilldown={<CategoryBarChart data={key_events ?? []} labelKey="key_event" valueKey="key_event_count" valueLabel="events" />}
                 />
                 <KpiTile
                     label="Engagement rate"

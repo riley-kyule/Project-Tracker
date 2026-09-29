@@ -7,7 +7,6 @@ use App\Mail\SeoDailyCardReportMail;
 use App\Models\Department;
 use App\Models\DepartmentNotificationRecipient;
 use App\Models\Employee;
-use App\Models\ReportDelivery;
 use App\Models\SeoCardItem;
 use App\Models\SeoDailyCard;
 use App\Models\User;

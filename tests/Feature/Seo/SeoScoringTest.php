@@ -2,13 +2,13 @@
 
 namespace Tests\Feature\Seo;
 
-use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\SeoCardItem;
 use App\Models\SeoDailyCard;
 use App\Models\SeoFinalScore;
 use App\Models\SeoTaskTemplate;
+use App\Models\SeoWeeklyCard;
 use App\Models\User;
 use App\Services\Seo\SeoCardLifecycleService;
 use App\Services\Seo\SeoScoringService;
@@ -315,10 +315,10 @@ class SeoScoringTest extends TestCase
         $scoring->decide($item, SeoCardItem::DECISION_MAJOR_REWORK, 'Needed significant rework.', $hod); // 50%
 
         // Weekly card approved at 90 points.
-        $weekly = \App\Models\SeoWeeklyCard::query()->create([
+        $weekly = SeoWeeklyCard::query()->create([
             'employee_id' => $employee->id, 'department_id' => $department->id,
             'week_start_date' => $weekStart, 'week_end_date' => $weekStart->copy()->endOfWeek(),
-            'status' => \App\Models\SeoWeeklyCard::STATUS_PLAN_APPROVED, 'planned_points' => 100,
+            'status' => SeoWeeklyCard::STATUS_PLAN_APPROVED, 'planned_points' => 100,
         ]);
         $weeklyItem = $weekly->items()->create(['section' => 'deliverables', 'name' => 'Y', 'weight' => 100, 'evidence_required' => false, 'employee_status' => SeoCardItem::STATUS_NOT_STARTED, 'position' => 1]);
         $scoring->decide($weeklyItem, SeoCardItem::DECISION_MINOR_CORRECTION, 'Minor fix needed.', $hod); // 75%

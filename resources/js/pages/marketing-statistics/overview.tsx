@@ -147,13 +147,7 @@ export default function Overview({
             )}
 
             {popcash_enabled && (
-                <CampaignPerformanceSection
-                    ga4={campaign_ga4}
-                    ga4Locations={campaign_ga4_locations}
-                    popcash={popcash}
-                    query={query}
-                    deferPopcash
-                />
+                <CampaignPerformanceSection ga4={campaign_ga4} ga4Locations={campaign_ga4_locations} popcash={popcash} query={query} deferPopcash />
             )}
         </MarketingStatisticsShell>
     );

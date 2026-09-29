@@ -59,7 +59,14 @@ export default function PopcashReport({
                             kpi={kpis?.money_spent ?? null}
                             format={currency}
                             drilldownTitle="Money spent trend"
-                            drilldown={<TrendChart data={trend} dateKey="data_date" series={[{ key: 'money_spent', name: 'Money spent' }]} valueFormat={currency} />}
+                            drilldown={
+                                <TrendChart
+                                    data={trend}
+                                    dateKey="data_date"
+                                    series={[{ key: 'money_spent', name: 'Money spent' }]}
+                                    valueFormat={currency}
+                                />
+                            }
                         />
                         <KpiTile
                             label="CPM"
@@ -79,7 +86,12 @@ export default function PopcashReport({
                     <div className="grid gap-4 lg:grid-cols-2">
                         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                             <h3 className="mb-3 text-sm font-semibold">Spend trend</h3>
-                            <TrendChart data={trend} dateKey="data_date" series={[{ key: 'money_spent', name: 'Money spent' }]} valueFormat={currency} />
+                            <TrendChart
+                                data={trend}
+                                dateKey="data_date"
+                                series={[{ key: 'money_spent', name: 'Money spent' }]}
+                                valueFormat={currency}
+                            />
                         </div>
                         <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
                             <h3 className="mb-3 text-sm font-semibold">CPM &amp; impressions trend</h3>

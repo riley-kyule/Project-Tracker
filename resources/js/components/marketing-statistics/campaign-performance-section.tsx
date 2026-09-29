@@ -91,12 +91,7 @@ export function CampaignPerformanceSection({
                 >
                     <>
                         <KpiTile label="Users" kpi={ga4?.aggregate_property_users ?? null} href={`/marketing-statistics/ga4${query}`} />
-                        <KpiTile
-                            label="Key event rate"
-                            kpi={ga4?.key_event_rate ?? null}
-                            format={pct}
-                            href={`/marketing-statistics/ga4${query}`}
-                        />
+                        <KpiTile label="Key event rate" kpi={ga4?.key_event_rate ?? null} format={pct} href={`/marketing-statistics/ga4${query}`} />
                     </>
                 </Deferred>
                 {deferPopcash ? (

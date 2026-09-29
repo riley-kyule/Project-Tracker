@@ -9,7 +9,6 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\PayrollPeriod;
 use App\Models\Payslip;
-use App\Models\SeoDailyCard;
 use App\Models\Task;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
@@ -160,7 +159,7 @@ class McpToolRegistry
                 'permission' => 'seo.cards.view',
                 'inputSchema' => [
                     'type' => 'object',
-                    'properties' => ['department' => ['type' => 'string', 'description' => "Department name, e.g. \"SEO\". Defaults to \"SEO\"."]],
+                    'properties' => ['department' => ['type' => 'string', 'description' => 'Department name, e.g. "SEO". Defaults to "SEO".']],
                 ],
                 'handler' => fn (User $user, array $args) => $this->seoDepartmentPerformance($user, $args['department'] ?? 'SEO'),
             ],
