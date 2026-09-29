@@ -47,7 +47,13 @@ export const gettingStartedTours: TourDefinition[] = [
                 target: 'nav-admin',
                 title: 'Admin tools',
                 body: 'Company setup: users and roles, departments, labels, SLA policies and system health. Changes here affect everyone and are recorded in the audit log.',
-                when: (a) => a.has('users.view') || a.has('departments.view') || a.has('labels.manage') || a.has('tickets.manage'),
+                when: (a) => a.has('users.view') || a.has('labels.manage') || a.has('tickets.manage'),
+            },
+            {
+                target: 'nav-admin',
+                title: 'Departments',
+                body: "Departments lists the company's departments, who leads each one and who belongs to them.",
+                when: (a) => a.has('departments.view') && !(a.has('users.view') || a.has('labels.manage') || a.has('tickets.manage')),
             },
             {
                 target: 'global-search',

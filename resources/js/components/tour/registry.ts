@@ -1,3 +1,4 @@
+import { adminTours, settingsTours } from './tours/admin';
 import { gettingStartedTours } from './tours/getting-started';
 import { hrTours, personalTours } from './tours/hr';
 import { overviewTours } from './tours/overview';
@@ -17,6 +18,8 @@ export const TOURS: TourDefinition[] = [
     ...hrTours,
     ...personalTours,
     ...scoringTours,
+    ...adminTours,
+    ...settingsTours,
 ];
 
 export const TOURS_BY_ID: Record<string, TourDefinition> = Object.fromEntries(TOURS.map((tour) => [tour.id, tour]));
