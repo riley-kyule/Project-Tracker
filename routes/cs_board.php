@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\Cs\CsBoardController;
+use App\Http\Controllers\Cs\CsBoardSettingsController;
 use App\Http\Controllers\Cs\CsCardItemController;
 use App\Http\Controllers\Cs\CsComplaintController;
 use App\Http\Controllers\Cs\CsContactQualityReviewController;
@@ -67,6 +68,7 @@ Route::middleware(['auth', 'throttle:api-writes'])->prefix('cs-board')->name('cs
 
     // Settings hub + its actions
     Route::get('settings', [CsSettingsController::class, 'index'])->name('settings.index');
+    Route::post('settings/board', [CsBoardSettingsController::class, 'update'])->name('settings.board.update');
     Route::post('templates', [CsTaskTemplateController::class, 'store'])->name('templates.store');
     Route::patch('templates/{template}', [CsTaskTemplateController::class, 'update'])->name('templates.update');
     Route::delete('templates/{template}', [CsTaskTemplateController::class, 'destroy'])->name('templates.destroy');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Cs;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompanySetting;
 use App\Models\CsTaskTemplate;
 use App\Models\Department;
 use App\Models\DepartmentNotificationRecipient;
@@ -27,6 +28,8 @@ class CsSettingsController extends Controller
 
         $department = Department::query()->where('slug', 'customer-service')->firstOrFail();
 
+        $companySetting = CompanySetting::current();
+
         return Inertia::render('cs-board/settings/index', [
             'department' => $department,
             'templates' => $canTemplates
@@ -36,6 +39,11 @@ class CsSettingsController extends Controller
             'recipients' => $canNotifications
                 ? DepartmentNotificationRecipient::query()->where('department_id', $department->id)->orderByDesc('is_active')->orderBy('email')->get()
                 : [],
+            'boardSettings' => $canNotifications ? [
+                'reportingCurrency' => $companySetting->cs_reporting_currency ?? 'KES',
+                'responseTimeStandards' => $companySetting->cs_response_time_standards ?? ['chat' => 5, 'call' => 15, 'email' => 60, 'other' => 60],
+                'calibrationEndsAt' => $companySetting->cs_calibration_ends_at?->toDateString(),
+            ] : null,
             'can' => ['templates' => $canTemplates, 'notifications' => $canNotifications],
         ]);
     }

@@ -1,3 +1,4 @@
+import { InfoTooltip } from '@/components/cs-board/info-tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -162,7 +163,10 @@ function TemplateFormDialog({
                             </select>
                         </div>
                         <div>
-                            <Label className="text-xs">Classification</Label>
+                            <Label className="text-xs">
+                                Classification
+                                <InfoTooltip text="Labeling only, for grouping and reporting. It does not change how the item is scored — every active item on a card counts the same way." />
+                            </Label>
                             <select
                                 className="border-input h-9 w-full rounded-md border bg-transparent px-2 text-sm"
                                 value={data.classification}
@@ -182,7 +186,10 @@ function TemplateFormDialog({
                         {errors.name && <p className="text-destructive text-xs">{errors.name}</p>}
                     </div>
                     <div>
-                        <Label className="text-xs">Section</Label>
+                        <Label className="text-xs">
+                            Section
+                            <InfoTooltip text="Groups related items under one heading on the card, e.g. all CRM-related items under 'crm'. Purely for display." />
+                        </Label>
                         <Input value={data.section} onChange={(e) => setData('section', e.target.value)} placeholder="e.g. queue_clearance, crm" />
                         {errors.section && <p className="text-destructive text-xs">{errors.section}</p>}
                     </div>
@@ -268,12 +275,15 @@ function TemplateFormDialog({
 type Hod = { id: number; name: string; email: string } | null;
 type Recipient = { id: number; email: string; label: string | null; is_active: boolean };
 type DepartmentRef = { id: number; name: string };
+type ResponseTimeStandards = { chat: number; call: number; email: number; other: number };
+type BoardSettings = { reportingCurrency: string; responseTimeStandards: ResponseTimeStandards; calibrationEndsAt: string | null } | null;
 
 type PageProps = {
     department: DepartmentRef;
     templates: Template[];
     hod: Hod;
     recipients: Recipient[];
+    boardSettings: BoardSettings;
     can: { templates: boolean; notifications: boolean };
 };
 
@@ -456,8 +466,98 @@ function NotificationsTab({ department, hod, recipients }: { department: Departm
     );
 }
 
-export default function CsSettingsIndex({ department, templates, hod, recipients, can }: PageProps) {
-    const [tab, setTab] = useState<'templates' | 'notifications'>(can.templates ? 'templates' : 'notifications');
+function BoardSettingsTab({ settings }: { settings: NonNullable<BoardSettings> }) {
+    const { data, setData, post, processing, errors } = useForm({
+        cs_reporting_currency: settings.reportingCurrency,
+        cs_response_time_standards: settings.responseTimeStandards,
+        cs_calibration_ends_at: settings.calibrationEndsAt ?? '',
+    });
+
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        post('/cs-board/settings/board', { preserveScroll: true });
+    };
+
+    const setStandard = (channel: keyof ResponseTimeStandards, minutes: string) =>
+        setData('cs_response_time_standards', { ...data.cs_response_time_standards, [channel]: Number(minutes) || 0 });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const inCalibration = data.cs_calibration_ends_at !== '' && data.cs_calibration_ends_at >= today;
+
+    return (
+        <form onSubmit={submit} className="flex flex-col gap-4">
+            <Card className="flex flex-col gap-3 p-4">
+                <h2 className="font-semibold">Response-time standards (§8)</h2>
+                <p className="text-muted-foreground text-xs">
+                    Minutes allowed before a first response is late, per channel. Applied to every enquiry logged from that point on; past enquiries
+                    keep whatever standard was in force when they were logged.
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {(['chat', 'call', 'email', 'other'] as const).map((channel) => (
+                        <div key={channel}>
+                            <Label className="text-xs capitalize">{channel}</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={1440}
+                                value={data.cs_response_time_standards[channel]}
+                                onChange={(e) => setStandard(channel, e.target.value)}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </Card>
+
+            <Card className="flex flex-col gap-3 p-4">
+                <h2 className="font-semibold">Reporting currency (§4)</h2>
+                <p className="text-muted-foreground text-xs">
+                    Every sale is converted into this currency for scoring, using the daily exchange rate. Changing it does not retroactively
+                    reconvert past sales.
+                </p>
+                <div className="w-24">
+                    <Label className="text-xs">Currency code</Label>
+                    <Input
+                        value={data.cs_reporting_currency}
+                        onChange={(e) => setData('cs_reporting_currency', e.target.value.toUpperCase())}
+                        maxLength={3}
+                    />
+                    {errors.cs_reporting_currency && <p className="text-destructive text-xs">{errors.cs_reporting_currency}</p>}
+                </div>
+            </Card>
+
+            <Card className="flex flex-col gap-3 p-4">
+                <h2 className="font-semibold">Calibration (§14)</h2>
+                <p className="text-muted-foreground text-xs">
+                    While a calibration date is set and in the future, scores are visible everywhere but a banner reminds reviewers they must not
+                    alone drive disciplinary or remuneration decisions yet. Clear the date once the CEO and HOD have signed off.
+                </p>
+                {inCalibration && (
+                    <div className="w-fit rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                        Currently in calibration until {data.cs_calibration_ends_at}
+                    </div>
+                )}
+                <div className="flex items-end gap-2">
+                    <div>
+                        <Label className="text-xs">Calibration ends</Label>
+                        <Input type="date" value={data.cs_calibration_ends_at} onChange={(e) => setData('cs_calibration_ends_at', e.target.value)} />
+                    </div>
+                    {data.cs_calibration_ends_at !== '' && (
+                        <Button type="button" size="sm" variant="outline" onClick={() => setData('cs_calibration_ends_at', '')}>
+                            Clear
+                        </Button>
+                    )}
+                </div>
+            </Card>
+
+            <Button type="submit" disabled={processing} className="self-start">
+                Save board settings
+            </Button>
+        </form>
+    );
+}
+
+export default function CsSettingsIndex({ department, templates, hod, recipients, boardSettings, can }: PageProps) {
+    const [tab, setTab] = useState<'templates' | 'notifications' | 'board'>(can.templates ? 'templates' : 'notifications');
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -465,15 +565,18 @@ export default function CsSettingsIndex({ department, templates, hod, recipients
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">Customer Service Board Settings — {department.name}</h1>
 
-                {can.templates && can.notifications && (
+                {(can.templates ? 1 : 0) + (can.notifications ? 2 : 0) > 1 && (
                     <div className="flex gap-1 border-b">
-                        {(['templates', 'notifications'] as const).map((t) => (
+                        {[
+                            ...(can.templates ? (['templates'] as const) : []),
+                            ...(can.notifications ? (['notifications', 'board'] as const) : []),
+                        ].map((t) => (
                             <button
                                 key={t}
                                 onClick={() => setTab(t)}
                                 className={`px-3 py-2 text-sm font-medium ${tab === t ? 'border-primary text-primary border-b-2' : 'text-muted-foreground'}`}
                             >
-                                {t === 'templates' ? 'Templates' : 'Notifications'}
+                                {t === 'templates' ? 'Templates' : t === 'notifications' ? 'Notifications' : 'Board settings'}
                             </button>
                         ))}
                     </div>
@@ -481,6 +584,7 @@ export default function CsSettingsIndex({ department, templates, hod, recipients
 
                 {tab === 'templates' && can.templates && <TemplatesTab templates={templates} />}
                 {tab === 'notifications' && can.notifications && <NotificationsTab department={department} hod={hod} recipients={recipients} />}
+                {tab === 'board' && can.notifications && boardSettings && <BoardSettingsTab settings={boardSettings} />}
             </div>
         </AppLayout>
     );

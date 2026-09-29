@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Cs;
 
+use App\Models\CompanySetting;
 use App\Models\CsTaskTemplate;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -60,5 +62,49 @@ class CsTaskTemplateManagementTest extends TestCase
         }
 
         $this->assertTrue($template->fresh()->is_active);
+    }
+
+    /**
+     * cs.settings.manage (unlike cs.templates.manage) is not granted to
+     * Department Manager by default — same as SEO's seo.settings.manage, see
+     * SeoNotificationTest — so board settings are CEO/Administrator
+     * territory out of the box, and only reach an HOD if that permission is
+     * separately granted through the /admin/permissions matrix.
+     */
+    public function test_the_ceo_can_edit_response_time_standards_currency_and_calibration_date(): void
+    {
+        $this->csLeaders();
+        $ceo = User::factory()->create()->assignRole('CEO');
+
+        $payload = [
+            'cs_reporting_currency' => 'usd',
+            'cs_response_time_standards' => ['chat' => 3, 'call' => 10, 'email' => 45, 'other' => 30],
+            'cs_calibration_ends_at' => now()->addWeeks(4)->toDateString(),
+        ];
+
+        $this->actingAs($ceo)->post('/cs-board/settings/board', $payload)->assertRedirect();
+
+        $setting = CompanySetting::current();
+        $this->assertSame('USD', $setting->cs_reporting_currency);
+        $this->assertSame(['chat' => 3, 'call' => 10, 'email' => 45, 'other' => 30], $setting->cs_response_time_standards);
+        $this->assertSame($payload['cs_calibration_ends_at'], $setting->cs_calibration_ends_at->toDateString());
+    }
+
+    public function test_a_plain_hod_members_and_other_departments_managers_cannot_edit_board_settings(): void
+    {
+        [$hod] = $this->csLeaders();
+        [$member] = $this->csMember();
+        $before = CompanySetting::current()->cs_reporting_currency;
+
+        $payload = [
+            'cs_reporting_currency' => 'usd',
+            'cs_response_time_standards' => ['chat' => 1, 'call' => 1, 'email' => 1, 'other' => 1],
+        ];
+
+        foreach ([$hod, $member, $this->marketingManagerWithCsPermissions()] as $user) {
+            $this->actingAs($user)->post('/cs-board/settings/board', $payload)->assertForbidden();
+        }
+
+        $this->assertSame($before, CompanySetting::current()->cs_reporting_currency);
     }
 }
