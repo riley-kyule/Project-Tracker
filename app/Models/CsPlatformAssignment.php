@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * An employee's assigned platform and/or country operation — Customer
@@ -19,6 +20,7 @@ class CsPlatformAssignment extends Model
     {
         return [
             'effective_from' => 'date',
+            'effective_to' => 'date',
             'is_active' => 'boolean',
         ];
     }
@@ -46,5 +48,17 @@ class CsPlatformAssignment extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Whichever assignment(s) applied on $date — for reconstructing "who was
+     * assigned to what platform/country" after a reassignment, per §12's
+     * "retain the ... platform assignment effective at the time".
+     */
+    public function scopeEffectiveOn(Builder $query, Carbon $date): Builder
+    {
+        return $query
+            ->where('effective_from', '<=', $date->toDateString())
+            ->where(fn (Builder $q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $date->toDateString()));
     }
 }
