@@ -17,6 +17,15 @@ headcount, leave request counts, company-wide payroll totals for one period
 individual figure) and month-over-month payroll trend, and GA4/Search
 Console traffic totals.
 
+The per-department payroll split never reports a group of fewer than three
+people: small departments are combined into one "Other departments" row, and
+if that row would still be under three, the next-smallest departments join
+it — otherwise one person's pay could be read off directly, or recovered by
+subtracting the named departments from the company total. SEO and Customer
+Service score-card tools are the one per-person exception, and only for
+people in departments the token's owner leads (or anyone, for CEO and
+Administrator) — the same scores that owner already sees on the board.
+
 ## What it can do
 
 Two tools mutate state — `create_task` (create a task on a board, optionally
@@ -34,6 +43,14 @@ A token is scoped to its owner's own EWMS permissions, re-checked on every
 call — if a permission is later revoked through /admin/permissions, every
 token that user holds loses access to the matching tool immediately, with no
 separate token-level configuration needed.
+
+A token only works while its owner's account is **active**. Setting the
+account to Inactive or Suspended in Admin → Users stops every token that user
+holds at once (reactivating the account restores them). Every tool call —
+reads as well as writes, including refused ones — is written to the audit log
+as `mcp_tool_called` against the token, with the owner as the actor, the tool
+name, its arguments and whether it succeeded; tasks and tickets created through
+the connector are attributed to the token's owner the same way.
 
 ## Issuing a token
 

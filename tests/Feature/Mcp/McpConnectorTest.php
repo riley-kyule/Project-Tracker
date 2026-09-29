@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Mcp;
 
+use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\McpOAuthClient;
@@ -201,46 +202,140 @@ class McpConnectorTest extends TestCase
 
         // Distinct from DepartmentSeeder's own names (e.g. "Sales") — the base
         // TestCase seeds those, so a literal collision would fail on the
-        // departments.name unique constraint.
+        // departments.name unique constraint. Three people each: the smallest
+        // group payroll_summary reports on its own.
         $engineering = Department::factory()->create(['name' => 'MCP Test Engineering']);
         $sales = Department::factory()->create(['name' => 'MCP Test Sales']);
-        $period = PayrollPeriod::create([
+        $period = $this->paidPeriod();
+        foreach (range(1, 3) as $i) {
+            $this->payslip($period, $engineering, 100000);
+            $this->payslip($period, $sales, 60000);
+        }
+
+        $payload = $this->callPayrollSummary($plaintext);
+        $this->assertEquals(480000, $payload['total_gross_pay']);
+        $this->assertEquals(3 * 22600 + 3 * 11100, $payload['paye_breakdown']['paye_after_relief']);
+        $this->assertEquals(6 * 2160, $payload['statutory_deductions']['nssf_employee']);
+        $this->assertArrayNotHasKey('employees', $payload);
+
+        $byDepartment = collect($payload['by_department'])->keyBy('department');
+        $this->assertEquals(300000, $byDepartment['MCP Test Engineering']['total_gross_pay']);
+        $this->assertEquals(180000, $byDepartment['MCP Test Sales']['total_gross_pay']);
+    }
+
+    public function test_payroll_summary_never_reports_a_department_small_enough_to_expose_one_persons_pay(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        [, $plaintext] = McpToken::issue($ceo, 'Claude');
+
+        $solo = Department::factory()->create(['name' => 'MCP Test Solo']);
+        $engineering = Department::factory()->create(['name' => 'MCP Test Engineering']);
+        $sales = Department::factory()->create(['name' => 'MCP Test Sales']);
+        $period = $this->paidPeriod();
+        $this->payslip($period, $solo, 250000);
+        foreach (range(1, 3) as $i) {
+            $this->payslip($period, $engineering, 100000);
+        }
+        foreach (range(1, 4) as $i) {
+            $this->payslip($period, $sales, 60000);
+        }
+
+        $rows = collect($this->callPayrollSummary($plaintext)['by_department']);
+
+        // The one-person department is never named; and since "Other" alone
+        // would still be one person (recoverable from the company total), the
+        // next-smallest department is folded in with it.
+        $this->assertNotContains('MCP Test Solo', $rows->pluck('department'));
+        $this->assertNotContains('MCP Test Engineering', $rows->pluck('department'));
+        $this->assertTrue($rows->every(fn (array $row) => $row['employee_count'] >= 3));
+        $other = $rows->firstWhere('department', 'Other departments (combined for privacy)');
+        $this->assertSame(4, $other['employee_count']);
+        $this->assertEquals(550000, $other['total_gross_pay']);
+        $this->assertEquals(240000, $rows->firstWhere('department', 'MCP Test Sales')['total_gross_pay']);
+    }
+
+    public function test_a_token_stops_working_while_its_owner_is_inactive_or_suspended(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        [, $plaintext] = McpToken::issue($ceo, 'Claude');
+        $list = fn () => $this->withHeader('Authorization', "Bearer {$plaintext}")
+            ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']);
+
+        $list()->assertOk();
+
+        foreach ([User::STATUS_SUSPENDED, User::STATUS_INACTIVE] as $status) {
+            $ceo->update(['status' => $status]);
+            $list()->assertStatus(401)->assertJsonPath('error.message', "Unauthorized — this token's EWMS account is no longer active.");
+        }
+
+        // Reactivating the account restores the connection — nothing was deleted.
+        $ceo->update(['status' => User::STATUS_ACTIVE]);
+        $list()->assertOk();
+    }
+
+    public function test_every_tool_call_is_audited_against_the_token_and_its_owner(): void
+    {
+        $ceo = User::factory()->create()->assignRole('CEO');
+        [$token, $plaintext] = McpToken::issue($ceo, 'Claude');
+
+        $this->withHeader('Authorization', "Bearer {$plaintext}")->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/call',
+            'params' => ['name' => 'company_overview', 'arguments' => []],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $ceo->id,
+            'auditable_type' => $token->getMorphClass(),
+            'auditable_id' => $token->id,
+            'event' => 'mcp_tool_called',
+        ]);
+        $log = AuditLog::query()->where('event', 'mcp_tool_called')->latest('id')->first();
+        $this->assertSame('company_overview', $log->new_values['tool']);
+        $this->assertSame('ok', $log->new_values['outcome']);
+
+        // A refused call is recorded too, with why.
+        $limited = User::factory()->create()->assignRole('Employee');
+        [, $limitedPlaintext] = McpToken::issue($limited, 'Restricted');
+        $this->withHeader('Authorization', "Bearer {$limitedPlaintext}")->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/call',
+            'params' => ['name' => 'payroll_summary', 'arguments' => []],
+        ]);
+        $refused = AuditLog::query()->where('event', 'mcp_tool_called')->where('actor_id', $limited->id)->firstOrFail();
+        $this->assertSame('error', $refused->new_values['outcome']);
+        $this->assertStringContainsString('hr.payroll.view', $refused->new_values['error']);
+    }
+
+    private function paidPeriod(): PayrollPeriod
+    {
+        return PayrollPeriod::create([
             'year' => 2026, 'month' => 8, 'label' => '2026-08',
             'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'pay_date' => '2026-08-28',
             'status' => PayrollPeriod::STATUS_PAID,
         ]);
-        Payslip::create([
-            'payroll_period_id' => $period->id,
-            'employee_id' => Employee::factory()->create(['department_id' => $engineering->id])->id,
-            'gross_pay' => 100000, 'paye_before_relief' => 25000, 'personal_relief' => 2400, 'insurance_relief' => 0,
-            'paye' => 22600, 'nssf_employee' => 2160, 'nssf_employer' => 2160, 'shif_employee' => 2750,
-            'housing_levy_employee' => 1500, 'housing_levy_employer' => 1500, 'nita_employer' => 50,
-            'net_pay' => 71490, 'employer_cost' => 103710,
-        ]);
-        Payslip::create([
-            'payroll_period_id' => $period->id,
-            'employee_id' => Employee::factory()->create(['department_id' => $sales->id])->id,
-            'gross_pay' => 60000, 'paye_before_relief' => 13500, 'personal_relief' => 2400, 'insurance_relief' => 0,
-            'paye' => 11100, 'nssf_employee' => 2160, 'nssf_employer' => 2160, 'shif_employee' => 1650,
-            'housing_levy_employee' => 900, 'housing_levy_employer' => 900, 'nita_employer' => 50,
-            'net_pay' => 44190, 'employer_cost' => 62950,
-        ]);
+    }
 
+    /** A payslip with fixed deductions, scaled only by gross — enough to check sums. */
+    private function payslip(PayrollPeriod $period, Department $department, int $gross): void
+    {
+        $high = $gross >= 100000;
+        Payslip::create([
+            'payroll_period_id' => $period->id,
+            'employee_id' => Employee::factory()->create(['department_id' => $department->id])->id,
+            'gross_pay' => $gross, 'paye_before_relief' => $high ? 25000 : 13500, 'personal_relief' => 2400, 'insurance_relief' => 0,
+            'paye' => $high ? 22600 : 11100, 'nssf_employee' => 2160, 'nssf_employer' => 2160, 'shif_employee' => 2750,
+            'housing_levy_employee' => 1500, 'housing_levy_employer' => 1500, 'nita_employer' => 50,
+            'net_pay' => $gross - 30000, 'employer_cost' => $gross + 3710,
+        ]);
+    }
+
+    private function callPayrollSummary(string $plaintext): array
+    {
         $response = $this->withHeader('Authorization', "Bearer {$plaintext}")->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'id' => 6, 'method' => 'tools/call',
             'params' => ['name' => 'payroll_summary', 'arguments' => []],
         ]);
 
-        $payload = json_decode($response->json('result.content.0.text'), true);
-        $this->assertEquals(160000, $payload['total_gross_pay']);
-        $this->assertEquals(33700, $payload['paye_breakdown']['paye_after_relief']);
-        $this->assertEquals(4320, $payload['statutory_deductions']['nssf_employee']);
-        $this->assertEquals(166660, $payload['total_employer_cost']);
-        $this->assertArrayNotHasKey('employees', $payload);
-
-        $byDepartment = collect($payload['by_department'])->keyBy('department');
-        $this->assertEquals(100000, $byDepartment['MCP Test Engineering']['total_gross_pay']);
-        $this->assertEquals(60000, $byDepartment['MCP Test Sales']['total_gross_pay']);
+        return json_decode($response->json('result.content.0.text'), true);
     }
 
     public function test_payroll_trend_returns_recent_periods_oldest_first_company_wide_only(): void

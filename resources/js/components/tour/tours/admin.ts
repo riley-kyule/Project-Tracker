@@ -135,7 +135,7 @@ export const adminTours: TourDefinition[] = [
             {
                 target: 'mcp-tokens',
                 title: 'Tokens',
-                body: 'Every token issued, when it was last used, and a button to revoke it the moment it is no longer needed.',
+                body: "Every token issued, when it was last used, and a button to revoke it. Tokens also stop working while their owner's account is inactive or suspended, and every call an assistant makes is recorded in the audit log.",
             },
         ],
     },

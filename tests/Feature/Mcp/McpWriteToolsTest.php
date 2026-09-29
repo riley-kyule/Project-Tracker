@@ -64,7 +64,8 @@ class McpWriteToolsTest extends TestCase
 
         $task = Task::query()->where('title', 'Draft launch email')->firstOrFail();
         $this->assertSame($board->id, $task->board_id);
-        $this->assertDatabaseHas('audit_logs', ['auditable_type' => (new Task)->getMorphClass(), 'auditable_id' => $task->id, 'event' => 'created']);
+        // Attributed to the token's owner, not an anonymous system actor.
+        $this->assertDatabaseHas('audit_logs', ['auditable_type' => (new Task)->getMorphClass(), 'auditable_id' => $task->id, 'event' => 'created', 'actor_id' => $user->id]);
     }
 
     public function test_create_task_requires_tasks_create_permission(): void
@@ -210,7 +211,8 @@ class McpWriteToolsTest extends TestCase
 
         $ticket = Ticket::query()->where('title', 'Laptop broken')->firstOrFail();
         $this->assertSame($user->id, $ticket->requester_id);
-        $this->assertDatabaseHas('audit_logs', ['auditable_type' => (new Ticket)->getMorphClass(), 'auditable_id' => $ticket->id, 'event' => 'created']);
+        // Attributed to the token's owner, not an anonymous system actor.
+        $this->assertDatabaseHas('audit_logs', ['auditable_type' => (new Ticket)->getMorphClass(), 'auditable_id' => $ticket->id, 'event' => 'created', 'actor_id' => $user->id]);
     }
 
     public function test_create_ticket_lists_active_categories_when_the_name_does_not_match(): void

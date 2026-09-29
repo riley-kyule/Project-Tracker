@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Mcp;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
 use App\Services\Mcp\McpToolException;
 use App\Services\Mcp\McpToolRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use stdClass;
 
 /**
@@ -53,11 +55,32 @@ class McpServerController extends Controller
 
         try {
             $data = $this->tools->call($request->user(), $name, $arguments);
+            $this->audit($request, $name, $arguments, 'ok');
 
             return $this->result($id, ['content' => [['type' => 'text', 'text' => json_encode($data, JSON_PRETTY_PRINT)]]]);
         } catch (McpToolException $e) {
+            $this->audit($request, $name, $arguments, 'error', $e->getMessage());
+
             return $this->result($id, ['content' => [['type' => 'text', 'text' => $e->getMessage()]], 'isError' => true]);
         }
+    }
+
+    /**
+     * Every tool call — reads included — lands in the audit log against the
+     * token, so there's a record of what an AI assistant looked at, not only
+     * what it changed. Arguments are names, dates and short text; string
+     * values are clipped so a long task description can't bloat the log.
+     */
+    private function audit(Request $request, string $tool, array $arguments, string $outcome, ?string $error = null): void
+    {
+        $clipped = array_map(fn ($value) => is_string($value) ? Str::limit($value, 200) : $value, $arguments);
+
+        AuditLogger::log($request->attributes->get('mcp_token'), 'mcp_tool_called', [], array_filter([
+            'tool' => $tool,
+            'arguments' => $clipped ?: null,
+            'outcome' => $outcome,
+            'error' => $error,
+        ], fn ($value) => $value !== null));
     }
 
     private function result(mixed $id, array $result): JsonResponse

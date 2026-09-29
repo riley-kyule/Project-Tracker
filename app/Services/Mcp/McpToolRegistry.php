@@ -44,6 +44,9 @@ use Throwable;
  */
 class McpToolRegistry
 {
+    /** Smallest payroll group reported on its own — fewer would expose individual pay. */
+    private const MIN_PAYROLL_GROUP = 3;
+
     private const PROCESSED_PAYROLL_STATUSES = [PayrollPeriod::STATUS_PAID, PayrollPeriod::STATUS_APPROVED, PayrollPeriod::STATUS_CLOSED];
 
     /** @return array<int, array{name: string, description: string, inputSchema: array}> */
@@ -364,7 +367,6 @@ class McpToolRegistry
             ->groupBy('departments.name')
             ->select('departments.name')
             ->selectRaw('count(*) as employee_count, sum(gross_pay) as gross_pay, sum(paye) as paye, sum(net_pay) as net_pay')
-            ->orderByDesc('gross_pay')
             ->get()
             ->map(fn ($row) => [
                 'department' => $row->name,
@@ -373,6 +375,7 @@ class McpToolRegistry
                 'total_paye' => (float) $row->paye,
                 'total_net_pay' => (float) $row->net_pay,
             ])->all();
+        $byDepartment = $this->withoutSmallGroups($byDepartment);
 
         return [
             'period' => $period->label,
@@ -397,6 +400,42 @@ class McpToolRegistry
             'total_employer_cost' => $companyWide['employer_cost'],
             'by_department' => $byDepartment,
         ];
+    }
+
+    /**
+     * A department with one or two people on the payroll would give away their
+     * individual pay, so small departments are combined into a single "Other
+     * departments" row. If that row would itself hold fewer than
+     * MIN_PAYROLL_GROUP people, the next-smallest departments join it too —
+     * otherwise its figures could be recovered by subtracting the named rows
+     * from the company-wide total.
+     *
+     * @param  array<int, array{department: string, employee_count: int, total_gross_pay: float, total_paye: float, total_net_pay: float}>  $rows
+     * @return array<int, array{department: string, employee_count: int, total_gross_pay: float, total_paye: float, total_net_pay: float}>
+     */
+    private function withoutSmallGroups(array $rows): array
+    {
+        usort($rows, fn (array $a, array $b) => $a['employee_count'] <=> $b['employee_count']);
+
+        $combined = [];
+        while ($rows !== [] && ($rows[0]['employee_count'] < self::MIN_PAYROLL_GROUP
+            || ($combined !== [] && array_sum(array_column($combined, 'employee_count')) < self::MIN_PAYROLL_GROUP))) {
+            $combined[] = array_shift($rows);
+        }
+
+        usort($rows, fn (array $a, array $b) => $b['total_gross_pay'] <=> $a['total_gross_pay']);
+
+        if ($combined !== []) {
+            $rows[] = [
+                'department' => 'Other departments (combined for privacy)',
+                'employee_count' => array_sum(array_column($combined, 'employee_count')),
+                'total_gross_pay' => array_sum(array_column($combined, 'total_gross_pay')),
+                'total_paye' => array_sum(array_column($combined, 'total_paye')),
+                'total_net_pay' => array_sum(array_column($combined, 'total_net_pay')),
+            ];
+        }
+
+        return $rows;
     }
 
     private function payrollTrend(int $periods): array

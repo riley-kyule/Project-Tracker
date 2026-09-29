@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\McpToken;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -29,8 +30,23 @@ class AuthenticateMcpToken
             ], 401);
         }
 
+        // An inactive or suspended account can't sign in to EWMS, so an AI
+        // assistant it connected earlier mustn't keep acting for it either.
+        // Rejected rather than deleted, so reactivating the account restores it.
+        if (! $token->user->isActive()) {
+            return response()->json([
+                'jsonrpc' => '2.0',
+                'id' => $request->input('id'),
+                'error' => ['code' => -32001, 'message' => "Unauthorized — this token's EWMS account is no longer active."],
+            ], 401);
+        }
+
         $token->forceFill(['last_used_at' => now()])->saveQuietly();
         $request->setUserResolver(fn () => $token->user);
+        // Also the guard's user, so everything downstream that asks auth() —
+        // AuditLogger's actor above all — attributes the work to the token's owner.
+        Auth::setUser($token->user);
+        $request->attributes->set('mcp_token', $token);
 
         return $next($request);
     }
