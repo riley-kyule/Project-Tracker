@@ -1,5 +1,6 @@
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -83,6 +84,7 @@ export default function PayrollShow({ period, payslips, totals, reports, require
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Payroll — ${period.label}`} />
+            <PageTour id="payroll-run" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -91,9 +93,11 @@ export default function PayrollShow({ period, payslips, totals, reports, require
                             {fmtDate(period.start_date)} – {fmtDate(period.end_date)} · pay date {fmtDate(period.pay_date)}
                             {period.rate_set ? ` · rates: ${period.rate_set.name}` : ''}
                         </p>
-                        <Badge className="mt-1">{period.status}</Badge>
+                        <Badge className="mt-1" data-tour="payroll-status">
+                            {period.status}
+                        </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" data-tour="payroll-run-actions">
                         {can.process && (
                             <Button
                                 onClick={() =>
@@ -113,7 +117,7 @@ export default function PayrollShow({ period, payslips, totals, reports, require
                 </div>
 
                 {payslips.length > 0 && (
-                    <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="grid gap-3 sm:grid-cols-4" data-tour="payroll-totals">
                         <Card className="p-3">
                             <div className="text-muted-foreground text-xs">Gross</div>
                             <div className="text-lg font-semibold">{money(totals.gross)}</div>
@@ -134,7 +138,7 @@ export default function PayrollShow({ period, payslips, totals, reports, require
                 )}
 
                 {payslips.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" data-tour="payroll-exports">
                         {reports.map((r) => (
                             <a key={r} href={`/hr/payroll/${period.id}/export/${r}`}>
                                 <Button variant="outline" size="sm">
@@ -145,7 +149,7 @@ export default function PayrollShow({ period, payslips, totals, reports, require
                     </div>
                 )}
 
-                <Card className="overflow-x-auto">
+                <Card className="overflow-x-auto" data-tour="payroll-payslips">
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>

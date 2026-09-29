@@ -1,4 +1,5 @@
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
@@ -41,9 +42,10 @@ export default function MyPayslips({ payslips }: { payslips: PayslipRow[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Payslips" />
+            <PageTour id="my-payslips" />
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">My Payslips</h1>
-                <Card className="overflow-x-auto">
+                <Card className="overflow-x-auto" data-tour="my-payslips">
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>

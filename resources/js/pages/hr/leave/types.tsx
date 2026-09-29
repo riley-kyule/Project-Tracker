@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -273,12 +274,13 @@ export default function LeaveTypesPage({ leaveTypes }: { leaveTypes: LeaveType[]
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave types" />
+            <PageTour id="leave-types" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Leave types</h1>
                     <TypeDialog existingCodes={existingCodes} />
                 </div>
-                <div className="overflow-x-auto rounded-lg border">
+                <div className="overflow-x-auto rounded-lg border" data-tour="leave-types-table">
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>

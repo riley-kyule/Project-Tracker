@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -386,6 +387,7 @@ export default function AssetShow({ asset, categories, employees, canManage }: P
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={asset.name} />
+            <PageTour id="asset" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -407,7 +409,7 @@ export default function AssetShow({ asset, categories, employees, canManage }: P
                         </div>
                     </div>
                     {canManage && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2" data-tour="asset-actions">
                             {open ? <ReturnDialog asset={asset} /> : <AssignDialog asset={asset} employees={employees} />}
                             <EditAssetDialog asset={asset} categories={categories} />
                             <Button
@@ -438,7 +440,7 @@ export default function AssetShow({ asset, categories, employees, canManage }: P
                     {asset.description && <p className="text-muted-foreground mt-3 text-sm">{asset.description}</p>}
                 </Card>
 
-                <Card className="p-4">
+                <Card className="p-4" data-tour="asset-history">
                     <h2 className="mb-3 text-sm font-semibold">Assignment history</h2>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">

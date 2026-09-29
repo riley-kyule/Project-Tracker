@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -66,10 +67,11 @@ export default function LeaveSettings({ settings, leaveTypeCodes, roles }: PageP
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave settings" />
+            <PageTour id="leave-settings" />
             <form onSubmit={submit} className="flex max-w-3xl flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">Leave settings</h1>
 
-                <Card className="grid gap-4 p-4">
+                <Card className="grid gap-4 p-4" data-tour="leave-settings-entitlement">
                     <h2 className="text-sm font-semibold">Entitlement</h2>
                     <div className="grid gap-1.5">
                         <Label>Entitlement basis</Label>
@@ -149,7 +151,7 @@ export default function LeaveSettings({ settings, leaveTypeCodes, roles }: PageP
                     )}
                 </Card>
 
-                <Card className="grid gap-4 p-4">
+                <Card className="grid gap-4 p-4" data-tour="leave-settings-overlap">
                     <h2 className="text-sm font-semibold">Same-department overlap</h2>
                     <label className="flex items-center gap-2 text-sm">
                         <Checkbox
@@ -188,7 +190,7 @@ export default function LeaveSettings({ settings, leaveTypeCodes, roles }: PageP
                     </div>
                 </Card>
 
-                <Card className="grid gap-4 p-4">
+                <Card className="grid gap-4 p-4" data-tour="leave-settings-requests">
                     <h2 className="text-sm font-semibold">Requests</h2>
                     <div className="grid gap-1.5">
                         <Label htmlFor="min_notice_days">Minimum notice (days)</Label>

@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -135,13 +136,14 @@ export default function PerformanceIndex({ cycles, selectedCycleId, reviews, can
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Performance" />
+            <PageTour id="performance" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Performance</h1>
                     {canManage && <CycleDialog />}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" data-tour="performance-cycles">
                     {cycles.map((c) => (
                         <Link
                             key={c.id}
@@ -156,7 +158,7 @@ export default function PerformanceIndex({ cycles, selectedCycleId, reviews, can
                 </div>
 
                 {selected && (
-                    <Card className="p-4">
+                    <Card className="p-4" data-tour="performance-reviews">
                         <div className="mb-3 flex items-center justify-between">
                             <div>
                                 <h2 className="text-sm font-semibold">{selected.name}</h2>

@@ -1,4 +1,5 @@
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -81,6 +82,7 @@ export default function MyProfile({ employee }: { employee: Employee }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Employee Data" />
+            <PageTour id="my-profile" />
             <div className="flex flex-col gap-4 p-4">
                 <div>
                     <h1 className="text-xl font-semibold">{employee.full_name}</h1>
@@ -95,11 +97,13 @@ export default function MyProfile({ employee }: { employee: Employee }) {
                             </span>
                         )}
                     </div>
-                    <p className="text-muted-foreground mt-2 text-xs">Something out of date? Contact HR to update your record.</p>
+                    <p className="text-muted-foreground mt-2 text-xs" data-tour="me-contact-hr">
+                        Something out of date? Contact HR to update your record.
+                    </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                    <Card className="p-4">
+                    <Card className="p-4" data-tour="me-personal">
                         <h2 className="mb-3 text-sm font-semibold">Personal</h2>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <Field label="Date of birth" value={fmtDate(employee.date_of_birth)} />

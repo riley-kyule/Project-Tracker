@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { ListCappedNotice } from '@/components/list-capped-notice';
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -366,6 +367,7 @@ export default function EmployeesIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="People" />
+            <PageTour id="people" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -374,7 +376,7 @@ export default function EmployeesIndex({
                         <ListCappedNotice capped={listCapped} />
                     </div>
                     {canManage && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2" data-tour="people-actions">
                             <NumberingDialog prefix={staffNumberPrefix} sample={suggestedStaffNumber} />
                             <CreateEmployeeDialog
                                 departments={departments}
@@ -386,7 +388,7 @@ export default function EmployeesIndex({
                     )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3" data-tour="people-filters">
                     <Input
                         placeholder="Search name, staff number, role…"
                         value={search}
@@ -412,7 +414,7 @@ export default function EmployeesIndex({
                     </label>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border">
+                <div className="overflow-x-auto rounded-lg border" data-tour="people-table">
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>

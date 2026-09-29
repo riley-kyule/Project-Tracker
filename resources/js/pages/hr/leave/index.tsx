@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -219,7 +220,7 @@ function MonthCalendar({
     next.setMonth(next.getMonth() + 1);
 
     return (
-        <Card className="p-3">
+        <Card className="p-3" data-tour="leave-calendar">
             <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-sm font-semibold">{monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h2>
                 <div className="flex gap-1">
@@ -285,10 +286,11 @@ export default function LeaveIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave" />
+            <PageTour id="leave" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h1 className="text-xl font-semibold">Leave</h1>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" data-tour="leave-actions">
                         {hasOwnRecord && (
                             <Link
                                 href="/hr/me/leave"
@@ -317,7 +319,7 @@ export default function LeaveIndex({
                     </div>
                 </div>
 
-                <Card className="p-4">
+                <Card className="p-4" data-tour="leave-pending">
                     <h2 className="mb-2 text-sm font-semibold">Awaiting your decision ({pending.length})</h2>
                     <div className="grid gap-2">
                         {pending.map((r) => (

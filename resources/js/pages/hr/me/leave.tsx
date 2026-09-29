@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -118,6 +119,7 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave Application" />
+            <PageTour id="my-leave" />
             <div className="flex flex-col gap-4 p-4">
                 <div>
                     <h1 className="text-xl font-semibold">Leave Application</h1>
@@ -127,7 +129,7 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
                     </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-tour="my-leave-balances">
                     {balances.map((b) => (
                         <Card key={b.code} className="p-3">
                             <div className="text-muted-foreground text-xs">{b.type}</div>
@@ -140,7 +142,7 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
                     {balances.length === 0 && <p className="text-muted-foreground text-sm">No tracked balances yet.</p>}
                 </div>
 
-                <Card className="grid max-w-2xl gap-4 p-4">
+                <Card className="grid max-w-2xl gap-4 p-4" data-tour="my-leave-apply">
                     <h2 className="text-sm font-semibold">Apply for leave</h2>
                     <form onSubmit={submit} className="grid gap-4">
                         <div className="grid gap-1.5">
@@ -204,7 +206,7 @@ export default function MyLeave({ employee, balances, requests, leaveTypes }: Pa
                     </form>
                 </Card>
 
-                <Card className="p-4">
+                <Card className="p-4" data-tour="my-leave-requests">
                     <h2 className="mb-2 text-sm font-semibold">My requests</h2>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">

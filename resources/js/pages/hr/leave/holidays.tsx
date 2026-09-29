@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -32,11 +33,12 @@ export default function HolidaysPage({ holidays }: { holidays: Holiday[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Public holidays" />
+            <PageTour id="leave-holidays" />
             <div className="flex max-w-2xl flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">Public holidays</h1>
                 <p className="text-muted-foreground text-sm">Holidays are excluded from leave working-day counts.</p>
 
-                <form onSubmit={submit} className="flex flex-wrap items-end gap-3 rounded-lg border p-3">
+                <form onSubmit={submit} className="flex flex-wrap items-end gap-3 rounded-lg border p-3" data-tour="holidays-add">
                     <div className="grid gap-1.5">
                         <Label htmlFor="h-name">Name</Label>
                         <Input id="h-name" value={data.name} onChange={(e) => setData('name', e.target.value)} />

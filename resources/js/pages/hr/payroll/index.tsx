@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -123,10 +124,11 @@ export default function PayrollIndex({ periods }: { periods: PeriodRow[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Payroll" />
+            <PageTour id="payroll" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h1 className="text-xl font-semibold">Payroll</h1>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" data-tour="payroll-actions">
                         <Link href="/hr/payroll/settings" className="inline-flex items-center gap-1 rounded-md border px-3 text-sm">
                             <Cog className="h-4 w-4" /> Settings
                         </Link>
@@ -137,7 +139,7 @@ export default function PayrollIndex({ periods }: { periods: PeriodRow[] }) {
                     </div>
                 </div>
 
-                <Card className="overflow-x-auto">
+                <Card className="overflow-x-auto" data-tour="payroll-periods">
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>

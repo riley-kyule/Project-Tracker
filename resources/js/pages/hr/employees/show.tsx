@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -1338,11 +1339,12 @@ export default function EmployeeShow({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={employee.full_name} />
+            <PageTour id="employee-record" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <h1 className="text-xl font-semibold">{employee.full_name}</h1>
-                        <p className="text-muted-foreground text-sm">
+                        <p className="text-muted-foreground text-sm" data-tour="employee-summary">
                             {employee.job_title ?? 'No role'} · {employee.department?.name ?? 'No department'} · {employee.staff_number}
                         </p>
                         <div className="mt-1 flex items-center gap-2">
@@ -1356,11 +1358,13 @@ export default function EmployeeShow({
                         </div>
                     </div>
                     {canManage && (
-                        <EditProfileDialog employee={employee} departments={departments} managers={managers} linkableUsers={linkableUsers} />
+                        <div data-tour="employee-edit">
+                            <EditProfileDialog employee={employee} departments={departments} managers={managers} linkableUsers={linkableUsers} />
+                        </div>
                     )}
                 </div>
 
-                <div className="flex flex-wrap gap-1 border-b">
+                <div className="flex flex-wrap gap-1 border-b" data-tour="employee-tabs">
                     {tabs.map((t) => (
                         <button
                             key={t}

@@ -1,3 +1,4 @@
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -78,6 +79,7 @@ export default function PerformanceReviewShow({ review, can }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Review — ${review.employee}`} />
+            <PageTour id="performance-review" />
             <div className="flex max-w-2xl flex-col gap-4 p-4">
                 <div>
                     <h1 className="text-xl font-semibold">{review.employee}</h1>
@@ -87,7 +89,7 @@ export default function PerformanceReviewShow({ review, can }: PageProps) {
                     <Badge className="mt-1">{label(review.status)}</Badge>
                 </div>
 
-                <Card className="grid gap-3 p-4">
+                <Card className="grid gap-3 p-4" data-tour="review-self">
                     <h2 className="text-sm font-semibold">Self assessment</h2>
                     <Area label="Summary" value={self.summary} onChange={(v) => setSelf({ ...self, summary: v })} disabled={!can.selfAssess} />
                     <Area
@@ -116,7 +118,7 @@ export default function PerformanceReviewShow({ review, can }: PageProps) {
                     )}
                 </Card>
 
-                <Card className="grid gap-3 p-4">
+                <Card className="grid gap-3 p-4" data-tour="review-manager">
                     <h2 className="text-sm font-semibold">Manager assessment</h2>
                     <Area label="Summary" value={mgr.summary} onChange={(v) => setMgr({ ...mgr, summary: v })} disabled={!can.managerAssess} />
                     <Area label="Strengths" value={mgr.strengths} onChange={(v) => setMgr({ ...mgr, strengths: v })} disabled={!can.managerAssess} />

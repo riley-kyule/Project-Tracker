@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,10 +59,11 @@ export default function PayrollSettings({ settings }: { settings: Settings }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Payroll settings" />
+            <PageTour id="payroll-settings" />
             <form onSubmit={submit} className="flex max-w-3xl flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">Payroll settings</h1>
 
-                <Card className="grid gap-4 p-4 sm:grid-cols-2">
+                <Card className="grid gap-4 p-4 sm:grid-cols-2" data-tour="payroll-settings-employer">
                     <h2 className="text-sm font-semibold sm:col-span-2">Employer identifiers</h2>
                     <div className="grid gap-1.5">
                         <Label htmlFor="kra">Company KRA PIN</Label>
@@ -103,7 +105,7 @@ export default function PayrollSettings({ settings }: { settings: Settings }) {
                     </label>
                 </Card>
 
-                <Card className="grid gap-4 p-4">
+                <Card className="grid gap-4 p-4" data-tour="payroll-settings-letterhead">
                     <h2 className="text-sm font-semibold">Payslip letterhead</h2>
                     <div className="flex items-start gap-4">
                         <div className="flex flex-col items-center gap-2">
@@ -164,7 +166,9 @@ export default function PayrollSettings({ settings }: { settings: Settings }) {
                 </Card>
 
                 <Card className="grid gap-4 p-4">
-                    <h2 className="text-sm font-semibold">Sending &amp; approval</h2>
+                    <h2 className="text-sm font-semibold" data-tour="payroll-settings-sending">
+                        Sending &amp; approval
+                    </h2>
                     <div className="grid gap-1.5">
                         <Label>When are payslip emails sent?</Label>
                         <Select value={data.payslip_dispatch_timing} onValueChange={(v) => setData('payslip_dispatch_timing', v)}>

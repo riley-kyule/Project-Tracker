@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { ListCappedNotice } from '@/components/list-capped-notice';
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
@@ -347,6 +348,7 @@ export default function AssetsIndex({ assets, categories, listCapped, canManage 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Assets" />
+            <PageTour id="assets" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -355,7 +357,7 @@ export default function AssetsIndex({ assets, categories, listCapped, canManage 
                         <ListCappedNotice capped={listCapped} />
                     </div>
                     {canManage && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2" data-tour="assets-actions">
                             <ImportAssetsDialog />
                             <CategoryDialog categories={categories} />
                             <CreateAssetDialog categories={categories} />
@@ -363,7 +365,7 @@ export default function AssetsIndex({ assets, categories, listCapped, canManage 
                     )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3" data-tour="assets-filters">
                     <Input
                         placeholder="Search tag, name, serial, custodian…"
                         value={search}
@@ -385,7 +387,7 @@ export default function AssetsIndex({ assets, categories, listCapped, canManage 
                     </Select>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border">
+                <div className="overflow-x-auto rounded-lg border" data-tour="assets-table">
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>

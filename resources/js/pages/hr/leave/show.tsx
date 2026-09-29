@@ -1,3 +1,4 @@
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -62,6 +63,7 @@ export default function LeaveRequestShow({ request, canDecide, canCancel }: Page
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Leave request #${request.id}`} />
+            <PageTour id="leave-request" />
             <div className="flex max-w-2xl flex-col gap-4 p-4">
                 <div>
                     <h1 className="text-xl font-semibold">
@@ -73,7 +75,7 @@ export default function LeaveRequestShow({ request, canDecide, canCancel }: Page
                     </div>
                 </div>
 
-                <Card className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+                <Card className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2" data-tour="leave-request-details">
                     <Field label="Dates" value={`${fmtDate(request.start_date)} → ${fmtDate(request.end_date)}`} />
                     <Field label="Working days" value={request.days} />
                     <Field label="Reason" value={request.reason} />
@@ -84,7 +86,7 @@ export default function LeaveRequestShow({ request, canDecide, canCancel }: Page
                 </Card>
 
                 {request.approvals.length > 0 && (
-                    <Card className="p-4">
+                    <Card className="p-4" data-tour="leave-request-trail">
                         <h2 className="mb-2 text-sm font-semibold">Approval trail</h2>
                         {request.approvals.map((a, i) => (
                             <div key={i} className="border-t py-1.5 text-sm first:border-0">
@@ -97,7 +99,7 @@ export default function LeaveRequestShow({ request, canDecide, canCancel }: Page
                 )}
 
                 {canDecide && request.status === 'pending' && (
-                    <Card className="grid gap-3 p-4">
+                    <Card className="grid gap-3 p-4" data-tour="leave-request-decision">
                         <h2 className="text-sm font-semibold">Decision</h2>
                         <div className="grid gap-1.5">
                             <Label htmlFor="note">Note (optional)</Label>

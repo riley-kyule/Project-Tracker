@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -219,6 +220,7 @@ export default function RateSetsPage({ rateSets }: { rateSets: RateSet[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Statutory rates" />
+            <PageTour id="rate-sets" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <div>
@@ -229,7 +231,7 @@ export default function RateSetsPage({ rateSets }: { rateSets: RateSet[] }) {
                     </div>
                     <RateSetDialog />
                 </div>
-                <div className="grid gap-3">
+                <div className="grid gap-3" data-tour="rate-sets-list">
                     {rateSets.map((rs) => (
                         <Card key={rs.id} className="flex items-center justify-between p-4">
                             <div>

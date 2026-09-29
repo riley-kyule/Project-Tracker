@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -162,10 +163,11 @@ export default function LeaveBalancesPage({ employees }: { employees: Row[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Leave balances" />
+            <PageTour id="leave-balances" />
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">Leave balances</h1>
-                {employees.map((emp) => (
-                    <div key={emp.id} className="rounded-lg border">
+                {employees.map((emp, i) => (
+                    <div key={emp.id} className="rounded-lg border" data-tour={i === 0 ? 'balances-employee' : undefined}>
                         <div className="bg-muted/40 flex items-center justify-between border-b px-3 py-2">
                             <div>
                                 <span className="font-medium">{emp.name}</span>

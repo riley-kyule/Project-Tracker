@@ -1,3 +1,4 @@
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
@@ -54,6 +55,7 @@ export default function PayslipShow({ payslip }: { payslip: Payslip }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Payslip — ${payslip.employee}`} />
+            <PageTour id="payslip" />
             <div className="flex max-w-2xl flex-col gap-4 p-4">
                 <div className="flex items-start justify-between">
                     <div>
@@ -69,7 +71,7 @@ export default function PayslipShow({ payslip }: { payslip: Payslip }) {
                     </a>
                 </div>
 
-                <Card className="p-4">
+                <Card className="p-4" data-tour="payslip-earnings">
                     <h2 className="mb-1 text-sm font-semibold">Earnings</h2>
                     {(payslip.earnings ?? []).map((l, i) => (
                         <Row key={i} label={l.name} value={money(l.amount)} />
@@ -79,7 +81,7 @@ export default function PayslipShow({ payslip }: { payslip: Payslip }) {
                     </div>
                 </Card>
 
-                <Card className="p-4">
+                <Card className="p-4" data-tour="payslip-deductions">
                     <h2 className="mb-1 text-sm font-semibold">Deductions</h2>
                     <Row label="PAYE (after relief)" value={money(payslip.paye)} />
                     <Row label="— tax before relief" value={money(payslip.paye_before_relief)} muted />
