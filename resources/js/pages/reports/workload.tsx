@@ -1,5 +1,6 @@
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -64,6 +65,7 @@ export default function WorkloadReport({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Workload report" />
+            <PageTour id="workload-report" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">Workload &amp; exceptions</h1>
@@ -93,7 +95,7 @@ export default function WorkloadReport({
                     )}
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="workload-table">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">

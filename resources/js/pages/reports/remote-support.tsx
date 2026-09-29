@@ -1,3 +1,4 @@
+import { PageTour } from '@/components/tour/page-tour';
 import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -74,6 +75,7 @@ export default function RemoteSupportReport({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Remote support report" />
+            <PageTour id="remote-support-report" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">Remote support report</h1>
@@ -83,7 +85,7 @@ export default function RemoteSupportReport({
                     <Link href="/reports/workload" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
                         Workload →
                     </Link>
-                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <div className="ml-auto flex flex-wrap items-center gap-2" data-tour="remote-filters">
                         {filtering && <Loader2 className="text-muted-foreground size-4 animate-spin" aria-label="Loading" />}
                         <DateField
                             value={selected.from}
@@ -124,7 +126,7 @@ export default function RemoteSupportReport({
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" data-tour="remote-stats">
                     <StatCard label="Tickets resolved" value={totals.resolved.toString()} />
                     <StatCard label="Avg first response" value={formatMinutes(totals.avg_first_response_minutes)} />
                     <StatCard label="Avg resolution" value={formatMinutes(totals.avg_resolution_minutes)} />

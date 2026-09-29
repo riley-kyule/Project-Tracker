@@ -119,7 +119,10 @@ export function FilterBar({
     ];
 
     return (
-        <div className="border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-end gap-2 rounded-xl border p-3">
+        <div
+            className="border-sidebar-border/70 dark:border-sidebar-border flex flex-wrap items-end gap-2 rounded-xl border p-3"
+            data-tour="marketing-filters"
+        >
             <div className="grid gap-1">
                 <label className="text-muted-foreground text-xs" id="marketing-statistics-website-label">
                     Website
@@ -222,6 +225,7 @@ export function FilterBar({
                     disabled={refreshing}
                     type="button"
                     title="GA4/GSC data is cached until end of day — refresh to pull it live now"
+                    data-tour="marketing-refresh"
                 >
                     <RefreshCw className={`mr-1 size-4 ${refreshing ? 'animate-spin' : ''}`} />
                     Refresh

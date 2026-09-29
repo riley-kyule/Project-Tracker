@@ -1,4 +1,5 @@
 import { KpiTile } from '@/components/marketing-statistics/kpi-tile';
+import { PageTour } from '@/components/tour/page-tour';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -105,6 +106,7 @@ export default function MyReports({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My System Reports" />
+            <PageTour id="my-reports" />
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">My System Reports</h1>
 
@@ -115,7 +117,7 @@ export default function MyReports({
                 ) : (
                     <>
                         <div className="border-sidebar-border/70 dark:border-sidebar-border flex flex-col gap-4 rounded-xl border p-4">
-                            <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-4 sm:grid-cols-2" data-tour="my-reports-sites">
                                 {marketingSites.length > 0 && (
                                     <div className="space-y-2">
                                         <div className="text-sm font-medium">Marketing sites</div>
@@ -140,7 +142,7 @@ export default function MyReports({
                                 )}
                             </div>
 
-                            <div className="flex flex-wrap items-end gap-2">
+                            <div className="flex flex-wrap items-end gap-2" data-tour="my-reports-generate">
                                 <div className="flex items-center gap-1">
                                     <DateField value={dateFrom} max={dateTo} onChange={setDateFrom} aria-label="Report start date" className="w-36" />
                                     <span className="text-muted-foreground text-sm">to</span>

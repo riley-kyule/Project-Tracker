@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { type ListSize } from '@/components/list-pagination';
 import { Pagination, sizeFromPerPage, type Paginated } from '@/components/pagination';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -113,7 +114,7 @@ function NewTicketDialog({ categories, canCreateForOthers, users }: { categories
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" data-tour="ticket-new">
                     <Plus className="mr-1 size-4" /> New ticket
                 </Button>
             </DialogTrigger>
@@ -279,10 +280,11 @@ export default function TicketsIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Service Desk" />
+            <PageTour id="tickets" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{isManager ? 'Ticket queue' : 'My tickets'}</h1>
-                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <div className="ml-auto flex flex-wrap items-center gap-2" data-tour="ticket-toolbar">
                         {isManager && (
                             <>
                                 {filtering && <Loader2 className="text-muted-foreground size-4 animate-spin" aria-label="Loading" />}
@@ -346,7 +348,7 @@ export default function TicketsIndex({
                         <NewTicketDialog categories={categories} canCreateForOthers={canCreateForOthers} users={users} />
                     </div>
                 </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="ticket-list">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-sidebar-border/70 text-muted-foreground dark:border-sidebar-border border-b text-left">

@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { type ListSize } from '@/components/list-pagination';
 import { Pagination, sizeFromPerPage, type Paginated } from '@/components/pagination';
 import { SortableHeader, type SortState } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -199,17 +200,18 @@ export default function TasksReport({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Task Reports" />
+            <PageTour id="task-reports" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">Task Reports</h1>
                     <span className="text-muted-foreground text-sm">{tasks.total} tasks</span>
-                    <Link href="/reports/workload" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
+                    <Link href="/reports/workload" className="text-brand-600 dark:text-brand-400 text-sm hover:underline" data-tour="reports-links">
                         Workload →
                     </Link>
                     <Link href="/reports/remote-support" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
                         Remote support →
                     </Link>
-                    <div className="ml-auto flex flex-wrap gap-2">
+                    <div className="ml-auto flex flex-wrap gap-2" data-tour="reports-filters">
                         <Select value={filter} onValueChange={(value) => apply({ filter: value })}>
                             <SelectTrigger className="w-48" aria-label="Filter by status">
                                 <SelectValue />
@@ -273,7 +275,7 @@ export default function TasksReport({
 
                 {selectedIds.length > 0 && <BulkReassignBar selectedIds={selectedIds} people={people} onDone={() => setSelectedIds([])} />}
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="reports-table">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-muted-foreground border-sidebar-border/70 dark:border-sidebar-border border-b text-left">

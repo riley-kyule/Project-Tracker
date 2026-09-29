@@ -1,4 +1,5 @@
 import { FilterBar } from '@/components/marketing-statistics/filter-bar';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { useSourceStatusToasts } from '@/hooks/use-source-status-toasts';
 import AppLayout from '@/layouts/app-layout';
@@ -101,9 +102,10 @@ export function MarketingStatisticsShell({
                 <div className="flex flex-wrap items-center gap-3">
                     <h1 className="text-xl font-semibold">Marketing Statistics</h1>
                     <DegradedSourceBadges sources={sources} />
+                    <PageTour id="marketing" />
                 </div>
 
-                <nav className="flex flex-wrap gap-1 border-b pb-2">
+                <nav className="flex flex-wrap gap-1 border-b pb-2" data-tour="marketing-tabs">
                     {tabs.map((tab) => (
                         <Link
                             key={tab.key}

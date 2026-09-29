@@ -2,6 +2,7 @@ import { CsHodPanel, type CsHodPanelProps } from '@/components/cs-board/hod-pane
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SeoHodPanel, type SeoHodPanelProps } from '@/components/seo-board/hod-panel';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { fmtDate } from '@/lib/utils';
@@ -29,9 +30,9 @@ function StatCard({ label, value, alert = false }: { label: string; value: numbe
     );
 }
 
-function TaskList({ title, tasks }: { title: string; tasks: DeptTask[] }) {
+function TaskList({ title, tasks, tourAnchor }: { title: string; tasks: DeptTask[]; tourAnchor?: string }) {
     return (
-        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour={tourAnchor}>
             <h2 className="mb-2 text-sm font-semibold">{title}</h2>
             <ul className="divide-sidebar-border/40 dark:divide-sidebar-border/40 divide-y">
                 {tasks.map((task) => (
@@ -114,7 +115,7 @@ function WorkloadTable({ workload }: { workload: (Person & { open_tasks: number;
     const { size, setSize, page, setPage, pageRows, totalPages, total } = usePagedList(sorted);
 
     return (
-        <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4">
+        <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border p-4" data-tour="dept-workload">
             <h2 className="mb-2 text-sm font-semibold">Workload by employee</h2>
             <table className="w-full text-sm">
                 <thead>
@@ -202,12 +203,13 @@ export default function DepartmentDashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${department.name} Dashboard`} />
+            <PageTour id="department-dashboard" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">{department.name}</h1>
                     {canSwitchDepartment && (
                         <Select value={department.id.toString()} onValueChange={switchDepartment}>
-                            <SelectTrigger className="ml-auto w-56" aria-label="Switch department">
+                            <SelectTrigger className="ml-auto w-56" aria-label="Switch department" data-tour="dept-switch">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -222,7 +224,7 @@ export default function DepartmentDashboard({
                 </div>
                 {subDepartments && <p className="text-muted-foreground -mt-2 text-sm">Combined view across {subDepartments.length} teams.</p>}
 
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6" data-tour="dept-stats">
                     <StatCard label="Open tasks" value={counts.open} />
                     <StatCard label="Unassigned" value={counts.unassigned} alert />
                     <StatCard label="Overdue" value={counts.overdue} alert />
@@ -234,7 +236,7 @@ export default function DepartmentDashboard({
                 <div className="grid gap-4 lg:grid-cols-2">
                     {subDepartments && <SubDepartmentBreakdown rows={subDepartments} />}
                     <WorkloadTable workload={workload} />
-                    <TaskList title="Unassigned tasks" tasks={unassigned} />
+                    <TaskList title="Unassigned tasks" tasks={unassigned} tourAnchor="dept-unassigned" />
                     <TaskList title="Upcoming deadlines (7 days)" tasks={upcoming} />
                     <TaskList title="Recently completed" tasks={recentlyCompleted} />
                 </div>

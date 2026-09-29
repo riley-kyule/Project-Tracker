@@ -1,5 +1,6 @@
 import { CommentThread } from '@/components/comments/comment-thread';
 import InputError from '@/components/input-error';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -372,13 +373,16 @@ export default function TicketShow({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`TK-${ticket.ticket_number}`} />
+            <PageTour id="ticket" />
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-semibold">
                         <span className="text-muted-foreground mr-2 font-mono text-base">TK-{ticket.ticket_number}</span>
                         {ticket.title}
                     </h1>
-                    <Badge variant={statusVariants[ticket.status]}>{statusLabels[ticket.status]}</Badge>
+                    <Badge variant={statusVariants[ticket.status]} data-tour="ticket-status">
+                        {statusLabels[ticket.status]}
+                    </Badge>
                     <Badge variant="secondary" className={`capitalize ${priorityColors[ticket.priority]}`}>
                         {ticket.priority}
                     </Badge>
@@ -414,7 +418,7 @@ export default function TicketShow({
                 )}
 
                 {isManager && (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2" data-tour="ticket-actions">
                         <Combobox
                             className="w-56"
                             aria-label="Assign technician"
@@ -450,7 +454,10 @@ export default function TicketShow({
                     </div>
                 )}
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2">
+                <div
+                    className="border-sidebar-border/70 dark:border-sidebar-border grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2"
+                    data-tour="ticket-details"
+                >
                     <div>
                         <span className="text-muted-foreground">Requester:</span> {ticket.requester?.name ?? 'Deleted user'}
                     </div>
@@ -499,7 +506,7 @@ export default function TicketShow({
                     <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="ticket-attachments">
                     <h2 className="mb-2 text-sm font-semibold">Attachments</h2>
                     <ul className="space-y-1.5">
                         {attachments.map((attachment) => (
@@ -527,7 +534,7 @@ export default function TicketShow({
                     </Button>
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="ticket-responses">
                     <h2 className="mb-2 text-sm font-semibold">Responses</h2>
                     <CommentThread
                         comments={comments}
@@ -574,7 +581,7 @@ export default function TicketShow({
                     </form>
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="ticket-history">
                     <h2 className="mb-2 text-sm font-semibold">Status history</h2>
                     <ul className="space-y-1.5">
                         {ticket.status_history.map((entry) => (

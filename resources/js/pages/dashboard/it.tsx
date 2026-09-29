@@ -1,5 +1,6 @@
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
 import { fmtDateTime } from '@/lib/utils';
@@ -92,15 +93,16 @@ export default function ItDashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="IT Dashboard" />
+            <PageTour id="it-dashboard" />
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">IT Dashboard</h1>
-                    <Link href="/admin/sla-policies" className="text-brand-600 dark:text-brand-400 text-sm hover:underline">
+                    <Link href="/admin/sla-policies" className="text-brand-600 dark:text-brand-400 text-sm hover:underline" data-tour="it-sla-link">
                         Configure SLAs
                     </Link>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7" data-tour="it-stats">
                     <StatCard label="New" value={counts.new} alert={counts.new > 0} />
                     <StatCard label="Unassigned" value={counts.unassigned} alert={counts.unassigned > 0} />
                     <StatCard label="Critical open" value={counts.critical} alert={counts.critical > 0} />
@@ -110,14 +112,14 @@ export default function ItDashboard({
                     <StatCard label="Resolved today" value={counts.resolved_today} />
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3" data-tour="it-averages">
                     <StatCard label="Avg first response (30 d)" value={formatMinutes(averages.first_response_minutes)} />
                     <StatCard label="Avg resolution (30 d)" value={formatMinutes(averages.resolution_minutes)} />
                     <StatCard label="Remote resolution share (30 d)" value={remoteShare === null ? '—' : `${remoteShare}%`} />
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4">
+                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-4" data-tour="it-resolution">
                         <h2 className="mb-2 text-sm font-semibold">Resolution methods (last 30 days)</h2>
                         <ul className="space-y-1 text-sm">
                             <li className="flex justify-between">
@@ -148,7 +150,7 @@ export default function ItDashboard({
                     </div>
                 </div>
 
-                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border">
+                <div className="border-sidebar-border/70 dark:border-sidebar-border overflow-x-auto rounded-xl border" data-tour="it-queue">
                     <div className="flex items-center justify-between p-4 pb-0">
                         <h2 className="text-sm font-semibold">Priority queue</h2>
                         <Link href="/tickets" className="text-brand-600 dark:text-brand-400 text-xs hover:underline">

@@ -1,6 +1,7 @@
 import { TrafficDataSection } from '@/components/dashboard/traffic-data-section';
 import { ListPagination, usePagedList } from '@/components/list-pagination';
 import { SortableHeader, useClientSort } from '@/components/sortable-header';
+import { PageTour } from '@/components/tour/page-tour';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -52,7 +53,7 @@ const QUICK_LINKS = [
 
 function QuickLinks() {
     return (
-        <nav aria-label="Jump to section" className="flex flex-wrap gap-2">
+        <nav aria-label="Jump to section" className="flex flex-wrap gap-2" data-tour="ceo-quick-links">
             {QUICK_LINKS.map((link) => (
                 <a
                     key={link.href}
@@ -191,7 +192,11 @@ function WordPressStaffCard({ staff }: { staff: WordPressStaffRow[] }) {
 
 function TaskList({ id, title, tasks, icon }: { id?: string; title: string; tasks: ExecTask[]; icon?: React.ReactNode }) {
     return (
-        <div id={id} className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4">
+        <div
+            id={id}
+            data-tour={id ? `ceo-${id}` : undefined}
+            className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4"
+        >
             <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
                 {icon}
                 {title}
@@ -328,12 +333,13 @@ export default function CeoDashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="CEO Dashboard" />
+            <PageTour id="ceo-dashboard" />
             <div className="flex flex-col gap-4 p-4">
                 <h1 className="text-xl font-semibold">Company overview</h1>
 
                 {/* Headline numbers — what needs attention right now. The rest
                     live in the sections below (and the links on each tile). */}
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6" data-tour="ceo-stats">
                     <StatCard label="Overdue" value={counts.overdue} href="/reports/tasks?filter=overdue" alert />
                     <StatCard label="Blocked" value={counts.blocked} href="/reports/tasks?filter=blocked" alert />
                     <StatCard label="Awaiting review" value={counts.awaiting_review} href="/reports/tasks?filter=awaiting_review" />
@@ -347,13 +353,18 @@ export default function CeoDashboard({
                 <div className="grid gap-4 lg:grid-cols-2">
                     <div
                         id="department-performance"
+                        data-tour="ceo-department-performance"
                         className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 overflow-x-auto rounded-xl border p-4"
                     >
                         <h2 className="mb-2 text-sm font-semibold">Department performance</h2>
                         <DepartmentPerformanceTable departmentPerformance={departmentPerformance} />
                     </div>
 
-                    <div id="employee-workload" className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4">
+                    <div
+                        id="employee-workload"
+                        data-tour="ceo-employee-workload"
+                        className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4"
+                    >
                         <h2 className="mb-2 text-sm font-semibold">Employee workload (open tasks)</h2>
                         <ul className="space-y-1.5">
                             {workload.map((person) => (
@@ -385,6 +396,7 @@ export default function CeoDashboard({
 
                 <div
                     id="leave-overview"
+                    data-tour="ceo-leave-overview"
                     className="border-sidebar-border/70 dark:border-sidebar-border grid scroll-mt-4 gap-4 rounded-xl border p-4 lg:grid-cols-3"
                 >
                     <div>
@@ -428,15 +440,19 @@ export default function CeoDashboard({
                     </div>
                 </div>
 
-                <div id="traffic-data" className="scroll-mt-4">
+                <div id="traffic-data" data-tour="ceo-traffic-data" className="scroll-mt-4">
                     <TrafficDataSection />
                 </div>
 
-                <div id="wordpress-staff" className="scroll-mt-4">
+                <div id="wordpress-staff" data-tour="ceo-wordpress-staff" className="scroll-mt-4">
                     <WordPressStaffCard staff={wordpressStaff} />
                 </div>
 
-                <div id="recent-activity" className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4">
+                <div
+                    id="recent-activity"
+                    data-tour="ceo-recent-activity"
+                    className="border-sidebar-border/70 dark:border-sidebar-border scroll-mt-4 rounded-xl border p-4"
+                >
                     <h2 className="mb-2 text-sm font-semibold">Recent activity</h2>
                     <ul className="space-y-1">
                         {recentActivity.map((entry) => (
