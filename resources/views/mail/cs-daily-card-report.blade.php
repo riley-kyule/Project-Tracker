@@ -18,7 +18,13 @@ Approval is still pending — this snapshot reflects the employee's own submissi
 ## Commercial activity this week
 
 - New paying customers: **{{ $payload['commercial']['new_customers'] }}** · revenue {{ $payload['commercial']['currency'] }} {{ number_format($payload['commercial']['new_customer_revenue'], 2) }}
+@if ($payload['commercial']['new_customers_additional'] > 0 || $payload['commercial']['new_customer_revenue_additional'] > 0)
+  - Above target: +{{ $payload['commercial']['new_customers_additional'] }} customers, +{{ $payload['commercial']['currency'] }} {{ number_format($payload['commercial']['new_customer_revenue_additional'], 2) }}
+@endif
 - Renewed/reactivated customers: **{{ $payload['commercial']['renewed_customers'] }}** · revenue {{ $payload['commercial']['currency'] }} {{ number_format($payload['commercial']['retained_revenue'], 2) }}
+@if ($payload['commercial']['renewed_customers_additional'] > 0 || $payload['commercial']['retained_revenue_additional'] > 0)
+  - Above target: +{{ $payload['commercial']['renewed_customers_additional'] }} customers, +{{ $payload['commercial']['currency'] }} {{ number_format($payload['commercial']['retained_revenue_additional'], 2) }}
+@endif
 @endif
 
 @if (! empty($payload['kanban']))

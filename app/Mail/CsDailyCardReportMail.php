@@ -16,7 +16,7 @@ use Illuminate\Mail\Mailable;
  *     employee_name: string, role: ?string, department: string, work_date: string, card_id: int, closed_at: string,
  *     planned_points: int, employee_submitted_points: ?float, approved_points: ?float, quota_percentage: ?float,
  *     items: list<array{name: string, section: string, weight: float, target_quantity: ?float, achieved_quantity: ?float, employee_status: string, submitted_at: ?string, hod_decision: ?string, evidence_count: int, evidence: list<array{name: string, url: string}>}>,
- *     commercial: array{new_customers: int, new_customer_revenue: float, renewed_customers: int, retained_revenue: float, currency: string},
+ *     commercial: array{new_customers: int, new_customer_revenue: float, new_customers_additional: int, new_customer_revenue_additional: float, renewed_customers: int, retained_revenue: float, renewed_customers_additional: int, retained_revenue_additional: float, currency: string},
  *     kanban?: array{counts: array<string, int>, created: list<array{title: string, url: string}>, moved: list<array{title: string, url: string}>, completed: list<array{title: string, url: string}>, blocked: list<array{title: string, url: string}>, overdue: list<array{title: string, url: string}>},
  *     exceptions: list<array{name: string, employee_status: string, hod_decision: ?string, reason: ?string}>,
  *     audit_summary: list<string>,

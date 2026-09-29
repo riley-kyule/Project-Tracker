@@ -4,6 +4,7 @@ namespace App\Services\Cs;
 
 use App\Models\CompanySetting;
 use App\Models\CsComplaint;
+use App\Models\CsContinuityIssue;
 use App\Models\CsPlatformAssignment;
 use App\Models\CsSalesRecord;
 use App\Models\CsTaskTemplate;
@@ -109,6 +110,27 @@ class CsHodPanelData
                     'country' => $a->country,
                     'backup_employee_name' => $a->backupEmployee?->full_name,
                     'effective_from' => $a->effective_from->toDateString(),
+                    'effective_to' => $a->effective_to?->toDateString(),
+                ])->all(),
+            // §12 "retain the ... platform assignment effective at the time" —
+            // past assignments stay reachable with the date range they applied.
+            'pastPlatformAssignments' => CsPlatformAssignment::query()
+                ->where('is_active', false)
+                ->whereHas('employee.user', fn ($q) => $q->where('department_id', $csDepartment->id))
+                ->with(['employee', 'website', 'backupEmployee'])
+                ->orderByDesc('effective_to')
+                ->limit(50)
+                ->get()
+                ->map(fn (CsPlatformAssignment $a) => [
+                    'id' => $a->id,
+                    'employee_id' => $a->employee_id,
+                    'employee_name' => $a->employee?->full_name,
+                    'website_id' => $a->website_id,
+                    'website_domain' => $a->website?->domain,
+                    'country' => $a->country,
+                    'backup_employee_name' => $a->backupEmployee?->full_name,
+                    'effective_from' => $a->effective_from->toDateString(),
+                    'effective_to' => $a->effective_to?->toDateString(),
                 ])->all(),
             'openComplaints' => CsComplaint::query()
                 ->whereHas('employee.user', fn ($q) => $q->where('department_id', $csDepartment->id))
@@ -125,6 +147,26 @@ class CsHodPanelData
                     'reported_at' => $c->reported_at->toDateTimeString(),
                     'service_interaction_channel' => $c->serviceInteraction?->channel,
                     'evidence' => $c->evidence->map(fn ($e) => ['id' => $e->id, 'original_name' => $e->original_name])->all(),
+                ])->all(),
+            'openContinuityIssues' => CsContinuityIssue::query()
+                ->whereHas('employee.user', fn ($q) => $q->where('department_id', $csDepartment->id))
+                ->open()
+                ->with(['employee', 'evidence'])
+                ->orderByDesc('severity')
+                ->orderBy('first_reported_at')
+                ->limit(50)
+                ->get()
+                ->map(fn (CsContinuityIssue $i) => [
+                    'id' => $i->id,
+                    'employee_id' => $i->employee_id,
+                    'employee_name' => $i->employee?->full_name,
+                    'title' => $i->title,
+                    'description' => $i->description,
+                    'owner' => $i->owner,
+                    'severity' => $i->severity,
+                    'first_reported_at' => $i->first_reported_at->toDateTimeString(),
+                    'expected_resolution' => $i->expected_resolution?->toDateString(),
+                    'evidence' => $i->evidence->map(fn ($e) => ['id' => $e->id, 'original_name' => $e->original_name])->all(),
                 ])->all(),
             'dailyTemplates' => CsTaskTemplate::query()->active()->forCardType(CsTaskTemplate::CARD_TYPE_DAILY)->orderBy('position')->get(),
             'weeklyTemplates' => CsTaskTemplate::query()->active()->forCardType(CsTaskTemplate::CARD_TYPE_WEEKLY)->orderBy('position')->get(),

@@ -2,7 +2,11 @@
 
 namespace App\Services\Cs;
 
+use App\Models\CsActivityRecord;
+use App\Models\CsContinuityCheck;
+use App\Models\CsContinuityIssue;
 use App\Models\CsDailyCard;
+use App\Models\CsPlatformAssignment;
 use App\Models\CsServiceInteraction;
 use App\Models\CsWeeklyCard;
 use App\Models\User;
@@ -95,6 +99,54 @@ class CsEmployeeBoardData
                     'first_response_at' => $i->first_response_at?->toDateTimeString(),
                     'response_standard_minutes' => $i->response_standard_minutes,
                     'resolution_status' => $i->resolution_status,
+                ])->all(),
+            'activities' => CsActivityRecord::query()
+                ->where('employee_id', $employee->id)
+                ->whereDate('created_at', $today->toDateString())
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn (CsActivityRecord $a) => [
+                    'id' => $a->id,
+                    'workstream' => $a->workstream,
+                    'customer_identifier' => $a->customer_identifier,
+                    'channel' => $a->channel,
+                    'stage' => $a->stage,
+                    'next_action' => $a->next_action,
+                    'renewal_status' => $a->renewal_status,
+                    'created_at' => $a->created_at->toDateTimeString(),
+                ])->all(),
+            'platformAssignments' => CsPlatformAssignment::query()
+                ->active()
+                ->where('employee_id', $employee->id)
+                ->with('website')
+                ->get()
+                ->map(fn (CsPlatformAssignment $a) => [
+                    'id' => $a->id,
+                    'label' => $a->website?->domain ?? $a->country ?? "assignment #{$a->id}",
+                ])->all(),
+            'continuityChecks' => CsContinuityCheck::query()
+                ->where('employee_id', $employee->id)
+                ->whereDate('check_date', $today->toDateString())
+                ->get()
+                ->map(fn (CsContinuityCheck $c) => [
+                    'id' => $c->id,
+                    'check_type' => $c->check_type,
+                    'status' => $c->status,
+                    'notes' => $c->notes,
+                ])->all(),
+            'openIssues' => CsContinuityIssue::query()
+                ->where('employee_id', $employee->id)
+                ->open()
+                ->orderByDesc('severity')
+                ->get()
+                ->map(fn (CsContinuityIssue $i) => [
+                    'id' => $i->id,
+                    'title' => $i->title,
+                    'description' => $i->description,
+                    'owner' => $i->owner,
+                    'severity' => $i->severity,
+                    'first_reported_at' => $i->first_reported_at->toDateTimeString(),
+                    'expected_resolution' => $i->expected_resolution?->toDateString(),
                 ])->all(),
             'history' => $this->query->employeeSummary($employee, $range['from'], $range['to']),
             'range' => ['from' => $range['from']->toDateString(), 'to' => $range['to']->toDateString(), 'period' => $range['period']],
